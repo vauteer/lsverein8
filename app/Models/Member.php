@@ -7,6 +7,7 @@ use App\Models\Scopes\ClubScope;
 use Carbon\CarbonInterface;
 use Database\Factories\MemberFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -133,7 +134,7 @@ class Member extends Model
         return $entry;
     }
 
-    public function dueHonor(): int
+    public function honorThisYear(): int
     {
         $years = $this->membershipYears();
 
@@ -340,7 +341,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeMembers(Builder $query, ?CarbonInterface $keyDate = null): void
+    #[Scope]
+    protected function members(Builder $query, ?CarbonInterface $keyDate = null): void
     {
         $query->whereIn('id', self::memberIds($keyDate));
     }
@@ -348,7 +350,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeNoMembers(Builder $query, ?CarbonInterface $keyDate = null): void
+    #[Scope]
+    protected function noMembers(Builder $query, ?CarbonInterface $keyDate = null): void
     {
         $query->whereNotIn('id', self::memberIds($keyDate));
     }
@@ -357,7 +360,8 @@ class Member extends Model
      * @param  Builder<Member>  $query
      * @param  list<int>|int  $sections
      */
-    public function scopeInSections(Builder $query, array|int $sections, ?CarbonInterface $keyDate = null): void
+    #[Scope]
+    protected function inSections(Builder $query, array|int $sections, ?CarbonInterface $keyDate = null): void
     {
         $keyDate ??= self::getKeyDate();
 
@@ -380,7 +384,8 @@ class Member extends Model
      * @param  Builder<Member>  $query
      * @param  list<int>|int  $sections
      */
-    public function scopeInBlsvSections(Builder $query, array|int $sections, ?CarbonInterface $keyDate = null): void
+    #[Scope]
+    protected function inBlsvSections(Builder $query, array|int $sections, ?CarbonInterface $keyDate = null): void
     {
         $keyDate ??= self::getKeyDate();
 
@@ -403,7 +408,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeAgeRange(Builder $query, ?int $from, ?int $to): void
+    #[Scope]
+    protected function ageRange(Builder $query, ?int $from, ?int $to): void
     {
         if ($to !== null) {
             // geboren morgen vor ($to + 1) Jahren ab 00:00
@@ -418,7 +424,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeMilestoneBirthdays(Builder $query, ?int $year = null): void
+    #[Scope]
+    protected function milestoneBirthdays(Builder $query, ?int $year = null): void
     {
         $query->whereRaw('? - YEAR(birthday) in (50,60,70,80,90,100)', [$year ?? self::getKeyDate()->year]);
     }
@@ -426,7 +433,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeJoined(Builder $query, ?int $year = null): void
+    #[Scope]
+    protected function joined(Builder $query, ?int $year = null): void
     {
         $query->whereIn('id', ClubMember::whereRaw('YEAR(`from`) = ?', [$year ?? self::getKeyDate()->year])
             ->pluck('member_id'));
@@ -435,7 +443,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeRetired(Builder $query, ?int $year = null): void
+    #[Scope]
+    protected function retired(Builder $query, ?int $year = null): void
     {
         $query->whereIn('id', ClubMember::whereRaw('YEAR(`to`) = ?', [$year ?? self::getKeyDate()->year])
             ->pluck('member_id'));
@@ -444,7 +453,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeDead(Builder $query, ?int $year = null): void
+    #[Scope]
+    protected function dead(Builder $query, ?int $year = null): void
     {
         $query->whereRaw('(YEAR(`death_day`) = ?)', [$year ?? self::getKeyDate()->year]);
     }
@@ -453,7 +463,8 @@ class Member extends Model
      * @param  Builder<Member>  $query
      * @param  list<string>|string  $methods
      */
-    public function scopePaymentMethods(Builder $query, array|string $methods): void
+    #[Scope]
+    protected function paymentMethods(Builder $query, array|string $methods): void
     {
         $query->whereIn('payment_method', Arr::wrap($methods));
     }
@@ -461,7 +472,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeHasAccount(Builder $query): void
+    #[Scope]
+    protected function hasAccount(Builder $query): void
     {
         $query->where('iban', '<>', '');  // schliesst wohl auch NULL aus
     }
@@ -469,7 +481,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeHadEvent(Builder $query, ?int $id = null, ?CarbonInterface $keyDate = null): void
+    #[Scope]
+    protected function hadEvent(Builder $query, ?int $id = null, ?CarbonInterface $keyDate = null): void
     {
         $keyDate ??= self::getKeyDate();
 
@@ -483,7 +496,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeHasRole(Builder $query, ?int $id = null, ?CarbonInterface $keyDate = null): void
+    #[Scope]
+    protected function hasRole(Builder $query, ?int $id = null, ?CarbonInterface $keyDate = null): void
     {
         $keyDate ??= self::getKeyDate();
 
@@ -500,7 +514,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeEverRole(Builder $query, ?int $id = null, ?CarbonInterface $keyDate = null): void
+    #[Scope]
+    protected function everRole(Builder $query, ?int $id = null, ?CarbonInterface $keyDate = null): void
     {
         $keyDate ??= self::getKeyDate();
 
@@ -513,7 +528,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeHasItem(Builder $query, ?int $id = null, ?CarbonInterface $keyDate = null): void
+    #[Scope]
+    protected function hasItem(Builder $query, ?int $id = null, ?CarbonInterface $keyDate = null): void
     {
         $keyDate ??= self::getKeyDate();
 
@@ -530,7 +546,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeEverItem(Builder $query, ?int $id = null, ?CarbonInterface $keyDate = null): void
+    #[Scope]
+    protected function everItem(Builder $query, ?int $id = null, ?CarbonInterface $keyDate = null): void
     {
         $keyDate ??= self::getKeyDate();
 
@@ -544,7 +561,8 @@ class Member extends Model
      * @param  Builder<Member>  $query
      * @param  list<int>|int|null  $subscriptionTypes
      */
-    public function scopeHasSubscription(Builder $query, array|int|null $subscriptionTypes = null): void
+    #[Scope]
+    protected function hasSubscription(Builder $query, array|int|null $subscriptionTypes = null): void
     {
         $query->whereIn('id', MemberSubscription::when($subscriptionTypes,
             function ($query, $subscriptionTypes) {
@@ -556,7 +574,8 @@ class Member extends Model
      * @param  Builder<Member>  $query
      * @param  list<int>|int|null  $subscriptionTypes
      */
-    public function scopeNoSubscription(Builder $query, array|int|null $subscriptionTypes = null): void
+    #[Scope]
+    protected function noSubscription(Builder $query, array|int|null $subscriptionTypes = null): void
     {
         $query->whereNotIn('id', MemberSubscription::when($subscriptionTypes,
             function ($query, $subscriptionTypes) {
@@ -567,7 +586,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeDueHonor(Builder $query, ?CarbonInterface $keyDate = null): void
+    #[Scope]
+    protected function dueHonor(Builder $query, ?CarbonInterface $keyDate = null): void
     {
         $keyDate ??= self::getKeyDate();
 
@@ -591,7 +611,8 @@ class Member extends Model
     /**
      * @param  Builder<Member>  $query
      */
-    public function scopeLike(Builder $query, string $like): void
+    #[Scope]
+    protected function like(Builder $query, string $like): void
     {
         $like = '%'.$like.'%';
         $query->where(function ($query) use ($like) {

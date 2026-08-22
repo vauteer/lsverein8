@@ -14,7 +14,7 @@ The 17 models and 7 pivots came over from lsverein7 with behaviour preserved. Co
 - `Member::$_keyDate` is static global state driving every age/membership calculation. Reset it in `beforeEach`/`afterEach` or tests bleed into each other.
 - This app sets `Date::use(CarbonImmutable::class)`; lsverein7 did not. Type-hint `CarbonInterface`, never `Carbon`, or ported code fatals.
 - `Member::dueHonor()` is BOTH an instance method and a scope. `Member::dueHonor()` calls the instance method; reach the scope with `Member::query()->dueHonor()`.
-- These Member scopes use MySQL-only SQL (`YEAR`, `LEAST`, `FIND_IN_SET`) and cannot run on the SQLite test connection: `dueHonor`, `joined`, `retired`, `dead`, `milestoneBirthdays`. Test them by asserting the prepared statement from the thrown `QueryException`, or against MariaDB.
+- These Member scopes use MySQL-only SQL (`YEAR`, `LEAST`, `FIND_IN_SET`) and cannot run on the SQLite test connection: `honorThisYear`, `joined`, `retired`, `dead`, `milestoneBirthdays`. Test them by asserting the prepared statement from the thrown `QueryException`, or against MariaDB.
 - `app/Pdf` is excluded from phpstan (see phpstan.neon) because it subclasses the untyped fpdf/fpdf library. Everything else must stay clean at level 7; the only accepted error is the starter kit's `UserFactory::withTwoFactor()` stub.
 
 ## Models declare mass assignment with #[Fillable], never $guarded
@@ -34,3 +34,13 @@ Removed: `Features::emailVerification()` from config/fortify.php, the `verified`
 Do not add `MustVerifyEmail`, the `verified` middleware, or `Features::emailVerification()` back without first restoring the column and backfilling it for existing users.
 
 Unrelated trap worth knowing: `php artisan wayfinder:generate` must be run as `--with-form`. vite.config.ts sets `formVariants: true`, and a bare run silently strips the `.form` variants, which breaks `vue-tsc` across every auth and settings page.
+
+## Query scopes use #[Scope] on protected methods
+All 26 query scopes use the `#[Scope]` attribute on a `protected` method without the `scope` prefix (`#[Scope] protected function members(Builder $query, ...)`), not `public function scopeMembers()`.
+
+Two traps:
+
+- The method MUST be `protected`. Laravel only routes `Member::members()` through `__callStatic` when the method is inaccessible from the call site. A `public` scope method turns the same call into a static invocation of an instance method and fatals.
+- For the same reason, calling a model's own scope from inside that class statically fails — `Debit::due(...)` resolves the accessible protected method directly. Use `Debit::query()->due(...)`. Calls from other classes (`Member::members()` inside Club or Subscription) are fine, because protected is inaccessible there.
+
+The old `Member::dueHonor()` name clash is resolved: the accessor is now `honorThisYear()` and `dueHonor` is the scope. This supersedes the earlier note saying the scope was only reachable via `query()` — that applies to every scope now, only for calls made from within the declaring model.

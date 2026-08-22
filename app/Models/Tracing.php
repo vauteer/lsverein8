@@ -6,6 +6,7 @@ use App\Enums\ActionType;
 use Carbon\CarbonInterface;
 use Database\Factories\TracingFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -56,7 +57,8 @@ class Tracing extends Model
     /**
      * @param  Builder<Tracing>  $query
      */
-    public function scopeActionType(Builder $query, ActionType $actionType): void
+    #[Scope]
+    protected function actionType(Builder $query, ActionType $actionType): void
     {
         $query->where('action_type', $actionType);
     }

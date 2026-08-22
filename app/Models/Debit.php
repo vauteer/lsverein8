@@ -5,6 +5,7 @@ namespace App\Models;
 use Carbon\CarbonInterface;
 use Database\Factories\DebitFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -51,7 +52,8 @@ class Debit extends Model
     /**
      * @param  Builder<Debit>  $query
      */
-    public function scopeDue(Builder $query, ?CarbonInterface $date): void
+    #[Scope]
+    protected function due(Builder $query, ?CarbonInterface $date): void
     {
         $query->where('due_at', '<=', $date ?? now()->endOfDay());
     }
@@ -64,7 +66,7 @@ class Debit extends Model
      */
     public static function debit(CarbonInterface $executionDate): array
     {
-        $debits = Debit::due($executionDate)->get()
+        $debits = Debit::query()->due($executionDate)->get()
             ->map(fn (Debit $debit): array => [
                 'member_id' => $debit->member_id,
                 'amount' => $debit->amount,
@@ -72,7 +74,7 @@ class Debit extends Model
             ])
             ->all();
 
-        Debit::due($executionDate)->delete();
+        Debit::query()->due($executionDate)->delete();
 
         return [
             'downloads' => Subscription::generateSepa($debits, $executionDate),

@@ -8,6 +8,7 @@ use Carbon\CarbonInterface;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -96,7 +97,8 @@ class User extends Authenticatable
     /**
      * @param  Builder<User>  $query
      */
-    public function scopeHasClub(Builder $query, ?int $clubId = null): void
+    #[Scope]
+    protected function hasClub(Builder $query, ?int $clubId = null): void
     {
         $query->whereRaw(
             'users.id in (select user_id from club_user where club_id = ?)',
@@ -107,7 +109,8 @@ class User extends Authenticatable
     /**
      * @param  Builder<User>  $query
      */
-    public function scopeWithLastLoginAt(Builder $query): void
+    #[Scope]
+    protected function withLastLoginAt(Builder $query): void
     {
         $query->addSelect([
             'last_login_at' => Tracing::select('at')
@@ -121,7 +124,8 @@ class User extends Authenticatable
     /**
      * @param  Builder<User>  $query
      */
-    public function scopeWithRole(Builder $query, ?int $clubId = null): void
+    #[Scope]
+    protected function withRole(Builder $query, ?int $clubId = null): void
     {
         $query->addSelect([
             'role' => ClubUser::select('role')
@@ -134,7 +138,8 @@ class User extends Authenticatable
     /**
      * @param  Builder<User>  $query
      */
-    public function scopeOrderByLastLogin(Builder $query): void
+    #[Scope]
+    protected function orderByLastLogin(Builder $query): void
     {
         $query->orderByDesc(Tracing::select('at')
             ->whereColumn('user_id', 'users.id')

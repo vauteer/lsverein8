@@ -14,6 +14,8 @@ use App\Models\Subscription;
 use App\Models\Tracing;
 use App\Models\User;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 
 /**
@@ -306,4 +308,33 @@ it('still lets the framework write the remember token', function () {
     $user->save();
 
     expect($user->fresh()->getRememberToken())->toBe('abc123');
+});
+
+it('exposes attribute scopes without the scope prefix', function () {
+    $member = Member::factory()->ofClub($this->club)->create(['payment_method' => 'k']);
+    Member::factory()->ofClub($this->club)->create(['payment_method' => 'r']);
+
+    // resolved through __callStatic and on an existing builder
+    expect(Member::paymentMethods('k')->pluck('id')->all())->toBe([$member->id])
+        ->and(Member::query()->paymentMethods('k')->count())->toBe(1);
+});
+
+it('keeps the scope methods off the public surface', function () {
+    // protected, so a static call routes through __callStatic instead of
+    // invoking the instance method statically
+    $reflection = new ReflectionMethod(Member::class, 'members');
+
+    expect($reflection->isProtected())->toBeTrue()
+        ->and($reflection->getAttributes(Scope::class))->not->toBeEmpty();
+});
+
+it('separates the dueHonor scope from the honorThisYear accessor', function () {
+    $this->club->update(['honor_years' => '25,40']);
+    $member = Member::factory()->ofClub($this->club)->create();
+    $member->memberships()->attach($this->club->id, ['from' => '1999-01-01', 'to' => null]);
+
+    Member::$_keyDate = Carbon\Carbon::parse('2024-06-01');
+
+    // the scope of the same name is exercised in the captureDueHonorQuery tests
+    expect($member->honorThisYear())->toBe(25);
 });

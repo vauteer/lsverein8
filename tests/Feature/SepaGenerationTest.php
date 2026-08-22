@@ -46,8 +46,13 @@ it('generates the SEPA xml and the pdf cover sheet', function () {
 });
 
 it('splits subscription debits from outstanding payments', function () {
+    // explicit surnames: faker's pool is small enough that two members can collide
     $paying = memberWithDebit($this->club);
-    $invoiced = Member::factory()->ofClub($this->club)->create(['payment_method' => 'r']);
+    $paying->update(['surname' => 'Zahlerin']);
+    $invoiced = Member::factory()->ofClub($this->club)->create([
+        'payment_method' => 'r',
+        'surname' => 'Rechnungsempfaenger',
+    ]);
     $invoiced->memberships()->attach($this->club->id, ['from' => '2016-01-01', 'to' => null]);
 
     $subscription = Subscription::factory()->create([
