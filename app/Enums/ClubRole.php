@@ -1,0 +1,10 @@
+<?php
+
+namespace App\Enums;
+
+enum ClubRole: int
+{
+    case Basic = 1;
+    case Advanced = 128;
+    case Admin = 256;
+}
