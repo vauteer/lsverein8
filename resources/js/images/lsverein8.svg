@@ -1,28 +1,11 @@
-<script setup lang="ts">
-import type { HTMLAttributes } from 'vue';
-
-defineOptions({
-    inheritAttrs: false,
-});
-
-type Props = {
-    className?: HTMLAttributes['class'];
-};
-
-defineProps<Props>();
-</script>
-
-<template>
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 48">
+    <g
+        transform="scale(2)"
         fill="none"
-        stroke="currentColor"
+        stroke="#312e81"
         stroke-width="2"
         stroke-linecap="round"
         stroke-linejoin="round"
-        :class="className"
-        v-bind="$attrs"
     >
         <path
             d="M11 22c-3.806-1.45-7-3.966-7-9V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1v4"
@@ -36,5 +19,13 @@ defineProps<Props>();
         <path d="m20.467 16.547.923-.383" />
         <path d="m20.467 18.843.923.383" />
         <circle cx="17.695" cy="17.695" r="3" />
-    </svg>
-</template>
+    </g>
+    <text
+        x="58"
+        y="34"
+        font-family="Arial, Helvetica, sans-serif"
+        font-weight="800"
+        font-size="34"
+        fill="#312e81"
+    >LSVerein 8</text>
+</svg>

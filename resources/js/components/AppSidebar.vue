@@ -6,6 +6,7 @@ import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     Sidebar,
     SidebarContent,
@@ -49,6 +50,25 @@ const mainNavItems = computed<NavItem[]>(() => [
                             <AppLogo />
                         </Link>
                     </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem v-if="page.props.currentClub">
+                    <div class="flex items-center gap-2 px-1 py-1">
+                        <Avatar class="size-6 rounded-md">
+                            <AvatarImage
+                                v-if="page.props.currentClub.logo_url"
+                                :src="page.props.currentClub.logo_url"
+                                :alt="page.props.currentClub.name"
+                            />
+                            <AvatarFallback class="rounded-md text-xs">
+                                {{ page.props.currentClub.name.charAt(0) }}
+                            </AvatarFallback>
+                        </Avatar>
+                        <span
+                            class="truncate text-sm text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden"
+                        >
+                            {{ page.props.currentClub.name }}
+                        </span>
+                    </div>
                 </SidebarMenuItem>
             </SidebarMenu>
         </SidebarHeader>

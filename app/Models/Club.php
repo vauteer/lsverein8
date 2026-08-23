@@ -6,6 +6,7 @@ use App\Models\Scopes\ClubScope;
 use App\Pdf\BlsvPdf;
 use Carbon\CarbonInterface;
 use Database\Factories\ClubFactory;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
@@ -140,27 +142,44 @@ class Club extends Model
             ->get();
     }
 
-    public static function logoPath(string $stub = ''): string
+    /**
+     * The "public" disk, on which club logos are stored - resolved lazily
+     * (not cached in a static) so tests can swap in Storage::fake().
+     */
+    public static function logoDisk(): Filesystem
     {
-        return storage_path('app/public/logo').
-            DIRECTORY_SEPARATOR.
-            trim($stub, DIRECTORY_SEPARATOR);
+        return Storage::disk('public');
     }
 
-    public function logoURL(): string
+    public static function logoStoragePath(string $filename): string
     {
-        return ($this->logo && file_exists(self::logoPath($this->logo)))
-            ? asset('storage/logo/'.$this->logo)
-            : asset('images/no_logo.png');
+        return 'logo/'.trim($filename, '/');
+    }
+
+    /**
+     * The URL of the club's logo, or null when it has none. Callers render
+     * their own placeholder - lsverein7 pointed at an images/no_logo.png
+     * that this app does not ship.
+     */
+    public function logoURL(): ?string
+    {
+        if (! $this->logo) {
+            return null;
+        }
+
+        return self::logoDisk()->exists(self::logoStoragePath($this->logo))
+            ? self::logoDisk()->url(self::logoStoragePath($this->logo))
+            : null;
     }
 
     public static function removeOrphanLogos(): int
     {
         $count = 0;
+        $disk = self::logoDisk();
 
-        foreach (glob(self::logoPath('*')) ?: [] as $filename) {
-            if (Club::where('logo', basename($filename))->first() === null) {
-                unlink($filename);
+        foreach ($disk->files('logo') as $path) {
+            if (static::where('logo', basename($path))->first() === null) {
+                $disk->delete($path);
                 $count++;
             }
         }

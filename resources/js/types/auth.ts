@@ -13,3 +13,8 @@ export type Auth = {
     canManageUsers: boolean;
     impersonator: Pick<User, 'id' | 'name'> | null;
 };
+
+export type SharedClub = {
+    name: string;
+    logo_url: string | null;
+};

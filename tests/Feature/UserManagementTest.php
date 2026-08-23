@@ -382,3 +382,54 @@ test('orphaned profile images are removed', function () {
     Storage::disk('public')->assertExists('profile/behalten.png');
     Storage::disk('public')->assertMissing('profile/verwaist.png');
 });
+
+test('the current club is shared with its logo url', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('logo/wappen.png', 'binary');
+
+    $this->club->update(['name' => 'SSV Brand e.V.', 'logo' => 'wappen.png']);
+
+    $this->actingAs(clubUser())
+        ->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->where('currentClub.name', 'SSV Brand e.V.')
+            ->where('currentClub.logo_url', Storage::disk('public')->url('logo/wappen.png'))
+        );
+});
+
+test('a club without a logo shares a null url so the sidebar falls back', function () {
+    Storage::fake('public');
+
+    $this->club->update(['logo' => null]);
+
+    $this->actingAs(clubUser())
+        ->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('currentClub.logo_url', null));
+});
+
+test('a logo whose file is missing shares a null url', function () {
+    Storage::fake('public');
+
+    $this->club->update(['logo' => 'weg.png']);
+
+    expect($this->club->logoURL())->toBeNull();
+});
+
+test('guests do not resolve a current club', function () {
+    $this->get(route('login'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('currentClub', null));
+});
+
+test('orphaned club logos are removed', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('logo/behalten.png', 'binary');
+    Storage::disk('public')->put('logo/verwaist.png', 'binary');
+
+    $this->club->update(['logo' => 'behalten.png']);
+
+    expect(Club::removeOrphanLogos())->toBe(1);
+
+    Storage::disk('public')->assertExists('logo/behalten.png');
+    Storage::disk('public')->assertMissing('logo/verwaist.png');
+});

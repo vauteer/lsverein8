@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Club;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
@@ -39,6 +40,12 @@ class HandleInertiaRequests extends Middleware
     {
         $impersonatorId = $request->session()->get('impersonator_id');
 
+        // Not currentClub(): that helper dereferences auth()->user() and would
+        // fatal for guests, who still render the login page through here.
+        $currentClub = $request->user()?->club_id === null
+            ? null
+            : Club::find($request->user()->club_id);
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
@@ -51,6 +58,10 @@ class HandleInertiaRequests extends Middleware
                 'impersonator' => $impersonatorId === null
                     ? null
                     : User::find((int) $impersonatorId)?->only(['id', 'name']),
+            ],
+            'currentClub' => $currentClub === null ? null : [
+                'name' => $currentClub->name,
+                'logo_url' => $currentClub->logoURL(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
