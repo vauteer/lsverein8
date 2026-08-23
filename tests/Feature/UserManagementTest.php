@@ -8,6 +8,7 @@ use App\Models\Tracing;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * currentClubId() resolves to 1 on the CLI, so the whole user index is read
@@ -328,4 +329,56 @@ test('the club role pivot is what drives admin rights', function () {
     ClubUser::where('user_id', $user->id)->update(['role' => ClubRole::Admin->value]);
 
     expect(User::find($user->id)->hasAdminRights())->toBeTrue();
+});
+
+test('the avatar falls back to gravatar when no profile image is set', function () {
+    $user = clubUser(attributes: ['email' => 'gerald@example.test', 'profile_image' => null]);
+
+    expect($user->avatar)->toBe(
+        'https://www.gravatar.com/avatar/'.md5('gerald@example.test').'?d=mp&s=40'
+    );
+});
+
+test('the avatar resolves to the stored profile image', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('profile/foto.png', 'binary');
+
+    $user = clubUser(attributes: ['profile_image' => 'foto.png']);
+
+    expect($user->avatar)->toBe(Storage::disk('public')->url('profile/foto.png'));
+});
+
+test('a profile image whose file is gone is cleared and falls back', function () {
+    Storage::fake('public');
+
+    $user = clubUser(attributes: ['profile_image' => 'weg.png']);
+
+    expect($user->avatar)->toContain('gravatar.com')
+        ->and($user->fresh()->profile_image)->toBeNull();
+});
+
+test('the avatar is serialized to the frontend on every user payload', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('profile/foto.png', 'binary');
+
+    $admin = clubUser(attributes: ['profile_image' => 'foto.png']);
+
+    $this->actingAs($admin)
+        ->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->where('auth.user.avatar', Storage::disk('public')->url('profile/foto.png'))
+        );
+});
+
+test('orphaned profile images are removed', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('profile/behalten.png', 'binary');
+    Storage::disk('public')->put('profile/verwaist.png', 'binary');
+
+    clubUser(attributes: ['profile_image' => 'behalten.png']);
+
+    expect(User::removeOrphanProfileImages())->toBe(1);
+
+    Storage::disk('public')->assertExists('profile/behalten.png');
+    Storage::disk('public')->assertMissing('profile/verwaist.png');
 });

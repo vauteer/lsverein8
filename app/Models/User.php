@@ -6,16 +6,20 @@ use App\Enums\ActionType;
 use App\Enums\ClubRole;
 use Carbon\CarbonInterface;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Database\Eloquent\Attributes\Appends;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
@@ -25,6 +29,7 @@ use Illuminate\Notifications\Notifiable;
  * @property string|null $phone
  * @property bool $admin
  * @property string|null $profile_image
+ * @property-read string $avatar
  * @property string $locale
  * @property int|null $club_id
  * @property int|null $created_by
@@ -44,6 +49,7 @@ use Illuminate\Notifications\Notifiable;
     'created_by',
 ])]
 #[Hidden(['password', 'remember_token'])]
+#[Appends(['avatar'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -184,11 +190,22 @@ class User extends Authenticatable
         return $this->tracings()->actionType(ActionType::Login)->orderByDesc('at')->first()?->at;
     }
 
+    /**
+     * The URL of the user's profile picture, appended to every serialization
+     * so the frontend's UserInfo avatar always has a src to fall back on.
+     *
+     * @return Attribute<string, never>
+     */
+    protected function avatar(): Attribute
+    {
+        return Attribute::make(get: fn (): string => $this->profileURL());
+    }
+
     public function profileURL(): string
     {
         if ($this->profile_image) {
-            if (file_exists(public_path('storage/profile/'.$this->profile_image))) {
-                return asset('storage/profile/'.$this->profile_image);
+            if (self::profileDisk()->exists(self::profileStoragePath($this->profile_image))) {
+                return self::profileDisk()->url(self::profileStoragePath($this->profile_image));
             }
 
             $this->update(['profile_image' => null]);
@@ -199,20 +216,28 @@ class User extends Authenticatable
             '?d=mp&s=40';
     }
 
-    public static function profilePath(string $stub = ''): string
+    /**
+     * The "public" disk, on which profile images are stored - resolved
+     * lazily (not cached in a static) so tests can swap in Storage::fake().
+     */
+    public static function profileDisk(): Filesystem
     {
-        return storage_path('app/public/profile').
-            DIRECTORY_SEPARATOR.
-            trim($stub, DIRECTORY_SEPARATOR);
+        return Storage::disk('public');
+    }
+
+    public static function profileStoragePath(string $filename): string
+    {
+        return 'profile/'.trim($filename, '/');
     }
 
     public static function removeOrphanProfileImages(): int
     {
         $count = 0;
+        $disk = self::profileDisk();
 
-        foreach (glob(self::profilePath('*')) ?: [] as $filename) {
-            if (User::where('profile_image', basename($filename))->first() === null) {
-                unlink($filename);
+        foreach ($disk->files('profile') as $path) {
+            if (static::where('profile_image', basename($path))->first() === null) {
+                $disk->delete($path);
                 $count++;
             }
         }
