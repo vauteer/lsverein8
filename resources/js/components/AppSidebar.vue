@@ -80,7 +80,11 @@ const mainNavItems = computed<NavItem[]>(() => [
             <NavMain :items="mainNavItems" />
         </SidebarContent>
 
-        <SidebarFooter>
+        <!-- The mobile sheet sits flush against the viewport edge (unlike
+        the desktop sidebar's "inset" variant, which already has its own
+        margin), so it needs more clearance to keep the user menu from
+        being covered by Debugbar's toolbar docked at the bottom. -->
+        <SidebarFooter class="pb-20 md:pb-12">
             <NavUser />
         </SidebarFooter>
     </Sidebar>
