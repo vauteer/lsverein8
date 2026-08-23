@@ -52,7 +52,10 @@ const mainNavItems = computed<NavItem[]>(() => [
                     </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem v-if="page.props.currentClub">
-                    <div class="flex items-center gap-2 px-1 py-1">
+                    <!-- px-3, not the button's px-2: the wordmark SVG carries ~4px of
+                    leading whitespace before the glyph's stroke begins, so the
+                    avatar needs the same 12px inset to line up with it. -->
+                    <div class="flex items-center gap-2 px-3 py-1">
                         <Avatar class="size-6 rounded-md">
                             <AvatarImage
                                 v-if="page.props.currentClub.logo_url"
