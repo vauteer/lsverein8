@@ -232,14 +232,28 @@ class User extends Authenticatable
     }
 
     /**
-     * @return array<int, string>
+     * The selectable club roles, as {id, name} options for the frontend.
+     *
+     * @return list<array{id: int, name: string}>
      */
     public static function availableRoles(): array
     {
+        return array_map(
+            fn (ClubRole $role): array => ['id' => $role->value, 'name' => $role->label()],
+            ClubRole::cases()
+        );
+    }
+
+    /**
+     * The languages a user account can be set to.
+     *
+     * @return list<array{id: string, name: string}>
+     */
+    public static function availableLocales(): array
+    {
         return [
-            ClubRole::Basic->value => 'Basic',
-            ClubRole::Advanced->value => 'Advanced',
-            ClubRole::Admin->value => 'Admin',
+            ['id' => 'de', 'name' => __('German')],
+            ['id' => 'en', 'name' => __('English')],
         ];
     }
 }

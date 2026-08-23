@@ -10,4 +10,6 @@ export type User = {
 
 export type Auth = {
     user: User;
+    canManageUsers: boolean;
+    impersonator: Pick<User, 'id' | 'name'> | null;
 };

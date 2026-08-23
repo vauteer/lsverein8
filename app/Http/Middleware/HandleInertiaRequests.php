@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -35,11 +37,20 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $impersonatorId = $request->session()->get('impersonator_id');
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'locale' => App::getLocale(),
             'auth' => [
                 'user' => $request->user(),
+                'canManageUsers' => (bool) $request->user()?->hasAdminRights(),
+                // Set while a root account is logged in as somebody else, so
+                // the banner can name them and offer a way back.
+                'impersonator' => $impersonatorId === null
+                    ? null
+                    : User::find((int) $impersonatorId)?->only(['id', 'name']),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

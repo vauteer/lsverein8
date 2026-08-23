@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
+import i18n from 'laravel-vue-i18n/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -17,7 +18,10 @@ export default defineConfig({
                 }),
             ],
         }),
-        inertia(),
+        // The app boots browser-only (app.ts reads the page JSON from the DOM at
+        // module scope to know the locale before the first render), so opt out
+        // of the plugin's automatic SSR.
+        inertia({ ssr: false }),
         tailwindcss(),
         vue({
             template: {
@@ -30,6 +34,7 @@ export default defineConfig({
         wayfinder({
             formVariants: true,
         }),
+        i18n(),
     ],
     server: {
         watch: {
