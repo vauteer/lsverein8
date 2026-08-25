@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { Monitor, Moon, Sun } from '@lucide/vue';
+import { trans } from 'laravel-vue-i18n';
 import { useAppearance } from '@/composables/useAppearance';
 
 const { appearance, updateAppearance } = useAppearance();
 
 const tabs = [
-    { value: 'light', Icon: Sun, label: 'Light' },
-    { value: 'dark', Icon: Moon, label: 'Dark' },
-    { value: 'system', Icon: Monitor, label: 'System' },
+    { value: 'light', Icon: Sun, label: trans('Light') },
+    { value: 'dark', Icon: Moon, label: trans('Dark') },
+    { value: 'system', Icon: Monitor, label: trans('System') },
 ] as const;
 </script>
 

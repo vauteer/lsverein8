@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
+import { trans } from 'laravel-vue-i18n';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
@@ -9,15 +10,16 @@ import { store } from '@/routes/password/confirm';
 
 defineOptions({
     layout: {
-        title: 'Confirm password',
-        description:
+        title: trans('Confirm password'),
+        description: trans(
             'This is a secure area of the application. Please confirm your password before continuing.',
+        ),
     },
 });
 </script>
 
 <template>
-    <Head title="Confirm password" />
+    <Head :title="$t('Confirm password')" />
 
     <Form
         v-bind="store.form()"
@@ -26,7 +28,7 @@ defineOptions({
     >
         <div class="space-y-6">
             <div class="grid gap-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{{ $t('Password') }}</Label>
                 <PasswordInput
                     id="password"
                     name="password"
@@ -46,7 +48,7 @@ defineOptions({
                     data-test="confirm-password-button"
                 >
                     <Spinner v-if="processing" />
-                    Confirm password
+                    {{ $t('Confirm password') }}
                 </Button>
             </div>
         </div>

@@ -20,7 +20,7 @@ const decodeLabel = (label: string): string =>
 </script>
 
 <template>
-    <nav class="flex flex-wrap gap-1" aria-label="Pagination">
+    <nav class="flex flex-wrap gap-1" :aria-label="$t('Pagination')">
         <component
             :is="link.url ? Link : 'span'"
             v-for="(link, index) in links"

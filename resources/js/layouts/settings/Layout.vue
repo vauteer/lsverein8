@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import { trans } from 'laravel-vue-i18n';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -12,15 +13,15 @@ import type { NavItem } from '@/types';
 
 const sidebarNavItems: NavItem[] = [
     {
-        title: 'Profile',
+        title: trans('Profile'),
         href: editProfile(),
     },
     {
-        title: 'Security',
+        title: trans('Security'),
         href: editSecurity(),
     },
     {
-        title: 'Appearance',
+        title: trans('Appearance'),
         href: editAppearance(),
     },
 ];
@@ -31,15 +32,15 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
 <template>
     <div class="px-4 py-6">
         <Heading
-            title="Settings"
-            description="Manage your profile and account settings"
+            :title="$t('Settings')"
+            :description="$t('Manage your profile and account settings')"
         />
 
         <div class="flex flex-col lg:flex-row lg:space-x-12">
             <aside class="w-full max-w-xl lg:w-48">
                 <nav
                     class="flex flex-col space-y-1 space-x-0"
-                    aria-label="Settings"
+                    :aria-label="$t('Settings')"
                 >
                     <Button
                         v-for="item in sidebarNavItems"

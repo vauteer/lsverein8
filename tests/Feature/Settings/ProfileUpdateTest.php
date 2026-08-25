@@ -60,7 +60,7 @@ test('correct password must be provided to delete account', function () {
         ]);
 
     $response
-        ->assertSessionHasErrors('password')
+        ->assertSessionHasErrors(['password' => 'Das Passwort ist falsch.'])
         ->assertRedirect(route('profile.edit'));
 
     expect($user->fresh())->not->toBeNull();
