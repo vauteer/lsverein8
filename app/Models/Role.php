@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Scopes\SharedClubScope;
+use App\Models\Scopes\ClubWithSharedScope;
 use Carbon\CarbonInterface;
 use Database\Factories\RoleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  * @property-read MemberRole|null $pivot the pivot row when loaded through Member::roles()
  */
 #[Fillable(['club_id', 'name'])]
-#[ScopedBy([SharedClubScope::class])]
+#[ScopedBy([ClubWithSharedScope::class])]
 class Role extends Model
 {
     /** @use HasFactory<RoleFactory> */

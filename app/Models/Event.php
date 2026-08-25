@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Scopes\SharedClubScope;
+use App\Models\Scopes\ClubWithSharedScope;
 use Carbon\CarbonInterface;
 use Database\Factories\EventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\DB;
  * @property CarbonInterface|null $updated_at
  */
 #[Fillable(['club_id', 'name'])]
-#[ScopedBy([SharedClubScope::class])]
+#[ScopedBy([ClubWithSharedScope::class])]
 class Event extends Model
 {
     /** @use HasFactory<EventFactory> */

@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Scopes\SharedClubScope;
+use App\Models\Scopes\ClubWithSharedScope;
 use Carbon\CarbonInterface;
 use Database\Factories\SectionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\DB;
  * @property-read MemberSection|null $pivot the pivot row when loaded through Member::sections()
  */
 #[Fillable(['club_id', 'name', 'blsv_id'])]
-#[ScopedBy([SharedClubScope::class])]
+#[ScopedBy([ClubWithSharedScope::class])]
 class Section extends Model
 {
     /** @use HasFactory<SectionFactory> */
