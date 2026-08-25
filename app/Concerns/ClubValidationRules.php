@@ -2,6 +2,7 @@
 
 namespace App\Concerns;
 
+use App\Enums\ClubDisplay;
 use App\Models\Club;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -38,7 +39,7 @@ trait ClubValidationRules
             'bic' => ['required', 'string', 'regex:'.BIC_REGEX],
             'sepa' => ['nullable', 'string', 'max:191'],
             'sepa_date' => ['nullable', 'date'],
-            'display' => ['required', Rule::in(array_keys(Club::displayStyles()))],
+            'display' => ['required', Rule::enum(ClubDisplay::class)],
             'locale' => ['required', Rule::in(array_keys(Club::languages()))],
             // A comma separated list of membership years that trigger an
             // honour, e.g. "25,40,50". Member::honorThisYear() splits on it.

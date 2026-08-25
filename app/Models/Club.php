@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ClubDisplay;
 use App\Models\Scopes\ClubScope;
 use App\Pdf\BlsvPdf;
 use Carbon\CarbonInterface;
@@ -30,7 +31,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $sepa
  * @property CarbonInterface|null $sepa_date
  * @property string|null $logo
- * @property int $display
+ * @property ClubDisplay $display
  * @property string $locale
  * @property string|null $honor_years
  * @property bool $use_items
@@ -69,6 +70,7 @@ class Club extends Model
         return [
             'blsv_member' => 'boolean',
             'sepa_date' => 'datetime',
+            'display' => ClubDisplay::class,
         ];
     }
 
@@ -209,18 +211,6 @@ class Club extends Model
         }
 
         return $count;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    public static function displayStyles(): array
-    {
-        return [
-            '1' => 'Logo + Name',
-            '2' => 'Logo',
-            '3' => 'Name',
-        ];
     }
 
     /**

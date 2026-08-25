@@ -3,7 +3,7 @@ import { Form, usePage } from '@inertiajs/vue3';
 import { Check, ChevronsUpDown } from '@lucide/vue';
 import { computed } from 'vue';
 import ClubSwitchController from '@/actions/App/Http/Controllers/ClubSwitchController';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import ClubIdentity from '@/components/ClubIdentity.vue';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -32,22 +32,7 @@ const switchableClubs = computed(() => page.props.switchableClubs ?? []);
             v-if="switchableClubs.length === 0"
             class="flex items-center gap-2 px-3 py-1"
         >
-            <Avatar class="size-6 rounded-md">
-                <AvatarImage
-                    v-if="currentClub.logo_url"
-                    class="object-contain"
-                    :src="currentClub.logo_url"
-                    :alt="currentClub.name"
-                />
-                <AvatarFallback class="rounded-md text-xs">
-                    {{ currentClub.name.charAt(0) }}
-                </AvatarFallback>
-            </Avatar>
-            <span
-                class="truncate text-sm text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden"
-            >
-                {{ currentClub.name }}
-            </span>
+            <ClubIdentity :club="currentClub" />
         </div>
 
         <DropdownMenu v-else>
@@ -57,22 +42,7 @@ const switchableClubs = computed(() => page.props.switchableClubs ?? []);
                     class="flex w-full items-center gap-2 rounded-md px-3 py-1 text-left hover:bg-sidebar-accent"
                     :aria-label="$t('Switch club')"
                 >
-                    <Avatar class="size-6 rounded-md">
-                        <AvatarImage
-                            v-if="currentClub.logo_url"
-                            class="object-contain"
-                            :src="currentClub.logo_url"
-                            :alt="currentClub.name"
-                        />
-                        <AvatarFallback class="rounded-md text-xs">
-                            {{ currentClub.name.charAt(0) }}
-                        </AvatarFallback>
-                    </Avatar>
-                    <span
-                        class="truncate text-sm text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden"
-                    >
-                        {{ currentClub.name }}
-                    </span>
+                    <ClubIdentity :club="currentClub" />
                     <ChevronsUpDown
                         class="ml-auto size-4 shrink-0 text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden"
                     />

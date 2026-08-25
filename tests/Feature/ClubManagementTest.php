@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ClubDisplay;
 use App\Enums\ClubRole;
 use App\Models\Club;
 use App\Models\Member;
@@ -334,4 +335,71 @@ test('the edit page reports whether a logo is set', function () {
     $this->actingAs(clubManagementUser())
         ->get(route('clubs.edit', $this->club))
         ->assertInertia(fn ($page) => $page->where('club.has_logo', true));
+});
+
+test('the display setting is cast to the enum and drives the two flags', function () {
+    expect($this->club->display)->toBe(ClubDisplay::LogoAndName);
+
+    // Tuples, not an enum-keyed array: PHP array keys cannot be enums.
+    $cases = [
+        [ClubDisplay::LogoAndName, true, true],
+        [ClubDisplay::LogoOnly, true, false],
+        [ClubDisplay::NameOnly, false, true],
+    ];
+
+    foreach ($cases as [$display, $showsLogo, $showsName]) {
+        expect($display->showsLogo())->toBe($showsLogo)
+            ->and($display->showsName())->toBe($showsName);
+    }
+});
+
+test('the sidebar receives the display flags for the current club', function () {
+    $this->actingAs(clubManagementUser());
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->where('currentClub.show_logo', true)
+            ->where('currentClub.show_name', true));
+
+    $this->club->update(['display' => ClubDisplay::LogoOnly]);
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->where('currentClub.show_logo', true)
+            // A wordmark logo already carries the name.
+            ->where('currentClub.show_name', false));
+
+    $this->club->update(['display' => ClubDisplay::NameOnly]);
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->where('currentClub.show_logo', false)
+            ->where('currentClub.show_name', true));
+});
+
+test('the display setting can be changed and is validated', function () {
+    $this->actingAs(clubManagementUser())
+        ->put(route('clubs.update', $this->club), clubPayload([
+            'name' => 'TSV Musterstadt',
+            'display' => ClubDisplay::NameOnly->value,
+        ]))
+        ->assertSessionHasNoErrors();
+
+    expect($this->club->refresh()->display)->toBe(ClubDisplay::NameOnly);
+
+    $this->put(route('clubs.update', $this->club), clubPayload([
+        'name' => 'TSV Musterstadt',
+        'display' => 9,
+    ]))->assertSessionHasErrors('display');
+});
+
+test('the form offers the styles with translated labels', function () {
+    $this->actingAs(clubManagementUser(attributes: ['admin' => true]))
+        ->get(route('clubs.create'))
+        ->assertInertia(fn ($page) => $page
+            ->has('displayStyles', 3)
+            ->where('displayStyles.0.id', ClubDisplay::LogoAndName->value)
+            // Was a hardcoded German string before the enum; it now goes
+            // through __() like every other label.
+            ->where('displayStyles.0.name', __('Logo and name')));
 });

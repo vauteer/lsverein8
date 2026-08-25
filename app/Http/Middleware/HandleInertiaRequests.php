@@ -73,6 +73,11 @@ class HandleInertiaRequests extends Middleware
                 'id' => $currentClub->id,
                 'name' => $currentClub->name,
                 'logo_url' => $currentClub->logoURL(),
+                // Resolved server-side rather than shipping the raw enum: a
+                // wordmark logo already carries the name, so repeating it
+                // beside the image is what this setting exists to prevent.
+                'show_logo' => $currentClub->display->showsLogo(),
+                'show_name' => $currentClub->display->showsName(),
             ],
             // The clubs this user may switch between, for the sidebar picker.
             // Only their own memberships: a root account switches to a club it

@@ -22,6 +22,9 @@ export type SharedClub = {
     id: number;
     name: string;
     logo_url: string | null;
+    /** From Club.display: a wordmark logo already contains the name. */
+    show_logo: boolean;
+    show_name: boolean;
 };
 
 /** One entry of the sidebar club picker. Empty list when there is one club. */
