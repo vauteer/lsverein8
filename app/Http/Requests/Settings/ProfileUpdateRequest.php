@@ -17,6 +17,21 @@ class ProfileUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
-        return $this->profileRules($this->user()->id);
+        return [
+            ...$this->profileRules($this->user()->id),
+            'profile_image' => ['nullable', 'image', 'max:2048'],
+            'remove_profile_image' => ['nullable', 'boolean'],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function messages(): array
+    {
+        return [
+            'profile_image.image' => __('The profile photo must be an image.'),
+            'profile_image.max' => __('The profile photo may not be larger than 2 MB.'),
+        ];
     }
 }

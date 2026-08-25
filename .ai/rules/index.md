@@ -9,3 +9,4 @@ Before planning or editing, find the row whose globs match the file's path and r
 | resources/js/** | .ai/rules/js.md |
 | database/migrations/** | .ai/rules/migrations.md |
 | app/Models/**, app/Models/User.php | .ai/rules/models.md |
+| app/Http/Controllers/Settings/** | .ai/rules/settings.md |

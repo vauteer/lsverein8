@@ -35,6 +35,7 @@ const switchableClubs = computed(() => page.props.switchableClubs ?? []);
             <Avatar class="size-6 rounded-md">
                 <AvatarImage
                     v-if="currentClub.logo_url"
+                    class="object-contain"
                     :src="currentClub.logo_url"
                     :alt="currentClub.name"
                 />
@@ -59,6 +60,7 @@ const switchableClubs = computed(() => page.props.switchableClubs ?? []);
                     <Avatar class="size-6 rounded-md">
                         <AvatarImage
                             v-if="currentClub.logo_url"
+                            class="object-contain"
                             :src="currentClub.logo_url"
                             :alt="currentClub.name"
                         />

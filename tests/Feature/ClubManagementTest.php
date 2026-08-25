@@ -5,6 +5,7 @@ use App\Models\Club;
 use App\Models\Member;
 use App\Models\Subscription;
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * currentClubId() resolves to 1 on the CLI, so every request is read as though
@@ -229,4 +230,20 @@ test('a club admin may not delete any club', function () {
     $this->actingAs(clubManagementUser())
         ->delete(route('clubs.destroy', $empty))
         ->assertForbidden();
+});
+
+test('the logo sweep leaves the directory .gitignore alone', function () {
+    // Same dotfile guard as User::removeOrphanProfileImages(); the club logo
+    // upload does not exist yet, so this pins the helper directly.
+    Storage::fake('public');
+    Storage::disk('public')->put(Club::logoStoragePath('.gitignore'), "*\n!.gitignore\n");
+    Storage::disk('public')->put(Club::logoStoragePath('orphan.png'), 'nobody points here');
+    Club::factory()->create(['logo' => 'wappen.png']);
+    Storage::disk('public')->put(Club::logoStoragePath('wappen.png'), 'referenced');
+
+    expect(Club::removeOrphanLogos())->toBe(1);
+
+    Storage::disk('public')->assertExists(Club::logoStoragePath('.gitignore'));
+    Storage::disk('public')->assertExists(Club::logoStoragePath('wappen.png'));
+    Storage::disk('public')->assertMissing(Club::logoStoragePath('orphan.png'));
 });

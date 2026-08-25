@@ -114,6 +114,7 @@ defineOptions({
                                 <Avatar class="size-6 rounded-md">
                                     <AvatarImage
                                         v-if="club.logo_url"
+                                        class="object-contain"
                                         :src="club.logo_url"
                                         :alt="club.name"
                                     />

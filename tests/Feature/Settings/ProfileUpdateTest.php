@@ -1,6 +1,17 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+
+/**
+ * Every test in this file, not just the upload ones: ProfileController::update()
+ * sweeps orphaned files on the public disk, so without a fake even a plain
+ * name change reaches storage/app/public and deletes real files.
+ */
+beforeEach(function () {
+    Storage::fake('public');
+});
 
 test('profile page is displayed', function () {
     $user = User::factory()->create();
@@ -64,4 +75,147 @@ test('correct password must be provided to delete account', function () {
         ->assertRedirect(route('profile.edit'));
 
     expect($user->fresh())->not->toBeNull();
+});
+
+test('a profile photo can be uploaded', function () {
+    Storage::fake('public');
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'profile_image' => UploadedFile::fake()->image('avatar.jpg'),
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('profile.edit'));
+
+    $filename = $user->refresh()->profile_image;
+
+    expect($filename)->not->toBeNull();
+    Storage::disk('public')->assertExists(User::profileStoragePath($filename));
+});
+
+test('replacing the photo deletes the file it replaced', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put(User::profileStoragePath('old.jpg'), 'fake image contents');
+    $user = User::factory()->create(['profile_image' => 'old.jpg']);
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'profile_image' => UploadedFile::fake()->image('avatar.jpg'),
+        ])
+        ->assertSessionHasNoErrors();
+
+    $filename = $user->refresh()->profile_image;
+
+    expect($filename)->not->toBe('old.jpg');
+    Storage::disk('public')->assertMissing(User::profileStoragePath('old.jpg'));
+    Storage::disk('public')->assertExists(User::profileStoragePath($filename));
+});
+
+test('the photo can be removed again', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put(User::profileStoragePath('old.jpg'), 'fake image contents');
+    $user = User::factory()->create(['profile_image' => 'old.jpg']);
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'remove_profile_image' => '1',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($user->refresh()->profile_image)->toBeNull();
+    Storage::disk('public')->assertMissing(User::profileStoragePath('old.jpg'));
+});
+
+test('removing wins over a file sent in the same request', function () {
+    Storage::fake('public');
+    $user = User::factory()->create(['profile_image' => 'old.jpg']);
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'remove_profile_image' => '1',
+            'profile_image' => UploadedFile::fake()->image('avatar.jpg'),
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($user->refresh()->profile_image)->toBeNull();
+});
+
+test('the profile photo must be an image and stay under 2 MB', function () {
+    Storage::fake('public');
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'profile_image' => UploadedFile::fake()->create('document.pdf', 100),
+        ])
+        ->assertSessionHasErrors('profile_image');
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'profile_image' => UploadedFile::fake()->image('huge.jpg')->size(3000),
+        ])
+        ->assertSessionHasErrors('profile_image');
+
+    expect($user->refresh()->profile_image)->toBeNull();
+});
+
+test('an update without a photo leaves the existing one alone', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put(User::profileStoragePath('keep.jpg'), 'fake image contents');
+    $user = User::factory()->create(['profile_image' => 'keep.jpg']);
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), [
+            'name' => 'Neuer Name',
+            'email' => $user->email,
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($user->refresh()->profile_image)->toBe('keep.jpg')
+        ->and($user->name)->toBe('Neuer Name');
+    Storage::disk('public')->assertExists(User::profileStoragePath('keep.jpg'));
+});
+
+test('the edit page reports whether a custom photo exists', function () {
+    $without = User::factory()->create();
+
+    $this->actingAs($without)
+        ->get(route('profile.edit'))
+        ->assertInertia(fn ($page) => $page->where('hasProfileImage', false));
+
+    $with = User::factory()->create(['profile_image' => 'own.jpg']);
+
+    $this->actingAs($with)
+        ->get(route('profile.edit'))
+        ->assertInertia(fn ($page) => $page->where('hasProfileImage', true));
+});
+
+test('the orphan sweep leaves the directory .gitignore alone', function () {
+    // storage/app/public/profile/.gitignore is what keeps the directory in the
+    // repository. Nothing references it, so an unfiltered sweep deletes it —
+    // which is exactly what happened before the dotfile guard.
+    Storage::disk('public')->put(User::profileStoragePath('.gitignore'), "*\n!.gitignore\n");
+    Storage::disk('public')->put(User::profileStoragePath('orphan.jpg'), 'nobody points here');
+
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), ['name' => 'Neuer Name', 'email' => $user->email])
+        ->assertSessionHasNoErrors();
+
+    Storage::disk('public')->assertExists(User::profileStoragePath('.gitignore'));
+    Storage::disk('public')->assertMissing(User::profileStoragePath('orphan.jpg'));
 });
