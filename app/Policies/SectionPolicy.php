@@ -28,8 +28,10 @@ class SectionPolicy
     public function update(User $user, Section $section): bool
     {
         if ($section->club_id === null) {
-            // (bool): `admin` is nullable in the database, so the boolean cast
-            // still yields null for accounts that never had the flag set.
+            // (bool): `users.admin` is `NOT NULL DEFAULT 0`, but a model that
+            // was created without an explicit `admin` never loads that default
+            // back, so the attribute is absent and `$user->admin` is null
+            // until the row is re-read. Casting keeps the bool return honest.
             return (bool) $user->admin;
         }
 

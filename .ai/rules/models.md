@@ -51,3 +51,10 @@ Two-factor authentication was removed on 2026-08-25, for the same reason email v
 Removed: `UserFactory::withTwoFactor()`, `App\Http\Requests\Settings\TwoFactorAuthenticationRequest` (SecurityController::edit() now takes no argument), the 2FA test in tests/Feature/Auth/AuthenticationTest.php and the three in tests/Feature/Settings/SecurityTest.php. `TestCase::skipUnlessFortifyHas()` stays — PasswordResetTest still guards on `Features::resetPasswords()`.
 
 The empty `withTwoFactor(): static {}` stub was also the single phpstan error that had kept GitHub Actions red on every push since the initial commit. To bring 2FA back you need all of it: the Fortify migration, the trait on User, the feature in config/fortify.php, and the frontend — the starter kit's Vue pages for it were never ported. Related: the email-verification removal note above.
+
+## users.admin is NOT NULL, but $user->admin is null on an unrefreshed model
+`users.admin` is `boolean NOT NULL DEFAULT 0` — verified with SHOW COLUMNS against the live database. It is never null in the table, and `User` casts it to `boolean`.
+
+The null comes from the model, not the column. `User::factory()->create()` (or any `create()`) without an explicit `admin` does not read the column default back into the instance, so the attribute is simply absent from `getAttributes()` and `$user->admin` returns null until the row is re-read. Anything typed `: bool` that returns `$user->admin` raw will fatal — that is why SectionPolicy, EventPolicy and the `viewLogViewer` gate all cast with `(bool)`.
+
+Do not "simplify" those casts away, and do not repeat the older explanation that the column is nullable: it is not, and that wording caused the cast to be removed once and broke seven tests.
