@@ -80,6 +80,18 @@ export type EventFormData = {
     name: string;
 };
 
+/**
+ * A backup file as sent to the index listing. `date`, `age` and `size` are
+ * pre-formatted server-side; the raw timestamp is deliberately not exposed.
+ */
+export type BackupResource = {
+    id: number;
+    date: string;
+    filename: string;
+    age: string;
+    size: string;
+};
+
 export type PaginationLink = {
     url: string | null;
     label: string;

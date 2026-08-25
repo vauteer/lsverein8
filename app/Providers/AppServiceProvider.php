@@ -45,6 +45,10 @@ class AppServiceProvider extends ServiceProvider
         // (bool): see SectionPolicy — a freshly created model has no `admin`
         // attribute loaded, so the raw value is null rather than false.
         Gate::define('viewLogViewer', fn (User $user): bool => (bool) $user->admin);
+
+        // A backup is the whole database — every club — and a restore replaces
+        // it wholesale, so this is root-only for the same reason.
+        Gate::define('manageBackups', fn (User $user): bool => (bool) $user->admin);
     }
 
     /**

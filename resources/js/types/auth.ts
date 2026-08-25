@@ -12,6 +12,7 @@ export type Auth = {
     user: User;
     canManageUsers: boolean;
     canViewLogs: boolean;
+    canManageBackups: boolean;
     impersonator: Pick<User, 'id' | 'name'> | null;
 };
 

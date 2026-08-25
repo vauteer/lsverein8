@@ -56,6 +56,7 @@ class HandleInertiaRequests extends Middleware
                 // Resolved through the gate rather than reading users.admin
                 // again, so the sidebar entry and the route cannot disagree.
                 'canViewLogs' => (bool) $request->user()?->can('viewLogViewer'),
+                'canManageBackups' => (bool) $request->user()?->can('manageBackups'),
                 // Set while a root account is logged in as somebody else, so
                 // the banner can name them and offer a way back.
                 'impersonator' => $impersonatorId === null

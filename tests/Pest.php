@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /*
@@ -44,7 +45,24 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Backdate every table Backup::isDirty() consults, so a test can assert
+ * "nothing has changed since the last backup".
+ *
+ * A fresh test database is never quiet on its own: the insert_roles_defaults
+ * and insert_events_defaults migrations stamp their rows with the time the
+ * migration ran, and factories stamp the current time, so isDirty() sees a
+ * change unless those rows are pushed into the past first.
+ */
+function settleTrackedTables(): void
 {
-    // ..
+    $tables = [
+        'clubs', 'club_member', 'club_user', 'debits', 'events', 'event_member',
+        'items', 'item_member', 'members', 'member_role', 'member_section',
+        'member_subscription', 'roles', 'sections', 'subscriptions', 'users',
+    ];
+
+    foreach ($tables as $table) {
+        DB::table($table)->update(['updated_at' => now()->subWeek()]);
+    }
 }

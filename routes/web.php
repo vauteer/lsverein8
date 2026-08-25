@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BackupController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\SectionController;
@@ -57,6 +58,16 @@ Route::middleware(['auth'])->group(function () {
         ->name('events.update')->can('update', 'event');
     Route::delete('events/{event}', [EventController::class, 'destroy'])
         ->name('events.destroy')->can('delete', 'event');
+
+    // Root-only; a backup spans every club. {filename} is validated against
+    // the listing in the controller, so it cannot escape the directory.
+    Route::middleware('can:manageBackups')->group(function () {
+        Route::get('backups', [BackupController::class, 'index'])->name('backups.index');
+        Route::post('backups', [BackupController::class, 'store'])->name('backups.store');
+        Route::get('backups/{filename}', [BackupController::class, 'download'])->name('backups.download');
+        Route::post('backups/{filename}/restore', [BackupController::class, 'restore'])->name('backups.restore');
+        Route::delete('backups/{filename}', [BackupController::class, 'destroy'])->name('backups.destroy');
+    });
 });
 
 require __DIR__.'/settings.php';

@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { Award, FileText, LayoutGrid, Shapes, Users } from '@lucide/vue';
+import {
+    Award,
+    DatabaseBackup,
+    FileText,
+    LayoutGrid,
+    Shapes,
+    Users,
+} from '@lucide/vue';
 import { wTrans } from 'laravel-vue-i18n';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -17,6 +24,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as backups } from '@/routes/backups';
 import { index as events } from '@/routes/events';
 import { index as logViewer } from '@/routes/log-viewer';
 import { index as sections } from '@/routes/sections';
@@ -47,6 +55,16 @@ const mainNavItems = computed<NavItem[]>(() => [
                   title: wTrans('Users').value,
                   href: users(),
                   icon: Users,
+              },
+          ]
+        : []),
+    // Root accounts only: a backup is the whole database, every club at once.
+    ...(page.props.auth.canManageBackups
+        ? [
+              {
+                  title: wTrans('Backups').value,
+                  href: backups(),
+                  icon: DatabaseBackup,
               },
           ]
         : []),
