@@ -5,6 +5,7 @@ use App\Models\Club;
 use App\Models\Member;
 use App\Models\Subscription;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -173,7 +174,7 @@ test('honor_years must be a comma separated list of years', function () {
     ]))->assertSessionHasErrors('honor_years');
 });
 
-test('the logo column survives an update, since there is no upload yet', function () {
+test('an update without a logo leaves the existing one alone', function () {
     $this->club->update(['logo' => 'wappen.png']);
 
     $this->actingAs(clubManagementUser())
@@ -234,7 +235,7 @@ test('a club admin may not delete any club', function () {
 
 test('the logo sweep leaves the directory .gitignore alone', function () {
     // Same dotfile guard as User::removeOrphanProfileImages(); the club logo
-    // upload does not exist yet, so this pins the helper directly.
+    // upload lives in the controller, so this pins the helper directly.
     Storage::disk('public')->put(Club::logoStoragePath('.gitignore'), "*\n!.gitignore\n");
     Storage::disk('public')->put(Club::logoStoragePath('orphan.png'), 'nobody points here');
     Club::factory()->create(['logo' => 'wappen.png']);
@@ -245,4 +246,92 @@ test('the logo sweep leaves the directory .gitignore alone', function () {
     Storage::disk('public')->assertExists(Club::logoStoragePath('.gitignore'));
     Storage::disk('public')->assertExists(Club::logoStoragePath('wappen.png'));
     Storage::disk('public')->assertMissing(Club::logoStoragePath('orphan.png'));
+});
+
+test('a logo can be uploaded when creating a club', function () {
+    $this->actingAs(clubManagementUser(attributes: ['admin' => true]))
+        ->post(route('clubs.store'), clubPayload([
+            'logo' => UploadedFile::fake()->image('wappen.png'),
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $filename = Club::where('name', 'FF Musterdorf')->value('logo');
+
+    expect($filename)->not->toBeNull();
+    Storage::disk('public')->assertExists(Club::logoStoragePath($filename));
+});
+
+test('replacing the logo deletes the file it replaced', function () {
+    Storage::disk('public')->put(Club::logoStoragePath('old.png'), 'fake image contents');
+    $this->club->update(['logo' => 'old.png']);
+
+    $this->actingAs(clubManagementUser())
+        ->put(route('clubs.update', $this->club), clubPayload([
+            'name' => 'TSV Musterstadt',
+            'logo' => UploadedFile::fake()->image('neu.png'),
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $filename = $this->club->refresh()->logo;
+
+    expect($filename)->not->toBe('old.png');
+    Storage::disk('public')->assertMissing(Club::logoStoragePath('old.png'));
+    Storage::disk('public')->assertExists(Club::logoStoragePath($filename));
+});
+
+test('the logo can be removed again', function () {
+    Storage::disk('public')->put(Club::logoStoragePath('old.png'), 'fake image contents');
+    $this->club->update(['logo' => 'old.png']);
+
+    $this->actingAs(clubManagementUser())
+        ->put(route('clubs.update', $this->club), clubPayload([
+            'name' => 'TSV Musterstadt',
+            'remove_logo' => '1',
+        ]))
+        ->assertSessionHasNoErrors();
+
+    expect($this->club->refresh()->logo)->toBeNull();
+    Storage::disk('public')->assertMissing(Club::logoStoragePath('old.png'));
+});
+
+test('removing wins over a logo sent in the same request', function () {
+    $this->club->update(['logo' => 'old.png']);
+
+    $this->actingAs(clubManagementUser())
+        ->put(route('clubs.update', $this->club), clubPayload([
+            'name' => 'TSV Musterstadt',
+            'remove_logo' => '1',
+            'logo' => UploadedFile::fake()->image('neu.png'),
+        ]))
+        ->assertSessionHasNoErrors();
+
+    expect($this->club->refresh()->logo)->toBeNull();
+});
+
+test('the logo must be an image and stay under 2 MB', function () {
+    $this->actingAs(clubManagementUser());
+
+    $this->put(route('clubs.update', $this->club), clubPayload([
+        'name' => 'TSV Musterstadt',
+        'logo' => UploadedFile::fake()->create('satzung.pdf', 100),
+    ]))->assertSessionHasErrors('logo');
+
+    $this->put(route('clubs.update', $this->club), clubPayload([
+        'name' => 'TSV Musterstadt',
+        'logo' => UploadedFile::fake()->image('riesig.png')->size(3000),
+    ]))->assertSessionHasErrors('logo');
+
+    expect($this->club->refresh()->logo)->toBeNull();
+});
+
+test('the edit page reports whether a logo is set', function () {
+    $this->actingAs(clubManagementUser())
+        ->get(route('clubs.edit', $this->club))
+        ->assertInertia(fn ($page) => $page->where('club.has_logo', false));
+
+    $this->club->update(['logo' => 'wappen.png']);
+
+    $this->actingAs(clubManagementUser())
+        ->get(route('clubs.edit', $this->club))
+        ->assertInertia(fn ($page) => $page->where('club.has_logo', true));
 });

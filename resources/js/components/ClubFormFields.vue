@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref, useTemplateRef } from 'vue';
 import InputError from '@/components/InputError.vue';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +22,40 @@ const props = defineProps<{
     errors: Record<string, string>;
 }>();
 
+const fileInput = useTemplateRef<HTMLInputElement>('fileInput');
+const preview = ref<string | null>(null);
+const removeLogo = ref(false);
+const hasLogo = ref(props.club?.has_logo ?? false);
+
+/** Chosen file wins, then "removed", otherwise whatever the server serves. */
+const logoSrc = computed(
+    () =>
+        preview.value ??
+        (removeLogo.value ? null : (props.club?.logo_url ?? null)),
+);
+
+function onLogoChange(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+
+    if (!file) {
+        return;
+    }
+
+    removeLogo.value = false;
+    hasLogo.value = true;
+    preview.value = URL.createObjectURL(file);
+}
+
+function removeLogoFile() {
+    removeLogo.value = true;
+    hasLogo.value = false;
+    preview.value = null;
+
+    if (fileInput.value) {
+        fileInput.value.value = '';
+    }
+}
+
 const display = ref(String(props.club?.display ?? props.displayStyles[0].id));
 const locale = ref(props.club?.locale ?? props.languages[0].id);
 const blsvMember = ref(props.club?.blsv_member ?? false);
@@ -28,6 +64,52 @@ const useItems = ref(props.club?.use_items ?? false);
 
 <template>
     <div class="grid gap-6">
+        <div class="grid gap-2">
+            <Label>{{ $t('Logo') }}</Label>
+            <div class="flex items-center gap-4">
+                <Avatar class="size-16 rounded-lg">
+                    <!-- contain, not cover: cropping a wordmark to a square
+                    can cut the club name out of it. -->
+                    <AvatarImage
+                        v-if="logoSrc"
+                        class="object-contain"
+                        :src="logoSrc"
+                        :alt="club?.name ?? ''"
+                    />
+                    <AvatarFallback
+                        class="rounded-lg text-black dark:text-white"
+                    >
+                        {{ (club?.name ?? '?').charAt(0) }}
+                    </AvatarFallback>
+                </Avatar>
+                <div class="flex flex-col items-start gap-2">
+                    <input
+                        ref="fileInput"
+                        type="file"
+                        name="logo"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                        class="text-sm text-muted-foreground file:mr-3 file:inline-flex file:h-7 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:text-sm file:font-medium file:text-secondary-foreground"
+                        @change="onLogoChange"
+                    />
+                    <input
+                        type="hidden"
+                        name="remove_logo"
+                        :value="removeLogo ? '1' : '0'"
+                    />
+                    <Button
+                        v-if="hasLogo"
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        @click="removeLogoFile"
+                    >
+                        {{ $t('Remove logo') }}
+                    </Button>
+                </div>
+            </div>
+            <InputError :message="errors.logo" />
+        </div>
+
         <div class="grid gap-2">
             <Label for="name">{{ $t('Name') }}</Label>
             <Input

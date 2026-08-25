@@ -12,8 +12,8 @@ trait ClubValidationRules
     /**
      * Get the validation rules used to validate a club.
      *
-     * `logo` is deliberately absent: this app has no image upload yet, so the
-     * column is preserved on update rather than accepted from the request.
+     * `logo` is the uploaded file, not the stored filename — the controller
+     * writes the column itself, so it must never be mass-assigned.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -45,6 +45,8 @@ trait ClubValidationRules
             'honor_years' => ['nullable', 'string', 'regex:/^\d{1,2}(,\d{1,2})*$/'],
             'blsv_member' => ['boolean'],
             'use_items' => ['boolean'],
+            'logo' => ['nullable', 'image', 'max:2048'],
+            'remove_logo' => ['nullable', 'boolean'],
         ];
     }
 
@@ -82,6 +84,8 @@ trait ClubValidationRules
             'account_owner.regex' => __(':attribute may only contain characters the SEPA format allows.'),
             'bic.regex' => __('The BIC is invalid.'),
             'honor_years.regex' => __(':attribute must be a comma separated list of years, e.g. 25,40,50.'),
+            'logo.image' => __('The logo must be an image.'),
+            'logo.max' => __('The logo may not be larger than 2 MB.'),
         ];
     }
 
@@ -106,6 +110,7 @@ trait ClubValidationRules
             'honor_years' => __('Honour after years of membership'),
             'blsv_member' => __('BLSV member'),
             'use_items' => __('Use inventory'),
+            'logo' => __('Logo'),
         ];
     }
 }

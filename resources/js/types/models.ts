@@ -153,6 +153,7 @@ export type ClubFormData = {
     blsv_member: boolean;
     use_items: boolean;
     logo_url: string | null;
+    has_logo: boolean;
 };
 
 export type PaginationLink = {

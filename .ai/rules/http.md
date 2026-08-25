@@ -50,4 +50,6 @@ Fallstricke:
 
 Der Wechsel schreibt `users.club_id` (ClubSwitchController), nicht Session-State — wie lsverein7, überlebt Logout. In Tests ist das nicht über die Scopes beobachtbar: `currentClubId()` liefert auf der CLI immer 1. Tests müssen `users.club_id` direkt prüfen, und wer die "aktueller Verein"-Sperre testen will, hängt den root-Account an einen *zweiten* Verein, damit Verein 1 leer bleibt.
 
-`logo` wird bewusst nicht aus dem Request angenommen: die App hat noch keinen Bild-Upload, die Spalte bleibt beim Update erhalten.
+Logo-Upload (seit 2026-08-25): `ClubController::applyLogo()` speichert, ersetzt oder leert `clubs.logo` und ruft danach `Club::removeOrphanLogos()`. `remove_logo` gewinnt gegen eine gleichzeitig gesendete Datei.
+
+Wichtig für Tests: der Sweep läuft bei **jedem** store und update, nicht nur beim Hochladen — siehe die Regel zur Speicher-Isolierung unter `tests/**`.

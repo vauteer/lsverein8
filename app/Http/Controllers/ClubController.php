@@ -48,10 +48,9 @@ class ClubController extends Controller
 
     public function store(ClubStoreRequest $request): RedirectResponse
     {
-        $club = Club::create([
-            ...$request->validated(),
-            'iban' => normalizeIban($request->validated()['iban']),
-        ]);
+        $club = Club::create($this->attributes($request));
+
+        $this->applyLogo($club, $request);
 
         // Without this the creator could not reach the new club at all: it has
         // no users, so nobody but a root account could ever switch into it.
@@ -76,6 +75,7 @@ class ClubController extends Controller
                 'blsv_member' => (bool) $club->blsv_member,
                 'use_items' => (bool) $club->use_items,
                 'logo_url' => $club->logoURL(),
+                'has_logo' => $club->logo !== null,
             ],
             'deletable' => $request->user()->can('delete', $club),
             // A root account reaches this page from the list and goes back to
@@ -86,10 +86,9 @@ class ClubController extends Controller
 
     public function update(ClubUpdateRequest $request, Club $club): RedirectResponse
     {
-        $club->update([
-            ...$request->validated(),
-            'iban' => normalizeIban($request->validated()['iban']),
-        ]);
+        $club->update($this->attributes($request));
+
+        $this->applyLogo($club, $request);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Club updated.')]);
 
@@ -105,6 +104,46 @@ class ClubController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Club deleted.')]);
 
         return to_route('clubs.index');
+    }
+
+    /**
+     * The column values, with the uploaded file kept out. `logo` is fillable
+     * and the validated payload holds an UploadedFile, so mass-assigning it
+     * would put the object into the column.
+     *
+     * Defensive rather than load-bearing today: applyLogo() runs straight
+     * after and overwrites the column with the real filename, so dropping
+     * this except() breaks no test. It stays because that masking depends
+     * entirely on the call order, and the write is wrong on its own terms.
+     *
+     * @return array<string, mixed>
+     */
+    private function attributes(ClubStoreRequest|ClubUpdateRequest $request): array
+    {
+        $validated = $request->safe()->except(['logo', 'remove_logo']);
+
+        return [
+            ...$validated,
+            'iban' => normalizeIban($validated['iban']),
+        ];
+    }
+
+    /**
+     * Store, replace or clear the club logo, then sweep whatever file that
+     * left behind. Removing wins over a file sent in the same request.
+     */
+    private function applyLogo(Club $club, ClubStoreRequest|ClubUpdateRequest $request): void
+    {
+        if ($request->boolean('remove_logo')) {
+            $club->update(['logo' => null]);
+        } elseif ($request->hasFile('logo')) {
+            $file = $request->file('logo');
+            $filename = $file->hashName();
+            Club::logoDisk()->putFileAs('logo', $file, $filename);
+            $club->update(['logo' => $filename]);
+        }
+
+        Club::removeOrphanLogos();
     }
 
     /**
