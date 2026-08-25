@@ -20,3 +20,10 @@ Every auth page, the settings pages, the user menu and the CRUD screens go throu
 
 - lang/de.json is no longer the whole story. `lang/de/auth.php`, `lang/de/passwords.php` and `lang/de/validation.php` hold the messages Laravel resolves by dotted key. Without those files it silently falls back to its built-in English lines, so a German login dialog answered a failed login in English. `validation.php` deliberately covers only the rules the translated screens can surface — the per-key fallback keeps everything else English until a screen needs it. Form requests that declare their own `messages()` (user and section CRUD) take precedence over `validation.php` and stay keyed by their English source string in de.json.
 - `tests/Unit/TranslationKeyTest.php` scans resources/js for `$t()` / `trans()` / `wTrans()` and fails on any key missing from lang/de.json, so a new user-facing string must be added there in the same change. It is a plain-filesystem test (unit tests get no app boot, so no `base_path()` / `File::`), and its regex uses `(?<![\w$])` rather than `\b` — `$` is not a word character, so `\b` never matches in front of `$t` and the check was vacuous until that was fixed.
+
+## NavItem.external renders an anchor — required for non-Inertia pages
+`NavMain.vue` renders every sidebar entry with Inertia's `<Link>`. That only works for routes returning an Inertia response. The log viewer (opcodesio/log-viewer) is a Blade page, so an Inertia visit there gets HTML back without the `X-Inertia` header and the SPA cannot render it.
+
+Set `external: true` on the `NavItem` for any such destination; `NavMain` then emits a plain `<a :href="toUrl(item.href)">` and the browser does a normal full-page navigation. The `Logs` entry in `AppSidebar.vue` is the current example.
+
+The href still comes from Wayfinder (`import { index as logViewer } from '@/routes/log-viewer'`), not a hardcoded '/log-viewer' — Wayfinder generates helpers for vendor package routes too, so the link survives a change to `config('log-viewer.route_path')`. Re-run `php artisan wayfinder:generate --with-form` after installing a package that adds routes, or its helpers will be missing.

@@ -11,4 +11,10 @@ export type NavItem = {
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon;
     isActive?: boolean;
+    /**
+     * Renders a plain anchor instead of an Inertia link. Needed for pages that
+     * are not Inertia responses, such as the Blade-rendered log viewer: an
+     * Inertia visit there receives HTML without the X-Inertia header.
+     */
+    external?: boolean;
 };
