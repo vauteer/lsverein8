@@ -10,14 +10,20 @@ use Symfony\Component\HttpFoundation\Response;
 class SetLocale
 {
     /**
-     * Apply the authenticated user's own language, falling back to the
-     * configured application locale for guests.
+     * Apply the language in force: the user's own choice if they made one,
+     * otherwise their club's, and the configured application locale for
+     * guests or a user without a club.
      *
      * @param  Closure(Request): Response  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
-        App::setLocale($request->user()?->locale ?: config('app.locale'));
+        // Plain -> after the nullsafe call: ?? suppresses the property fetch
+        // when effectiveLocale() returns null, and phpstan rejects the second
+        // nullsafe as dead.
+        App::setLocale(
+            $request->user()?->effectiveLocale()->value ?? config('app.locale')
+        );
 
         return $next($request);
     }

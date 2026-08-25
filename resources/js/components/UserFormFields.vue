@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +12,7 @@ import {
 } from '@/components/ui/select';
 import type { SelectOption, UserFormData } from '@/types';
 
-withDefaults(
+const props = withDefaults(
     defineProps<{
         user?: UserFormData | null;
         roles: SelectOption[];
@@ -25,6 +26,15 @@ withDefaults(
     }>(),
     { detailsRequired: true },
 );
+
+/**
+ * reka-ui cannot hold an empty item value, so "follow the club" is carried as
+ * a sentinel and translated back to an empty string in the submitted input,
+ * which Laravel converts to null.
+ */
+const INHERIT = 'inherit';
+
+const locale = ref(props.user?.locale ?? INHERIT);
 </script>
 
 <template>
@@ -71,20 +81,28 @@ withDefaults(
 
             <div class="grid gap-2">
                 <Label for="locale">{{ $t('Language') }}</Label>
-                <Select name="locale" :default-value="user?.locale ?? 'de'">
+                <Select v-model="locale">
                     <SelectTrigger id="locale" class="w-full">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                        <SelectItem :value="INHERIT">
+                            {{ $t('(club language)') }}
+                        </SelectItem>
                         <SelectItem
-                            v-for="locale in locales"
-                            :key="locale.id"
-                            :value="String(locale.id)"
+                            v-for="option in locales"
+                            :key="option.id"
+                            :value="String(option.id)"
                         >
-                            {{ locale.name }}
+                            {{ option.name }}
                         </SelectItem>
                     </SelectContent>
                 </Select>
+                <input
+                    type="hidden"
+                    name="locale"
+                    :value="locale === INHERIT ? '' : locale"
+                />
                 <InputError :message="errors.locale" />
             </div>
         </div>

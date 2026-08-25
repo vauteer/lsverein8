@@ -10,11 +10,22 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useInitials } from '@/composables/useInitials';
 import { edit } from '@/routes/profile';
+import type { SelectOption } from '@/types';
 
 const props = defineProps<{
     hasProfileImage: boolean;
+    /** Null when this account follows its club's language. */
+    locale: string | null;
+    locales: SelectOption[];
 }>();
 
 defineOptions({
@@ -31,6 +42,15 @@ defineOptions({
 const page = usePage();
 const user = computed(() => page.props.auth.user);
 const { getInitials } = useInitials();
+
+/**
+ * reka-ui cannot hold an empty item value, so "follow the club" is carried as
+ * a sentinel and translated back to an empty string in the submitted input,
+ * which Laravel converts to null.
+ */
+const INHERIT = 'inherit';
+
+const locale = ref(props.locale ?? INHERIT);
 
 const fileInput = useTemplateRef<HTMLInputElement>('fileInput');
 const preview = ref<string | null>(null);
@@ -155,6 +175,33 @@ function removePhoto() {
                     :placeholder="$t('Email address')"
                 />
                 <InputError class="mt-2" :message="errors.email" />
+            </div>
+
+            <div class="grid gap-2">
+                <Label for="locale">{{ $t('Language') }}</Label>
+                <Select v-model="locale">
+                    <SelectTrigger id="locale" class="w-full">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem :value="INHERIT">
+                            {{ $t('(club language)') }}
+                        </SelectItem>
+                        <SelectItem
+                            v-for="option in locales"
+                            :key="option.id"
+                            :value="String(option.id)"
+                        >
+                            {{ option.name }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+                <input
+                    type="hidden"
+                    name="locale"
+                    :value="locale === INHERIT ? '' : locale"
+                />
+                <InputError class="mt-2" :message="errors.locale" />
             </div>
 
             <div class="flex items-center gap-4">

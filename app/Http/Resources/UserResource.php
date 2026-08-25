@@ -29,7 +29,7 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'phone' => $this->phone,
-            'locale' => $this->locale,
+            'locale' => $this->locale?->value,
             'last_login' => $this->getAttribute('last_login_at'),
             'role' => $role?->value,
             'role_label' => $role?->label(),

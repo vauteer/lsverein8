@@ -3,6 +3,7 @@
 namespace App\Concerns;
 
 use App\Enums\ClubRole;
+use App\Enums\Locale;
 use App\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
@@ -29,7 +30,8 @@ trait UserValidationRules
                     : Rule::unique(User::class)->ignore($userId),
             ],
             'phone' => ['nullable', 'string', 'max:191'],
-            'locale' => ['required', 'string', Rule::in(array_column(User::availableLocales(), 'id'))],
+            // Null means "follow the club", so this is no longer required.
+            'locale' => ['nullable', Rule::enum(Locale::class)],
             'role' => ['required', 'integer', Rule::in(array_column(ClubRole::cases(), 'value'))],
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Enums\Locale;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
@@ -24,6 +25,8 @@ class ProfileController extends Controller
             // Drives the "Remove photo" button: the avatar always has a src
             // (Gravatar is the fallback), so its presence proves nothing.
             'hasProfileImage' => $request->user()->profile_image !== null,
+            'locale' => $request->user()->locale?->value,
+            'locales' => Locale::options(),
         ]);
     }
 
@@ -33,7 +36,7 @@ class ProfileController extends Controller
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
         $user = $request->user();
-        $user->fill($request->safe()->only(['name', 'email']));
+        $user->fill($request->safe()->only(['name', 'email', 'locale']));
 
         if ($request->boolean('remove_profile_image')) {
             $user->profile_image = null;

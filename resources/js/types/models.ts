@@ -12,7 +12,8 @@ export type UserResource = {
     name: string;
     email: string;
     phone: string | null;
-    locale: string;
+    /** Null means the user follows the club language. */
+    locale: string | null;
     last_login: string | null;
     role: number | null;
     role_label: string | null;
@@ -31,7 +32,8 @@ export type UserFormData = {
     name: string;
     email: string;
     phone: string | null;
-    locale: string;
+    /** Null means the user follows the club language. */
+    locale: string | null;
     role: number;
 };
 

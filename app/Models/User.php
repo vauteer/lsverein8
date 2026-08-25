@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ActionType;
 use App\Enums\ClubRole;
+use App\Enums\Locale;
 use Carbon\CarbonInterface;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -30,7 +31,7 @@ use Illuminate\Support\Facades\Storage;
  * @property bool $admin
  * @property string|null $profile_image
  * @property-read string $avatar
- * @property string $locale
+ * @property Locale|null $locale
  * @property int|null $club_id
  * @property int|null $created_by
  * @property string|null $remember_token
@@ -70,6 +71,7 @@ class User extends Authenticatable
         return [
             'password' => 'hashed',
             'admin' => 'boolean',
+            'locale' => Locale::class,
         ];
     }
 
@@ -277,15 +279,11 @@ class User extends Authenticatable
     }
 
     /**
-     * The languages a user account can be set to.
-     *
-     * @return list<array{id: string, name: string}>
+     * The language actually in force for this user: their own choice if they
+     * made one, otherwise the club's. Null on both means the app default.
      */
-    public static function availableLocales(): array
+    public function effectiveLocale(): ?Locale
     {
-        return [
-            ['id' => 'de', 'name' => __('German')],
-            ['id' => 'en', 'name' => __('English')],
-        ];
+        return $this->locale ?? $this->club?->locale;
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\Locale;
+use App\Models\Club;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -209,4 +211,60 @@ test('the orphan sweep leaves the directory .gitignore alone', function () {
 
     Storage::disk('public')->assertExists(User::profileStoragePath('.gitignore'));
     Storage::disk('public')->assertMissing(User::profileStoragePath('orphan.jpg'));
+});
+
+test('the profile page offers the language with the club default', function () {
+    $club = Club::factory()->create(['id' => 1, 'locale' => Locale::German]);
+    $user = User::factory()->create(['locale' => null, 'club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->get(route('profile.edit'))
+        ->assertInertia(fn ($page) => $page
+            ->where('locale', null)
+            ->has('locales', 2));
+
+    $user->update(['locale' => Locale::English]);
+
+    $this->actingAs($user)
+        ->get(route('profile.edit'))
+        ->assertInertia(fn ($page) => $page->where('locale', 'en'));
+});
+
+test('a user sets and clears their own language', function () {
+    $club = Club::factory()->create(['id' => 1, 'locale' => Locale::German]);
+    $user = User::factory()->create(['locale' => null, 'club_id' => $club->id]);
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'locale' => 'en',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($user->refresh()->locale)->toBe(Locale::English)
+        ->and($user->effectiveLocale())->toBe(Locale::English);
+
+    // Empty string is turned into null by ConvertEmptyStringsToNull, which is
+    // what the "(club language)" option submits.
+    $this->patch(route('profile.update'), [
+        'name' => $user->name,
+        'email' => $user->email,
+        'locale' => '',
+    ])->assertSessionHasNoErrors();
+
+    expect($user->refresh()->locale)->toBeNull()
+        ->and($user->effectiveLocale())->toBe(Locale::German);
+});
+
+test('the profile rejects a language that does not exist', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'locale' => 'fr',
+        ])
+        ->assertSessionHasErrors('locale');
 });

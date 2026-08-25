@@ -3,8 +3,10 @@
 namespace App\Http\Requests\Settings;
 
 use App\Concerns\ProfileValidationRules;
+use App\Enums\Locale;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ProfileUpdateRequest extends FormRequest
 {
@@ -19,6 +21,8 @@ class ProfileUpdateRequest extends FormRequest
     {
         return [
             ...$this->profileRules($this->user()->id),
+            // Null means "follow the club", as in the user CRUD.
+            'locale' => ['nullable', Rule::enum(Locale::class)],
             'profile_image' => ['nullable', 'image', 'max:2048'],
             'remove_profile_image' => ['nullable', 'boolean'],
         ];

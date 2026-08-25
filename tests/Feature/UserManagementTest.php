@@ -2,6 +2,7 @@
 
 use App\Enums\ActionType;
 use App\Enums\ClubRole;
+use App\Enums\Locale;
 use App\Models\Club;
 use App\Models\ClubUser;
 use App\Models\Tracing;
@@ -106,7 +107,7 @@ test('an admin creates a user who is emailed a password reset link', function ()
 
     expect($created->name)->toBe('Neue Person')
         ->and($created->phone)->toBe('0123 456')
-        ->and($created->locale)->toBe('de')
+        ->and($created->locale)->toBe(Locale::German)
         ->and($created->club_id)->toBe(1)
         ->and($created->created_by)->toBe($admin->id)
         ->and($created->admin)->toBeFalse()
@@ -195,7 +196,7 @@ test('an admin updates a user and their club role', function () {
 
     expect($target->name)->toBe('Geänderter Name')
         ->and($target->email)->toBe('geaendert@example.test')
-        ->and($target->locale)->toBe('en')
+        ->and($target->locale)->toBe(Locale::English)
         ->and($target->clubRole())->toBe(ClubRole::Admin->value);
 });
 

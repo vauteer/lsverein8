@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\ClubDisplay;
 use App\Enums\ClubRole;
+use App\Enums\Locale;
 use App\Http\Requests\ClubStoreRequest;
 use App\Http\Requests\ClubUpdateRequest;
 use App\Http\Resources\ClubResource;
@@ -70,9 +71,10 @@ class ClubController extends Controller
                 ...$club->only([
                     'id', 'name', 'street', 'zipcode', 'city', 'bank',
                     'account_owner', 'iban', 'bic', 'sepa',
-                    'locale', 'honor_years',
+                    'honor_years',
                 ]),
                 'display' => $club->display->value,
+                'locale' => $club->locale->value,
                 'sepa_date' => $club->sepa_date?->format('Y-m-d'),
                 'blsv_member' => (bool) $club->blsv_member,
                 'use_items' => (bool) $club->use_items,
@@ -149,13 +151,13 @@ class ClubController extends Controller
     }
 
     /**
-     * @return array{displayStyles: list<array{id: int, name: string}>, languages: list<array{id: int|string, name: string}>}
+     * @return array{displayStyles: list<array{id: int, name: string}>, languages: list<array{id: string, name: string}>}
      */
     private function formOptions(): array
     {
         return [
             'displayStyles' => ClubDisplay::options(),
-            'languages' => optionsFromArray(Club::languages(), false),
+            'languages' => Locale::options(),
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Locale;
 use App\Http\Requests\UserStoreRequest;
 use App\Http\Requests\UserUpdateRequest;
 use App\Http\Resources\UserResource;
@@ -95,7 +96,7 @@ class UserController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'phone' => $user->phone,
-                'locale' => $user->locale,
+                'locale' => $user->locale?->value,
                 'role' => $user->clubRole(),
             ],
             'deletable' => $request->user()->can('delete', $user),
@@ -158,7 +159,7 @@ class UserController extends Controller
     {
         return [
             'roles' => User::availableRoles(),
-            'locales' => User::availableLocales(),
+            'locales' => Locale::options(),
         ];
     }
 
