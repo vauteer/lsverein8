@@ -1,4 +1,4 @@
-import type { Auth, SharedClub } from '@/types/auth';
+import type { Auth, SharedClub, SwitchableClub } from '@/types/auth';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -20,6 +20,7 @@ declare module '@inertiajs/core' {
             locale: string;
             auth: Auth;
             currentClub: SharedClub | null;
+            switchableClubs: SwitchableClub[];
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

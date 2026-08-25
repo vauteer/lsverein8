@@ -113,6 +113,48 @@ export type RoleFormData = {
     name: string;
 };
 
+/**
+ * A club as sent to the (root-only) index listing. Bank details are absent on
+ * purpose — they belong on the form, not in a list.
+ */
+export type ClubResource = {
+    id: number;
+    name: string;
+    city: string;
+    logo_url: string | null;
+    blsv_member: boolean;
+    members_count: number;
+    users_count: number;
+    current: boolean;
+    modifiable: boolean;
+    deletable: boolean;
+    switchable: boolean;
+};
+
+/**
+ * The club fields sent to the create/edit forms. `logo_url` is display only:
+ * there is no upload yet, and the column is preserved on update.
+ */
+export type ClubFormData = {
+    id: number;
+    name: string;
+    street: string;
+    zipcode: string;
+    city: string;
+    bank: string;
+    account_owner: string;
+    iban: string;
+    bic: string;
+    sepa: string | null;
+    sepa_date: string | null;
+    display: number | string;
+    locale: string;
+    honor_years: string | null;
+    blsv_member: boolean;
+    use_items: boolean;
+    logo_url: string | null;
+};
+
 export type PaginationLink = {
     url: string | null;
     label: string;

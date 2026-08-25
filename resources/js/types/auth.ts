@@ -13,10 +13,20 @@ export type Auth = {
     canManageUsers: boolean;
     canViewLogs: boolean;
     canManageBackups: boolean;
+    canManageClubs: boolean;
+    canEditCurrentClub: boolean;
     impersonator: Pick<User, 'id' | 'name'> | null;
 };
 
 export type SharedClub = {
+    id: number;
     name: string;
     logo_url: string | null;
+};
+
+/** One entry of the sidebar club picker. Empty list when there is one club. */
+export type SwitchableClub = {
+    id: number;
+    name: string;
+    current: boolean;
 };

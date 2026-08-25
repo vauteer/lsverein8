@@ -128,6 +128,23 @@ class Club extends Model
     }
 
     /**
+     * Whether anything still hangs off this club. Nine tables reference
+     * `clubs`, mostly ON DELETE CASCADE, so deleting a club that is still in
+     * use would silently take its members, sections, honours, roles and
+     * subscriptions with it. ClubPolicy::delete() refuses while this is true.
+     */
+    public function isUsed(): bool
+    {
+        // withoutGlobalScope: Subscription carries ClubScope, which would
+        // narrow this to the *acting* club rather than the one being checked,
+        // and so report another club's subscriptions as absent. members()
+        // already drops the scope in the relation itself.
+        return $this->members()->exists()
+            || $this->users()->exists()
+            || $this->subscriptions()->withoutGlobalScope(ClubScope::class)->exists();
+    }
+
+    /**
      * @return Collection<int, \stdClass>
      */
     public function usedSections(): Collection

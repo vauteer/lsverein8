@@ -35,3 +35,19 @@ Two differences from Sections, both intentional:
 - `event_member.event_id` is ON DELETE RESTRICT (member_section is not), so a used event would be refused by the database anyway — the policy check is what turns that into a 403 instead of a 500.
 
 Test trap: migration `2022_08_20_165538_insert_events_defaults` seeds seven installation-wide events ('25 Jahre' … 'Ehrenvorstand', ids 1–7, `club_id` null). They are present in every test database, so `Event::firstOrFail()` returns a seeded row rather than the one just created, and any fixture named '50 Jahre' collides on the unique rule. tests/Feature/EventManagementTest.php scopes with `where('club_id', 1)` and offers `withoutDefaultEvents()` for the assertions that need an exact listing size. Sections have no such defaults migration — that is the only reason SectionManagementTest can assert sizes directly.
+
+## Club CRUD: root sieht alles, Club-Admin nur den aktuellen Verein
+ClubPolicy trennt zwei Ebenen, anders als bei den ClubWithSharedScope-CRUDs:
+
+- `viewAny`/`create`/`delete`: nur root (`users.admin`). Die Liste ist die ganze Installation, deshalb hat ein Club-Admin gar keinen Index — er kommt über einen eigenen Sidebar-Eintrag direkt auf `clubs.edit` seines aktuellen Vereins.
+- `update`: root für jeden Verein; Club-Admin nur wenn `$club->id === currentClubId()`. Wer einen anderen seiner Vereine ändern will, wechselt erst — dadurch bleibt "welchen Verein ändere ich gerade?" allein aus der Sidebar beantwortbar.
+- `delete`: zusätzlich `! $club->isUsed()` und niemals der aktuelle Verein. Neun Tabellen hängen mit ON DELETE CASCADE an `clubs`; ein Löschen von Verein 1 würde 585 Mitglieder samt Historie mitnehmen. Am 2026-08-25 so entschieden (Alternative "root darf alles löschen" wurde verworfen).
+- `switchTo`: root in jeden Verein — das ist der einzige Weg, wie root einen fremden Verein überhaupt sieht, weil alle Scopes auf `users.club_id` hängen. Alle anderen nur in eigene Mitgliedschaften.
+
+Fallstricke:
+
+`Club::isUsed()` muss `withoutGlobalScope(ClubScope::class)` auf `subscriptions()` legen. Subscription trägt ClubScope, sonst prüft die Abfrage den *handelnden* Verein statt des geprüften und meldet fremde Beiträge als nicht vorhanden. `members()` wirft den Scope schon in der Relation ab.
+
+Der Wechsel schreibt `users.club_id` (ClubSwitchController), nicht Session-State — wie lsverein7, überlebt Logout. In Tests ist das nicht über die Scopes beobachtbar: `currentClubId()` liefert auf der CLI immer 1. Tests müssen `users.club_id` direkt prüfen, und wer die "aktueller Verein"-Sperre testen will, hängt den root-Account an einen *zweiten* Verein, damit Verein 1 leer bleibt.
+
+`logo` wird bewusst nicht aus dem Request angenommen: die App hat noch keinen Bild-Upload, die Spalte bleibt beim Update erhalten.

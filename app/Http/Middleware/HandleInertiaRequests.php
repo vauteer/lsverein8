@@ -57,6 +57,12 @@ class HandleInertiaRequests extends Middleware
                 // again, so the sidebar entry and the route cannot disagree.
                 'canViewLogs' => (bool) $request->user()?->can('viewLogViewer'),
                 'canManageBackups' => (bool) $request->user()?->can('manageBackups'),
+                // Root only: the list of every club in the installation.
+                'canManageClubs' => (bool) $request->user()?->can('viewAny', Club::class),
+                // A club admin has no list but may edit the club they are in,
+                // which is what puts a single "Verein" entry in their sidebar.
+                'canEditCurrentClub' => $currentClub !== null
+                    && $request->user()->can('update', $currentClub),
                 // Set while a root account is logged in as somebody else, so
                 // the banner can name them and offer a way back.
                 'impersonator' => $impersonatorId === null
@@ -64,10 +70,47 @@ class HandleInertiaRequests extends Middleware
                     : User::find((int) $impersonatorId)?->only(['id', 'name']),
             ],
             'currentClub' => $currentClub === null ? null : [
+                'id' => $currentClub->id,
                 'name' => $currentClub->name,
                 'logo_url' => $currentClub->logoURL(),
             ],
+            // The clubs this user may switch between, for the sidebar picker.
+            // Only their own memberships: a root account switches to a club it
+            // does not belong to from the club list instead, which would
+            // otherwise make this a dropdown of the whole installation.
+            'switchableClubs' => $this->switchableClubs($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
+    }
+
+    /**
+     * The user's own clubs, or an empty list when there is nothing to choose
+     * between - the picker is not rendered for a single club.
+     *
+     * @return list<array{id: int, name: string, current: bool}>
+     */
+    private function switchableClubs(Request $request): array
+    {
+        $user = $request->user();
+
+        if ($user === null) {
+            return [];
+        }
+
+        $clubs = $user->clubs()->orderBy('name')->get(['clubs.id', 'clubs.name']);
+
+        if ($clubs->count() < 2) {
+            return [];
+        }
+
+        // array_values, not Collection::values(): only the native call proves
+        // a list to phpstan, which the declared return type needs.
+        return array_values($clubs
+            ->map(fn (Club $club): array => [
+                'id' => $club->id,
+                'name' => $club->name,
+                'current' => $club->id === $user->club_id,
+            ])
+            ->all());
     }
 }

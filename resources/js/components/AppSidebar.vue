@@ -5,6 +5,7 @@ import {
     DatabaseBackup,
     FileText,
     LayoutGrid,
+    Building2,
     Shapes,
     UserCog,
     Users,
@@ -12,9 +13,9 @@ import {
 import { wTrans } from 'laravel-vue-i18n';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
+import ClubSwitcher from '@/components/ClubSwitcher.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     Sidebar,
     SidebarContent,
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as backups } from '@/routes/backups';
+import { edit as editClub, index as clubs } from '@/routes/clubs';
 import { index as events } from '@/routes/events';
 import { index as logViewer } from '@/routes/log-viewer';
 import { index as roles } from '@/routes/roles';
@@ -66,6 +68,25 @@ const mainNavItems = computed<NavItem[]>(() => [
           ]
         : []),
     // Root accounts only: a backup is the whole database, every club at once.
+    // Root gets the whole installation's club list; a club admin only a link
+    // to the club they are currently in, which is the only one they may edit.
+    ...(page.props.auth.canManageClubs
+        ? [
+              {
+                  title: wTrans('Clubs').value,
+                  href: clubs(),
+                  icon: Building2,
+              },
+          ]
+        : page.props.auth.canEditCurrentClub && page.props.currentClub
+          ? [
+                {
+                    title: wTrans('Club').value,
+                    href: editClub(page.props.currentClub.id),
+                    icon: Building2,
+                },
+            ]
+          : []),
     ...(page.props.auth.canManageBackups
         ? [
               {
@@ -101,27 +122,8 @@ const mainNavItems = computed<NavItem[]>(() => [
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
-                <SidebarMenuItem v-if="page.props.currentClub">
-                    <!-- px-3, not the button's px-2: the wordmark SVG carries ~4px of
-                    leading whitespace before the glyph's stroke begins, so the
-                    avatar needs the same 12px inset to line up with it. -->
-                    <div class="flex items-center gap-2 px-3 py-1">
-                        <Avatar class="size-6 rounded-md">
-                            <AvatarImage
-                                v-if="page.props.currentClub.logo_url"
-                                :src="page.props.currentClub.logo_url"
-                                :alt="page.props.currentClub.name"
-                            />
-                            <AvatarFallback class="rounded-md text-xs">
-                                {{ page.props.currentClub.name.charAt(0) }}
-                            </AvatarFallback>
-                        </Avatar>
-                        <span
-                            class="truncate text-sm text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden"
-                        >
-                            {{ page.props.currentClub.name }}
-                        </span>
-                    </div>
+                <SidebarMenuItem>
+                    <ClubSwitcher />
                 </SidebarMenuItem>
             </SidebarMenu>
         </SidebarHeader>

@@ -1,11 +1,14 @@
 <?php
 
 use App\Http\Controllers\BackupController;
+use App\Http\Controllers\ClubController;
+use App\Http\Controllers\ClubSwitchController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\UserController;
+use App\Models\Club;
 use App\Models\Event;
 use App\Models\Role;
 use App\Models\Section;
@@ -73,6 +76,23 @@ Route::middleware(['auth'])->group(function () {
         ->name('roles.update')->can('update', 'role');
     Route::delete('roles/{role}', [RoleController::class, 'destroy'])
         ->name('roles.destroy')->can('delete', 'role');
+
+    // Root sees and edits every club; a club admin only the one they are
+    // currently working in, so there is no index for them (ClubPolicy).
+    Route::get('clubs', [ClubController::class, 'index'])
+        ->name('clubs.index')->can('viewAny', Club::class);
+    Route::get('clubs/create', [ClubController::class, 'create'])
+        ->name('clubs.create')->can('create', Club::class);
+    Route::post('clubs', [ClubController::class, 'store'])
+        ->name('clubs.store')->can('create', Club::class);
+    Route::get('clubs/{club}/edit', [ClubController::class, 'edit'])
+        ->name('clubs.edit')->can('update', 'club');
+    Route::put('clubs/{club}', [ClubController::class, 'update'])
+        ->name('clubs.update')->can('update', 'club');
+    Route::delete('clubs/{club}', [ClubController::class, 'destroy'])
+        ->name('clubs.destroy')->can('delete', 'club');
+    Route::post('clubs/{club}/switch', [ClubSwitchController::class, 'store'])
+        ->name('clubs.switch')->can('switchTo', 'club');
 
     // Root-only; a backup spans every club. {filename} is validated against
     // the listing in the controller, so it cannot escape the directory.
