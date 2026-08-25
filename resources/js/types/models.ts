@@ -59,6 +59,27 @@ export type SectionFormData = {
     blsv_id: number | null;
 };
 
+/**
+ * An event as sent to the index listing: the event's own columns plus the
+ * number of the current club's members it has been given to.
+ */
+export type EventResource = {
+    id: number;
+    name: string;
+    members_count: number;
+    shared: boolean;
+    modifiable: boolean;
+    deletable: boolean;
+};
+
+/**
+ * The event fields sent to the create/edit forms.
+ */
+export type EventFormData = {
+    id: number;
+    name: string;
+};
+
 export type PaginationLink = {
     url: string | null;
     label: string;

@@ -26,3 +26,12 @@ Sections carry `ClubWithSharedScope`, so the index lists the club's own rows *an
 - Name uniqueness is checked against the club's own rows *and* the shared ones, even though the DB unique key is only `(club_id, name)` — a duplicate would otherwise render twice in the same list.
 - `blsv_id` is `Rule::prohibitedIf(! currentClub()->blsv_member)` and restricted to `array_keys(Section::BLSV_SECTIONS)`; the form hides the field entirely for non-BLSV clubs (`blsvSections` prop is null).
 - `club_id` is never accepted from the request — it is set from `currentClubId()` on create, so a club admin cannot move a section elsewhere or turn it into a shared one.
+
+## Event CRUD mirrors the Section CRUD, minus the path-safe name regex
+EventController/EventPolicy/EventValidationRules are a deliberate copy of the Section equivalents: ClubWithSharedScope rows (`club_id IS NULL`) are listed for every club but only a root account may edit them, `club_id` is never accepted from the request (set from `currentClubId()` on create), name uniqueness is checked against the club's own rows *and* the shared ones, and `delete()` requires `! $event->isUsed()`.
+
+Two differences from Sections, both intentional:
+- No `regex:` on the name. Section names become BLSV CSV filenames (`BE{year}_{name}.csv`); event names are never used in a path, so any character is fine.
+- `event_member.event_id` is ON DELETE RESTRICT (member_section is not), so a used event would be refused by the database anyway — the policy check is what turns that into a 403 instead of a 500.
+
+Test trap: migration `2022_08_20_165538_insert_events_defaults` seeds seven installation-wide events ('25 Jahre' … 'Ehrenvorstand', ids 1–7, `club_id` null). They are present in every test database, so `Event::firstOrFail()` returns a seeded row rather than the one just created, and any fixture named '50 Jahre' collides on the unique rule. tests/Feature/EventManagementTest.php scopes with `where('club_id', 1)` and offers `withoutDefaultEvents()` for the assertions that need an exact listing size. Sections have no such defaults migration — that is the only reason SectionManagementTest can assert sizes directly.

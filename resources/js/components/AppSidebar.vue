@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { LayoutGrid, Shapes, Users } from '@lucide/vue';
+import { Award, LayoutGrid, Shapes, Users } from '@lucide/vue';
 import { wTrans } from 'laravel-vue-i18n';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -17,6 +17,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as events } from '@/routes/events';
 import { index as sections } from '@/routes/sections';
 import { index as users } from '@/routes/users';
 import type { NavItem } from '@/types';
@@ -33,6 +34,11 @@ const mainNavItems = computed<NavItem[]>(() => [
         title: wTrans('Sections').value,
         href: sections(),
         icon: Shapes,
+    },
+    {
+        title: wTrans('Events').value,
+        href: events(),
+        icon: Award,
     },
     ...(page.props.auth.canManageUsers
         ? [

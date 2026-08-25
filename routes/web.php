@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\EventController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\UserController;
+use App\Models\Event;
 use App\Models\Section;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
@@ -42,6 +44,19 @@ Route::middleware(['auth'])->group(function () {
         ->name('sections.update')->can('update', 'section');
     Route::delete('sections/{section}', [SectionController::class, 'destroy'])
         ->name('sections.destroy')->can('delete', 'section');
+
+    Route::get('events', [EventController::class, 'index'])
+        ->name('events.index')->can('viewAny', Event::class);
+    Route::get('events/create', [EventController::class, 'create'])
+        ->name('events.create')->can('create', Event::class);
+    Route::post('events', [EventController::class, 'store'])
+        ->name('events.store')->can('create', Event::class);
+    Route::get('events/{event}/edit', [EventController::class, 'edit'])
+        ->name('events.edit')->can('update', 'event');
+    Route::put('events/{event}', [EventController::class, 'update'])
+        ->name('events.update')->can('update', 'event');
+    Route::delete('events/{event}', [EventController::class, 'destroy'])
+        ->name('events.destroy')->can('delete', 'event');
 });
 
 require __DIR__.'/settings.php';
