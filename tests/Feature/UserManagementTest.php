@@ -44,7 +44,10 @@ test('users without admin rights may not manage users', function () {
 });
 
 test('the index lists only the users of the current club', function () {
-    $admin = clubUser();
+    // The admin's name is pinned to sort last: the listing is ordered by name
+    // and the assertion below expects the colleague first, so a random faker
+    // name beginning with "Ada..." made this fail at random.
+    $admin = clubUser(attributes: ['name' => 'Zora Admin']);
     $colleague = clubUser(ClubRole::Basic, attributes: ['name' => 'Anna Beispiel']);
 
     $otherClub = Club::factory()->create();
