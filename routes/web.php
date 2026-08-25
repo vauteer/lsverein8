@@ -3,9 +3,11 @@
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\ImpersonationController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\UserController;
 use App\Models\Event;
+use App\Models\Role;
 use App\Models\Section;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
@@ -58,6 +60,19 @@ Route::middleware(['auth'])->group(function () {
         ->name('events.update')->can('update', 'event');
     Route::delete('events/{event}', [EventController::class, 'destroy'])
         ->name('events.destroy')->can('delete', 'event');
+
+    Route::get('roles', [RoleController::class, 'index'])
+        ->name('roles.index')->can('viewAny', Role::class);
+    Route::get('roles/create', [RoleController::class, 'create'])
+        ->name('roles.create')->can('create', Role::class);
+    Route::post('roles', [RoleController::class, 'store'])
+        ->name('roles.store')->can('create', Role::class);
+    Route::get('roles/{role}/edit', [RoleController::class, 'edit'])
+        ->name('roles.edit')->can('update', 'role');
+    Route::put('roles/{role}', [RoleController::class, 'update'])
+        ->name('roles.update')->can('update', 'role');
+    Route::delete('roles/{role}', [RoleController::class, 'destroy'])
+        ->name('roles.destroy')->can('delete', 'role');
 
     // Root-only; a backup spans every club. {filename} is validated against
     // the listing in the controller, so it cannot escape the directory.

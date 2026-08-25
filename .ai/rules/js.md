@@ -27,3 +27,13 @@ Every auth page, the settings pages, the user menu and the CRUD screens go throu
 Set `external: true` on the `NavItem` for any such destination; `NavMain` then emits a plain `<a :href="toUrl(item.href)">` and the browser does a normal full-page navigation. The `Logs` entry in `AppSidebar.vue` is the current example.
 
 The href still comes from Wayfinder (`import { index as logViewer } from '@/routes/log-viewer'`), not a hardcoded '/log-viewer' — Wayfinder generates helpers for vendor package routes too, so the link survives a change to `config('log-viewer.route_path')`. Re-run `php artisan wayfinder:generate --with-form` after installing a package that adds routes, or its helpers will be missing.
+
+## "Role" means two different things — Amt vs Rolle
+Two unrelated concepts collide on the English word "role", and lang/de.json keeps them apart:
+
+- `Role` → "Rolle" is `club_user.role` (ClubRole Basic/Advanced/Admin), the user's permission level. Used by the user CRUD only.
+- `Roles`, `New role`, `Role name`, `Role created.` … → "Amt"/"Ämter" is the `roles` table: the offices a member holds in the club (1. Vorstand, Kassier, …). Used by the roles CRUD only.
+
+lsverein7 called these "Funktionen", but Gerald chose "Ämter" on 2026-08-25 as the less clumsy word — do not "restore" the lsverein7 wording, and do not unify them as "Rollen". The two concepts never appear on the same screen, so the neighbouring `"Role": "Rolle"` and `"Role created.": "Amt hinzugefügt."` lines in de.json are correct even though they look inconsistent side by side.
+
+Sidebar order still follows lsverein7: Abteilungen, Ereignisse, Ämter.

@@ -6,6 +6,7 @@ import {
     FileText,
     LayoutGrid,
     Shapes,
+    UserCog,
     Users,
 } from '@lucide/vue';
 import { wTrans } from 'laravel-vue-i18n';
@@ -27,6 +28,7 @@ import { dashboard } from '@/routes';
 import { index as backups } from '@/routes/backups';
 import { index as events } from '@/routes/events';
 import { index as logViewer } from '@/routes/log-viewer';
+import { index as roles } from '@/routes/roles';
 import { index as sections } from '@/routes/sections';
 import { index as users } from '@/routes/users';
 import type { NavItem } from '@/types';
@@ -48,6 +50,11 @@ const mainNavItems = computed<NavItem[]>(() => [
         title: wTrans('Events').value,
         href: events(),
         icon: Award,
+    },
+    {
+        title: wTrans('Roles').value,
+        href: roles(),
+        icon: UserCog,
     },
     ...(page.props.auth.canManageUsers
         ? [

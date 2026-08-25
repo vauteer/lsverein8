@@ -92,6 +92,27 @@ export type BackupResource = {
     size: string;
 };
 
+/**
+ * A role as sent to the index listing: the role's own columns plus the number
+ * of the current club's members currently or formerly holding it.
+ */
+export type RoleResource = {
+    id: number;
+    name: string;
+    members_count: number;
+    shared: boolean;
+    modifiable: boolean;
+    deletable: boolean;
+};
+
+/**
+ * The role fields sent to the create/edit forms.
+ */
+export type RoleFormData = {
+    id: number;
+    name: string;
+};
+
 export type PaginationLink = {
     url: string | null;
     label: string;
