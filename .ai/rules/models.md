@@ -15,7 +15,7 @@ The 17 models and 7 pivots came over from lsverein7 with behaviour preserved. Co
 - This app sets `Date::use(CarbonImmutable::class)`; lsverein7 did not. Type-hint `CarbonInterface`, never `Carbon`, or ported code fatals.
 - `Member::dueHonor()` is BOTH an instance method and a scope. `Member::dueHonor()` calls the instance method; reach the scope with `Member::query()->dueHonor()`.
 - These Member scopes use MySQL-only SQL (`YEAR`, `LEAST`, `FIND_IN_SET`) and cannot run on the SQLite test connection: `honorThisYear`, `joined`, `retired`, `dead`, `milestoneBirthdays`. Test them by asserting the prepared statement from the thrown `QueryException`, or against MariaDB.
-- `app/Pdf` is excluded from phpstan (see phpstan.neon) because it subclasses the untyped fpdf/fpdf library. Everything else must stay clean at level 7; the only accepted error is the starter kit's `UserFactory::withTwoFactor()` stub.
+- `app/Pdf` is excluded from phpstan (see phpstan.neon) because it subclasses the untyped fpdf/fpdf library. Everything else must stay clean at level 7. There is NO accepted error: `composer ci:check` runs `phpstan analyse` before `artisan test`, so a single error fails GitHub Actions and the test suite never runs. An earlier version of this note called the starter kit's `UserFactory::withTwoFactor()` stub acceptable — it was not, and CI was red on every push from the initial commit until 2026-08-25. Run `composer ci:check` (not just `artisan test`) before pushing; it is the exact pipeline CI runs.
 
 ## Models declare mass assignment with #[Fillable], never $guarded
 Every model (pivots included) declares an explicit allowlist via `#[Fillable([...])]` above the class. Do not reintroduce `protected $guarded = []` — lsverein7 used it, which left `id` and the timestamps mass-assignable.
@@ -44,3 +44,10 @@ Two traps:
 - For the same reason, calling a model's own scope from inside that class statically fails — `Debit::due(...)` resolves the accessible protected method directly. Use `Debit::query()->due(...)`. Calls from other classes (`Member::members()` inside Club or Subscription) are fine, because protected is inaccessible there.
 
 The old `Member::dueHonor()` name clash is resolved: the accessor is now `honorThisYear()` and `dueHonor` is the scope. This supersedes the earlier note saying the scope was only reachable via `query()` — that applies to every scope now, only for calls made from within the declaring model.
+
+## No two-factor authentication — the scaffolding was removed
+Two-factor authentication was removed on 2026-08-25, for the same reason email verification was: inert but armed. `Features::twoFactorAuthentication()` was never in config/fortify.php, no migration ever created the `two_factor_*` columns, and `User` does not use Fortify's `TwoFactorAuthenticatable` trait — so nothing worked, but four tests skipped themselves and pretended coverage.
+
+Removed: `UserFactory::withTwoFactor()`, `App\Http\Requests\Settings\TwoFactorAuthenticationRequest` (SecurityController::edit() now takes no argument), the 2FA test in tests/Feature/Auth/AuthenticationTest.php and the three in tests/Feature/Settings/SecurityTest.php. `TestCase::skipUnlessFortifyHas()` stays — PasswordResetTest still guards on `Features::resetPasswords()`.
+
+The empty `withTwoFactor(): static {}` stub was also the single phpstan error that had kept GitHub Actions red on every push since the initial commit. To bring 2FA back you need all of it: the Fortify migration, the trait on User, the feature in config/fortify.php, and the frontend — the starter kit's Vue pages for it were never ported. Related: the email-verification removal note above.

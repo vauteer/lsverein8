@@ -31,9 +31,4 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
         ];
     }
-
-    /**
-     * Indicate that the model has two-factor authentication configured.
-     */
-    public function withTwoFactor(): static {}
 }
