@@ -71,7 +71,9 @@ defineOptions({
         <div class="flex items-center justify-between">
             <Heading
                 :title="$t('Events')"
-                :description="$t('Manage the events of this club')"
+                :description="
+                    $t('Honours and awards a member receives or earns')
+                "
             />
             <Button v-if="canCreate" as-child class="hidden md:inline-flex">
                 <Link :href="create()">

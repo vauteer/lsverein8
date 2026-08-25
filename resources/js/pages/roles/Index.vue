@@ -71,7 +71,11 @@ defineOptions({
         <div class="flex items-center justify-between">
             <Heading
                 :title="$t('Roles')"
-                :description="$t('Manage the roles of this club')"
+                :description="
+                    $t(
+                        'Offices, ranks and qualifications that can be assigned to a member',
+                    )
+                "
             />
             <Button v-if="canCreate" as-child class="hidden md:inline-flex">
                 <Link :href="create()">

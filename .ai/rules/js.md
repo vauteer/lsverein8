@@ -28,12 +28,38 @@ Set `external: true` on the `NavItem` for any such destination; `NavMain` then e
 
 The href still comes from Wayfinder (`import { index as logViewer } from '@/routes/log-viewer'`), not a hardcoded '/log-viewer' — Wayfinder generates helpers for vendor package routes too, so the link survives a change to `config('log-viewer.route_path')`. Re-run `php artisan wayfinder:generate --with-form` after installing a package that adds routes, or its helpers will be missing.
 
-## "Role" means two different things — Amt vs Rolle
+## "Role" means two different things — Funktion vs Rolle
 Two unrelated concepts collide on the English word "role", and lang/de.json keeps them apart:
 
 - `Role` → "Rolle" is `club_user.role` (ClubRole Basic/Advanced/Admin), the user's permission level. Used by the user CRUD only.
-- `Roles`, `New role`, `Role name`, `Role created.` … → "Amt"/"Ämter" is the `roles` table: the offices a member holds in the club (1. Vorstand, Kassier, …). Used by the roles CRUD only.
+- `Roles`, `New role`, `Role name`, `Role created.` … → "Funktion(en)" is the `roles` table. Used by the roles CRUD only.
 
-lsverein7 called these "Funktionen", but Gerald chose "Ämter" on 2026-08-25 as the less clumsy word — do not "restore" the lsverein7 wording, and do not unify them as "Rollen". The two concepts never appear on the same screen, so the neighbouring `"Role": "Rolle"` and `"Role created.": "Amt hinzugefügt."` lines in de.json are correct even though they look inconsistent side by side.
+The two never appear on the same screen, so the neighbouring `"Role": "Rolle"` and `"Role created.": "Funktion hinzugefügt."` lines in de.json are correct even though they look inconsistent side by side.
 
-Sidebar order still follows lsverein7: Abteilungen, Ereignisse, Ämter.
+"Funktionen" was questioned twice as clumsy and briefly changed to "Ämter" on 2026-08-25, then changed back the same day once the production data was actually counted. Do not relitigate it without re-reading that data. The `roles` table holds three different kinds of thing, and "Ämter" names the smallest of them:
+
+| Art | Beispiele | Zuordnungen |
+| --- | --- | --- |
+| Ämter | 1./2. Kommandant, Vorstand, Kassier, Spartenleiter | 22 |
+| Dienstgrade | Feuerwehrmann, Oberfeuerwehrmann, Löschmeister, Brandmeister | 134 |
+| Qualifikationen (Lehrgänge) | Atemschutzgeräteträger, Sprechfunker, Truppmann/-führer, Maschinist | 171 |
+
+Club 1 is a sports club and uses offices only; club 2 is a Feuerwehr and supplies nearly all the ranks and qualifications — one entry is literally named "Leiter einer Feuerwehr (Lehrgang)". "Ämter/Ränge" was considered and rejected: it is longer than "Ämter" and still misses the largest group. "Funktionen" is the only short German word that covers all three.
+
+If the three kinds ever need to be told apart in the UI, that is a `type` column on `roles` plus a backfill of the existing rows — a data-model change, not a wording change.
+
+Sidebar order follows lsverein7: Abteilungen, Ereignisse, Funktionen.
+
+## events heißt im UI "Ehrungen", nicht "Ereignisse"
+Tabelle, Model und Routen heißen weiter `events`/`Event` — das ist der technische Name aus lsverein7 und bleibt. Das deutsche UI-Wort ist aber "Ehrung"/"Ehrungen" (feminin: die Ehrung), nicht lsverein7s "Ereignisse".
+
+Grund, am 2026-08-25 an den Produktionsdaten geprüft: keine der 20 Zeilen ist ein Ereignis im Alltagssinn — kein Vereinsfest, keine Versammlung. Jede ist etwas, das einem Mitglied an einem Datum verliehen wird.
+
+| Art | Beispiele | Zuordnungen |
+| --- | --- | --- |
+| Jubiläums-/Dienstzeitehrungen | 25–70 Jahre, 25/40 Jahre aktive Dienstzeit | 403 |
+| Abzeichen / Leistungsnachweise | Leistungsabzeichen Bronze–Gold, Wissenstest 1–4, Jugendleistungsspange | 14 |
+
+Der Code sprach ohnehin schon von Ehrungen: `Club::honor_years` (in lsverein7 als "Ehrungen Mitgliedsjahre" beschriftet), `Member::honorThisYear()`, der `dueHonor`-Scope, lsverein7s Filter "Fällige Ehrungen" und die CSV-Spalte `Ehrung`. "Ereignisse" war nur der Tabellenname, der ins UI durchgeschlagen ist.
+
+Die Beschreibung auf der Index-Seite nennt beide Arten ausdrücklich ("Ehrungen und Auszeichnungen, die ein Mitglied erhält oder erwirbt"), damit die Feuerwehr ihre Leistungsabzeichen hier vermutet. Das "erhält oder erwirbt" ist bewusst so und nicht "verliehen": Jubiläumsehrungen bekommt man für Zeit, Leistungsabzeichen und Wissenstest muss man sich erarbeiten, und "verliehen" stellt das Mitglied passiv. Gleiches Muster wie bei Funktionen — siehe die Notiz zu "Role".
