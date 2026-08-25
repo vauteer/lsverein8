@@ -6,7 +6,12 @@ import { cn } from "@/lib/utils"
 
 import 'vue-sonner/style.css';
 
-const props = defineProps<ToasterProps>()
+// Overrides vue-sonner's own 'bottom-right' default for every layout at once.
+// Bottom-right collides with Debugbar's toolbar in local development, and the
+// flash toasts confirm an action the user just took at the top of the page.
+const props = withDefaults(defineProps<ToasterProps>(), {
+  position: 'top-center',
+})
 </script>
 
 <template>
