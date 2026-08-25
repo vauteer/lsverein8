@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\ImpersonationController;
+use App\Http\Controllers\SectionController;
 use App\Http\Controllers\UserController;
+use App\Models\Section;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +29,19 @@ Route::middleware(['auth'])->group(function () {
         ->name('users.destroy')->can('delete', 'user');
     Route::post('users/{user}/impersonate', [ImpersonationController::class, 'store'])
         ->name('users.impersonate')->can('impersonate', 'user');
+
+    Route::get('sections', [SectionController::class, 'index'])
+        ->name('sections.index')->can('viewAny', Section::class);
+    Route::get('sections/create', [SectionController::class, 'create'])
+        ->name('sections.create')->can('create', Section::class);
+    Route::post('sections', [SectionController::class, 'store'])
+        ->name('sections.store')->can('create', Section::class);
+    Route::get('sections/{section}/edit', [SectionController::class, 'edit'])
+        ->name('sections.edit')->can('update', 'section');
+    Route::put('sections/{section}', [SectionController::class, 'update'])
+        ->name('sections.update')->can('update', 'section');
+    Route::delete('sections/{section}', [SectionController::class, 'destroy'])
+        ->name('sections.destroy')->can('delete', 'section');
 });
 
 require __DIR__.'/settings.php';

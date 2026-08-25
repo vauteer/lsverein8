@@ -35,6 +35,30 @@ export type UserFormData = {
     role: number;
 };
 
+/**
+ * A section as sent to the index listing: the section's own columns plus the
+ * BLSV label and the number of the current club's members assigned to it.
+ */
+export type SectionResource = {
+    id: number;
+    name: string;
+    blsv_id: number | null;
+    blsv_label: string | null;
+    members_count: number;
+    shared: boolean;
+    modifiable: boolean;
+    deletable: boolean;
+};
+
+/**
+ * The section fields sent to the create/edit forms.
+ */
+export type SectionFormData = {
+    id: number;
+    name: string;
+    blsv_id: number | null;
+};
+
 export type PaginationLink = {
     url: string | null;
     label: string;
