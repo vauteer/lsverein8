@@ -46,7 +46,9 @@ The two never appear on the same screen, so the neighbouring `"Role": "Rolle"` a
 
 Club 1 is a sports club and uses offices only; club 2 is a Feuerwehr and supplies nearly all the ranks and qualifications — one entry is literally named "Leiter einer Feuerwehr (Lehrgang)". "Ämter/Ränge" was considered and rejected: it is longer than "Ämter" and still misses the largest group. "Funktionen" is the only short German word that covers all three.
 
-If the three kinds ever need to be told apart in the UI, that is a `type` column on `roles` plus a backfill of the existing rows — a data-model change, not a wording change.
+Die Vermischung ist kein Fehler und war nie geplant: der Sportverein pflegt nur Ämter, die Feuerwehr hat Dienstgrade und Lehrgänge nach und nach dazugelegt. Am 2026-08-25 bewusst so belassen — nicht "aufräumen".
+
+If the three kinds ever need to be told apart in the UI, that is a `type` column on `roles` plus a backfill of the existing rows — a data-model change, not a wording change, and deferred on purpose. Beim Planen beachten: `roles` hat `unique(club_id, name)`, was eine `type`-Spalte allein nicht löst — ein Name, der in zwei Arten vorkommen soll (etwa Gruppenführer als Lehrgang und als Einsatzfunktion), braucht dann einen anderen Namen oder ein Unique über `(club_id, name, type)`.
 
 Sidebar order follows lsverein7: Abteilungen, Ereignisse, Funktionen.
 
