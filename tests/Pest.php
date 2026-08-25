@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /*
@@ -17,6 +18,16 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    // Storage::fake('public') for EVERY feature test, not per file.
+    //
+    // ProfileController and ClubController sweep orphaned files on every save,
+    // and the test database is empty, so the sweep treats every real profile
+    // image and club logo as an orphan and deletes it. That is not theoretical:
+    // on 2026-08-25 a test run deleted both real club logos off the developer's
+    // disk, because the fake was set per test file and a new file forgot it.
+    //
+    // Do not move this back into individual files.
+    ->beforeEach(fn () => Storage::fake('public'))
     ->in('Feature');
 
 /*

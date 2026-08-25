@@ -4,15 +4,6 @@ use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
-/**
- * Every test in this file, not just the upload ones: ProfileController::update()
- * sweeps orphaned files on the public disk, so without a fake even a plain
- * name change reaches storage/app/public and deletes real files.
- */
-beforeEach(function () {
-    Storage::fake('public');
-});
-
 test('profile page is displayed', function () {
     $user = User::factory()->create();
 

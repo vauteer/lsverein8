@@ -235,7 +235,6 @@ test('a club admin may not delete any club', function () {
 test('the logo sweep leaves the directory .gitignore alone', function () {
     // Same dotfile guard as User::removeOrphanProfileImages(); the club logo
     // upload does not exist yet, so this pins the helper directly.
-    Storage::fake('public');
     Storage::disk('public')->put(Club::logoStoragePath('.gitignore'), "*\n!.gitignore\n");
     Storage::disk('public')->put(Club::logoStoragePath('orphan.png'), 'nobody points here');
     Club::factory()->create(['logo' => 'wappen.png']);
