@@ -5,12 +5,13 @@ namespace App\Concerns;
 use App\Enums\ClubDisplay;
 use App\Enums\Locale;
 use App\Models\Club;
-use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
 trait ClubValidationRules
 {
+    use ValidatesIban;
+
     /**
      * Get the validation rules used to validate a club.
      *
@@ -50,19 +51,6 @@ trait ClubValidationRules
             'logo' => ['nullable', 'image', 'max:2048'],
             'remove_logo' => ['nullable', 'boolean'],
         ];
-    }
-
-    /**
-     * Checksum validation for the IBAN. A closure rather than a class in
-     * app/Rules, which this app does not have.
-     */
-    private function ibanRule(): Closure
-    {
-        return function (string $attribute, mixed $value, Closure $fail): void {
-            if (! is_string($value) || ! checkIban($value)) {
-                $fail(__('The IBAN is invalid.'))->translate();
-            }
-        };
     }
 
     /**

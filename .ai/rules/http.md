@@ -90,7 +90,7 @@ Bei UI-Texten mit Zähler aufpassen: `$t()` pluralisiert nicht. ":count Beiträg
 
 Fallstrick für Tests: `storage/downloads` ist bewusst nicht gefakt (siehe Regel unter `tests/**`). Eine Fixture-Datei für einen „anderen Verein" deshalb nie unter einer echten Club-Id ablegen — SubscriptionManagementTest nutzt 999, damit sie nichts überschreibt, was Verein 2 wirklich erzeugt hat.
 
-Offen: `Member::availablePaymentMethods()` liefert hartkodierte deutsche Labels ('Konto'/'Rechnung'/'Nichtzahler'), die über die Außenstände-Tabelle unübersetzt ins UI durchschlagen. Kandidat für ein `PaymentMethod`-Enum nach dem Muster von ClubDisplay/Locale — hängt am Member-CRUD, der noch fehlt.
+Erledigt am 2026-08-26 mit dem Mitglieder-CRUD: `Member::availablePaymentMethods()` ist weg, `members.payment_method` ist auf `App\Enums\PaymentMethod` gecastet, und die Außenstände-Tabelle bekommt `->label()`. Siehe die Enum-Regel.
 
 ## Item-CRUD: Inventar ist pro Verein abschaltbar, und items.club_id ist NOT NULL
 Zwei Dinge, in denen das Inventar von Abteilungen/Ehrungen/Funktionen abweicht — beide an der echten Datenbank geprüft (2026-08-26):
@@ -118,3 +118,18 @@ DebitController folgt dem Beitrags-CRUD, mit vier bewussten Abweichungen:
 - **`memberOptions()` filtert nicht auf aktive Mitglieder**, anders als lsverein7 (`Member::members()->hasAccount()`), sondern nur auf `hasAccount()`. Grund: eine Lastschrift ist gerade für jemanden nützlich, der eben ausgetreten ist, und ein Picker, der das Mitglied einer bestehenden Lastschrift wegfallen lässt, macht die Zeile unspeicherbar. `DebitValidationRules` prüft exakt dieselbe Menge (Club + `iban <> ''`), von Hand geklubt, weil `exists` den ClubScope nicht erbt. `DebitFormFields.vue` hängt zusätzlich das Mitglied der bearbeiteten Zeile in den Picker, falls dessen IBAN inzwischen gelöscht wurde. Das Label zeigt die **volle** IBAN (`normalizeIban()`, in Vierergruppen), nicht `Member::accountNumber()` — die Kurzform aus lsverein7 reicht zum Gegenprüfen nicht; am 2026-08-26 so geändert.
 
 `amount` ist `between:0.01,...` — anders als ein 0-€-Beitrag für Ehrenmitglieder ist eine Lastschrift über 0 eine Anweisung, nichts zu bewegen.
+
+## Mitglieder-CRUD: Stichdatum, Auswahl-Fallback und was der Nicht-Admin nicht sieht
+Das Mitglieder-CRUD ist bewusst in drei Etappen geschnitten. **Diese Etappe: nur das CRUD selbst** — Index (Suche, feste + dynamische Auswahlen, Sortierung, Stichjahr), Create mit Eintrittsdaten, Edit, Show, Delete, Resign. **Noch nicht portiert:** die sechs Pivot-Unter-CRUDs auf der Bearbeitungsseite (Vereine, Abteilungen, Beiträge, Funktionen, Ehrungen, Inventar) und die vier Exporte (Mitglieder-PDF, Funktionen-PDF, CSV, vCard). `MemberPdf`/`MemberRolesPdf` liegen schon in app/Pdf, `resources/views/vcards.blade.php` fehlt noch.
+
+Fünf Dinge, die man beim Weiterbauen wissen muss:
+
+- **`Member::$_keyDate` in `MemberController::selection()` zu setzen ist der tragende Seiteneffekt.** Jede Alters-, Mitgliedschafts- und Ehrungsrechnung liest ihn, auch die in `MemberResource`. Das Stichjahr aus der URL ist also nicht bloß ein Filter, sondern verschiebt, wie die ganze Liste gelesen wird. `resolveYear()` klemmt statt zu 404en.
+- **Eine unbekannte oder für den Benutzer gesperrte Auswahl fällt auf die Standardauswahl zurück, kein 403/404.** Filter leben in Lesezeichen und im Zurück-Knopf. Gleiches gilt für eine unbekannte Sortierung.
+- **`MemberResource` verschweigt einem Nicht-Admin `subscriptions` und `last_event` (null),** und die Bankdaten stehen gar nicht drin — die gehen nur ans Bearbeitungsformular, das ohnehin admin-only ist. lsverein7 schickte alles und blendete es im Template mit `v-if="clubAdmin"` aus.
+- **Der Index muss `memberships`, `sections`, `roles`, `subscriptions`, `events` eager-laden.** `MemberResource` rechnet alles daraus; ohne das ist die Liste eine Abfrage pro Zeile und Relation.
+- **`members.member_id` (die Vereinsnummer, nicht der PK) vergibt der Controller,** `max('member_id') + 1` unter dem ClubScope. Nie aus dem Formular — sonst vergeben zwei Admins gleichzeitig dieselbe.
+
+`resign` beendet zu einem Datum alle offenen Mitgliedschaften und Abteilungen und ist der **normale** Austritt; `destroy` löscht wirklich und `members` kaskadiert in alle sechs Pivots. Der Löschdialog sagt das und verweist auf „Mitgliedschaft beenden".
+
+Fallstrick beim Testen: fünf Auswahlen (`milestone_birthdays`, `deaths`, `joined`, `retired`, `due_honours`) hängen an MySQL-only-Scopes, die SQLite nicht ausführt. `MemberManagementTest` prüft sie über die `QueryException` des Prepared Statements — nicht versuchen, sie über HTTP grün zu bekommen.

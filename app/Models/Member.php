@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Gender;
+use App\Enums\PaymentMethod;
 use App\Models\Scopes\ClubScope;
 use Carbon\CarbonInterface;
 use Database\Factories\MemberFactory;
@@ -33,7 +34,7 @@ use Illuminate\Support\Facades\DB;
  * @property string $city
  * @property string|null $email
  * @property string|null $phone
- * @property string $payment_method
+ * @property PaymentMethod $payment_method
  * @property string|null $bank
  * @property string|null $account_owner
  * @property string|null $iban
@@ -97,6 +98,7 @@ class Member extends Model
             'birthday' => 'date',
             'death_day' => 'date',
             'gender' => Gender::class,
+            'payment_method' => PaymentMethod::class,
         ];
     }
 
@@ -461,12 +463,15 @@ class Member extends Model
 
     /**
      * @param  Builder<Member>  $query
-     * @param  list<string>|string  $methods
+     * @param  list<PaymentMethod>|PaymentMethod  $methods
      */
     #[Scope]
-    protected function paymentMethods(Builder $query, array|string $methods): void
+    protected function paymentMethods(Builder $query, array|PaymentMethod $methods): void
     {
-        $query->whereIn('payment_method', Arr::wrap($methods));
+        $query->whereIn('payment_method', array_map(
+            fn (PaymentMethod $method): string => $method->value,
+            Arr::wrap($methods)
+        ));
     }
 
     /**
@@ -623,28 +628,5 @@ class Member extends Model
                 ->orWhere('city', 'like', $like)
                 ->orWhere('memo', 'like', $like);
         });
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public static function availableGenders(): array
-    {
-        return [
-            'f' => 'Frau',
-            'm' => 'Mann',
-        ];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public static function availablePaymentMethods(): array
-    {
-        return [
-            'k' => 'Konto',
-            'r' => 'Rechnung',
-            'n' => 'Nichtzahler',
-        ];
     }
 }

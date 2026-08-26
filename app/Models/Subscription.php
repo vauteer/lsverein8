@@ -25,6 +25,7 @@ use Stringable;
  * @property string|null $memo
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
+ * @property-read MemberSubscription|null $pivot the pivot row when loaded through Member::subscriptions()
  */
 #[Fillable([
     'club_id',
@@ -98,8 +99,6 @@ class Subscription extends Model implements Stringable
      */
     public static function debit(array $subscriptions, CarbonInterface $executionDate): array
     {
-        $paymentMethods = Member::availablePaymentMethods();
-
         $debits = [];
         $outStandings = [];
 
@@ -114,7 +113,7 @@ class Subscription extends Model implements Stringable
                     continue;
                 }
 
-                if ($member->payment_method === 'k') {
+                if ($member->payment_method->isCollectable()) {
                     $debits[] = [
                         'member_id' => $member->id,
                         'amount' => $subscription->amount,
@@ -124,7 +123,7 @@ class Subscription extends Model implements Stringable
                     $outStandings[] = [
                         'name' => $member->first_name.' '.$member->surname,
                         'subscription' => $subscription->__toString(),
-                        'paymentMethod' => $paymentMethods[$member->payment_method],
+                        'paymentMethod' => $member->payment_method->label(),
                     ];
                 }
             }

@@ -3,6 +3,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     Award,
     Banknote,
+    Contact,
     DatabaseBackup,
     FileText,
     LayoutGrid,
@@ -35,6 +36,7 @@ import { index as debits } from '@/routes/debits';
 import { index as events } from '@/routes/events';
 import { index as items } from '@/routes/items';
 import { index as logViewer } from '@/routes/log-viewer';
+import { index as members } from '@/routes/members';
 import { index as roles } from '@/routes/roles';
 import { index as sections } from '@/routes/sections';
 import { index as subscriptions } from '@/routes/subscriptions';
@@ -48,6 +50,12 @@ const mainNavItems = computed<NavItem[]>(() => [
         title: wTrans('Dashboard').value,
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    // The club's own people, so it comes before the lists that classify them.
+    {
+        title: wTrans('Members').value,
+        href: members(),
+        icon: Contact,
     },
     {
         title: wTrans('Sections').value,

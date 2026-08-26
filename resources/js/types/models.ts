@@ -194,6 +194,110 @@ export type OutstandingPayment = {
 };
 
 /**
+ * A member as sent to the index listing. `subscriptions` and `last_event` are
+ * null for a non-admin — what somebody pays is a treasurer's business, and the
+ * bank details are not in this shape at all.
+ *
+ * Everything derived (`age`, `is_member`, `membership_years`, `sections`,
+ * `roles`) is computed against the chosen year's key date, not against today.
+ */
+export type MemberResource = {
+    id: number;
+    /** The club's own running number, not the primary key. */
+    member_id: number;
+    surname: string;
+    first_name: string;
+    full_name: string;
+    address: string;
+    gender: string;
+    birthday: string;
+    age: number;
+    /** Dead as of the key date; the list marks them with a dagger. */
+    gone: boolean;
+    is_member: boolean;
+    membership_years: number;
+    sections: string;
+    roles: string;
+    subscriptions: string | null;
+    last_event: string | null;
+    modifiable: boolean;
+};
+
+/**
+ * The member fields sent to the create/edit forms — bank details included,
+ * which is why only an admin reaches those pages.
+ */
+export type MemberFormData = {
+    id: number;
+    member_id: number;
+    surname: string;
+    first_name: string;
+    gender: string;
+    birthday: string;
+    death_day: string | null;
+    street: string;
+    zipcode: string;
+    city: string;
+    email: string | null;
+    phone: string | null;
+    payment_method: string;
+    bank: string | null;
+    account_owner: string | null;
+    iban: string | null;
+    bic: string | null;
+    memo: string | null;
+    full_name: string;
+};
+
+/** One pivot row with a from/to range, as the detail page lists it. */
+export type MemberRangeRow = {
+    name: string;
+    range: string;
+    memo: string | null;
+};
+
+/** The member as the read-only detail page shows them, already formatted. */
+export type MemberDetail = {
+    id: number;
+    member_id: number;
+    full_name: string;
+    gender: string;
+    birthday: string;
+    death_day: string;
+    age: number;
+    address: string;
+    email: string | null;
+    phone: string | null;
+    memo: string | null;
+    entry: string;
+    membership_years: number;
+    is_member: boolean;
+    payment_method: string;
+    bank: string | null;
+    account_owner: string | null;
+    iban: string | null;
+    bic: string | null;
+    memberships: MemberRangeRow[];
+    sections: MemberRangeRow[];
+    roles: MemberRangeRow[];
+    items: MemberRangeRow[];
+    events: { name: string; date: string; memo: string | null }[];
+    subscriptions: {
+        name: string;
+        amount_label: string;
+        memo: string | null;
+    }[];
+};
+
+/** The state the member list is read with, round-tripped through the URL. */
+export type MemberListFilters = {
+    search: string;
+    filter: string;
+    sort: string;
+    year: number;
+};
+
+/**
  * A one-off direct debit as sent to the index listing: the debit's own columns
  * plus the member it is booked on and the pre-formatted amount and date.
  */

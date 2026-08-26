@@ -3,6 +3,7 @@
 use App\Enums\ActionType;
 use App\Enums\ClubRole;
 use App\Enums\Gender;
+use App\Enums\PaymentMethod;
 use App\Models\Club;
 use App\Models\ClubUser;
 use App\Models\Event;
@@ -314,9 +315,12 @@ it('exposes attribute scopes without the scope prefix', function () {
     $member = Member::factory()->ofClub($this->club)->create(['payment_method' => 'k']);
     Member::factory()->ofClub($this->club)->create(['payment_method' => 'r']);
 
-    // resolved through __callStatic and on an existing builder
-    expect(Member::paymentMethods('k')->pluck('id')->all())->toBe([$member->id])
-        ->and(Member::query()->paymentMethods('k')->count())->toBe(1);
+    // The scope takes PaymentMethod cases, not the raw 'k' the column stores —
+    // that is the point of the cast. Writing the backing value still works.
+    expect(Member::paymentMethods(PaymentMethod::Account)->pluck('id')->all())->toBe([$member->id])
+        // resolved through __callStatic and on an existing builder
+        ->and(Member::query()->paymentMethods(PaymentMethod::Account)->count())->toBe(1)
+        ->and($member->payment_method)->toBe(PaymentMethod::Account);
 });
 
 it('keeps the scope methods off the public surface', function () {

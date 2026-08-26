@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
  * @property string $name
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
+ * @property-read EventMember|null $pivot the pivot row when loaded through Member::events()
  */
 #[Fillable(['club_id', 'name'])]
 #[ScopedBy([ClubWithSharedScope::class])]

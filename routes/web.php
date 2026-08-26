@@ -8,6 +8,7 @@ use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\MemberController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\SubscriptionController;
@@ -16,6 +17,7 @@ use App\Models\Club;
 use App\Models\Debit;
 use App\Models\Event;
 use App\Models\Item;
+use App\Models\Member;
 use App\Models\Role;
 use App\Models\Section;
 use App\Models\Subscription;
@@ -44,6 +46,26 @@ Route::middleware(['auth'])->group(function () {
         ->name('users.destroy')->can('delete', 'user');
     Route::post('users/{user}/impersonate', [ImpersonationController::class, 'store'])
         ->name('users.impersonate')->can('impersonate', 'user');
+
+    // The member list is readable by everybody in the club; MemberPolicy and
+    // MemberResource are what keep the bank details and the finance columns
+    // to an admin.
+    Route::get('members', [MemberController::class, 'index'])
+        ->name('members.index')->can('viewAny', Member::class);
+    Route::get('members/create', [MemberController::class, 'create'])
+        ->name('members.create')->can('create', Member::class);
+    Route::post('members', [MemberController::class, 'store'])
+        ->name('members.store')->can('create', Member::class);
+    Route::get('members/{member}', [MemberController::class, 'show'])
+        ->name('members.show')->can('view', 'member');
+    Route::get('members/{member}/edit', [MemberController::class, 'edit'])
+        ->name('members.edit')->can('update', 'member');
+    Route::put('members/{member}', [MemberController::class, 'update'])
+        ->name('members.update')->can('update', 'member');
+    Route::put('members/{member}/resign', [MemberController::class, 'resign'])
+        ->name('members.resign')->can('resign', 'member');
+    Route::delete('members/{member}', [MemberController::class, 'destroy'])
+        ->name('members.destroy')->can('delete', 'member');
 
     Route::get('sections', [SectionController::class, 'index'])
         ->name('sections.index')->can('viewAny', Section::class);
