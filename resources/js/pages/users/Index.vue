@@ -86,7 +86,7 @@ defineOptions({
                 :title="$t('Users')"
                 :description="$t('Manage the users of this club')"
             />
-            <Button as-child class="hidden md:inline-flex">
+            <Button variant="outline" as-child class="hidden md:inline-flex">
                 <Link :href="create()">
                     <Plus class="size-4" />
                     {{ $t('New user') }}

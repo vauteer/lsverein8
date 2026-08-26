@@ -98,7 +98,7 @@ defineOptions({
                     <Banknote class="size-4" />
                     {{ $t('Collect fees') }}
                 </Button>
-                <Button v-if="canCreate" as-child>
+                <Button variant="outline" v-if="canCreate" as-child>
                     <Link :href="create()">
                         <Plus class="size-4" />
                         {{ $t('New subscription') }}

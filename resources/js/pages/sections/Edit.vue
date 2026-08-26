@@ -81,6 +81,7 @@ defineOptions({
                 <span v-else />
                 <div class="flex items-center gap-4">
                     <Button
+                        variant="outline"
                         :disabled="processing"
                         data-test="save-section-button"
                     >

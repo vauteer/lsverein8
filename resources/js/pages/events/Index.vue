@@ -75,7 +75,12 @@ defineOptions({
                     $t('Honours and awards a member receives or earns')
                 "
             />
-            <Button v-if="canCreate" as-child class="hidden md:inline-flex">
+            <Button
+                variant="outline"
+                v-if="canCreate"
+                as-child
+                class="hidden md:inline-flex"
+            >
                 <Link :href="create()">
                     <Plus class="size-4" />
                     {{ $t('New event') }}

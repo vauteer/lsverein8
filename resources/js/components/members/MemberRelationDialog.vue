@@ -117,6 +117,7 @@ watch(
                         </Button>
                     </DialogClose>
                     <Button
+                        variant="outline"
                         :disabled="processing"
                         data-test="save-relation-button"
                     >

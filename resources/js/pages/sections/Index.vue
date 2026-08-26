@@ -76,7 +76,12 @@ defineOptions({
                 :title="$t('Sections')"
                 :description="$t('Manage the sections of this club')"
             />
-            <Button v-if="canCreate" as-child class="hidden md:inline-flex">
+            <Button
+                variant="outline"
+                v-if="canCreate"
+                as-child
+                class="hidden md:inline-flex"
+            >
                 <Link :href="create()">
                     <Plus class="size-4" />
                     {{ $t('New section') }}

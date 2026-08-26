@@ -65,7 +65,11 @@ const backupToDelete = ref<BackupResource | null>(null);
                 :options="{ preserveScroll: true }"
                 v-slot="{ processing }"
             >
-                <Button :disabled="processing" data-test="create-backup-button">
+                <Button
+                    variant="outline"
+                    :disabled="processing"
+                    data-test="create-backup-button"
+                >
                     <Plus class="size-4" />
                     {{ processing ? $t('Creating …') : $t('New backup') }}
                 </Button>

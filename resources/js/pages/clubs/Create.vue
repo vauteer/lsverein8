@@ -49,7 +49,11 @@ defineOptions({
             />
 
             <div class="flex items-center gap-4">
-                <Button :disabled="processing" data-test="save-club-button">
+                <Button
+                    variant="outline"
+                    :disabled="processing"
+                    data-test="save-club-button"
+                >
                     {{ $t('Save') }}
                 </Button>
                 <Button variant="ghost" as-child>

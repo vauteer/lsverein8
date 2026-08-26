@@ -41,7 +41,11 @@ defineOptions({
             <EventFormFields :errors="errors" />
 
             <div class="flex items-center gap-4">
-                <Button :disabled="processing" data-test="save-event-button">
+                <Button
+                    variant="outline"
+                    :disabled="processing"
+                    data-test="save-event-button"
+                >
                     {{ $t('Save') }}
                 </Button>
                 <Button variant="ghost" as-child>
