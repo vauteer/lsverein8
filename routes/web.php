@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\ClubController;
+use App\Http\Controllers\ClubExportController;
 use App\Http\Controllers\ClubSwitchController;
 use App\Http\Controllers\DebitController;
 use App\Http\Controllers\DownloadController;
@@ -208,6 +209,11 @@ Route::middleware(['auth'])->group(function () {
         ->name('clubs.create')->can('create', Club::class);
     Route::post('clubs', [ClubController::class, 'store'])
         ->name('clubs.store')->can('create', Club::class);
+    // The club's own data as SQL. Same gate as editing it, and the club comes
+    // from the URL so root exports the one on screen rather than the one they
+    // are switched into.
+    Route::get('clubs/{club}/export', ClubExportController::class)
+        ->name('clubs.export')->can('export', 'club');
     Route::get('clubs/{club}/edit', [ClubController::class, 'edit'])
         ->name('clubs.edit')->can('update', 'club');
     Route::put('clubs/{club}', [ClubController::class, 'update'])

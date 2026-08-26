@@ -54,6 +54,19 @@ class ClubPolicy
      * any club — that is how it inspects one it does not belong to. Everybody
      * else only to a club they are a member of.
      */
+    /**
+     * The club's own slice of the database, as SQL.
+     *
+     * Same gate as update(), which is exactly right: root for any club, a club
+     * admin only for the one they are working in. The route carries the club,
+     * so root exports the club they are looking at rather than the one they
+     * happen to be switched into.
+     */
+    public function export(User $user, Club $club): bool
+    {
+        return $this->update($user, $club);
+    }
+
     public function switchTo(User $user, Club $club): bool
     {
         if ($club->id === $user->club_id) {

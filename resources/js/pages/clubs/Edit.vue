@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
+import { Download, TriangleAlert } from '@lucide/vue';
 import { trans } from 'laravel-vue-i18n';
 import { ref } from 'vue';
 import ClubController from '@/actions/App/Http/Controllers/ClubController';
+import ClubExportController from '@/actions/App/Http/Controllers/ClubExportController';
 import ClubFormFields from '@/components/ClubFormFields.vue';
 import Heading from '@/components/Heading.vue';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
     Dialog,
     DialogClose,
@@ -27,6 +29,10 @@ const props = defineProps<{
     /** False for a club admin, who has no club list to return to. */
     listable: boolean;
 }>();
+
+// Not an Inertia link: a file download, so a visit would leave the SPA
+// looking for a component. Same reason as the SEPA and member exports.
+const exportHref = ClubExportController.url(props.club.id);
 
 const confirmingDeletion = ref(false);
 
@@ -88,6 +94,43 @@ defineOptions({
                 </div>
             </div>
         </Form>
+
+        <section
+            class="mt-8 flex flex-col gap-3 rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border"
+        >
+            <h2 class="text-sm font-medium">{{ $t('Data') }}</h2>
+            <p class="text-sm text-muted-foreground">
+                {{
+                    $t(
+                        'Every row belonging to this club as an SQL script: the club, its members and their whole history, plus the accounts that can reach it.',
+                    )
+                }}
+            </p>
+            <p
+                class="flex items-start gap-2 text-sm text-muted-foreground"
+                data-test="club-export-warning"
+            >
+                <TriangleAlert class="mt-0.5 size-4 shrink-0" />
+                <span>
+                    {{
+                        $t(
+                            'The script empties each table before filling it, so import it into an empty database only — run against an installation holding other clubs, it deletes their data.',
+                        )
+                    }}
+                </span>
+            </p>
+            <div>
+                <a
+                    :href="exportHref"
+                    download
+                    :class="buttonVariants({ variant: 'outline' })"
+                    data-test="club-export-link"
+                >
+                    <Download class="size-4" />
+                    {{ $t('Export club data') }}
+                </a>
+            </div>
+        </section>
 
         <Dialog
             :open="confirmingDeletion"
