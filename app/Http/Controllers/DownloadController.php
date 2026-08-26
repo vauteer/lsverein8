@@ -6,7 +6,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Serves what the app generates into storage/downloads: the SEPA file and its
- * cover sheet, and (once it has a screen) the BLSV statistic.
+ * cover sheet, and the BLSV statistic's PDF and CSVs.
  *
  * The files are written with a `{club_id}_` prefix but the URLs carry only the
  * bare name, so a link is always resolved against the club the caller is

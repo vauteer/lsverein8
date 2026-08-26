@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
-import { Download, TriangleAlert } from '@lucide/vue';
+import { ChartColumn, Download, TriangleAlert } from '@lucide/vue';
 import { trans } from 'laravel-vue-i18n';
 import { ref } from 'vue';
 import ClubController from '@/actions/App/Http/Controllers/ClubController';
@@ -18,7 +18,9 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { dashboard } from '@/routes';
-import { index } from '@/routes/clubs';
+// Aliased: the page also takes a `blsvStatistic` prop, and the two
+// would collide in the template.
+import { blsvStatistic as blsvStatisticRoute, index } from '@/routes/clubs';
 import type { BreadcrumbItem, ClubFormData, SelectOption } from '@/types';
 
 const props = defineProps<{
@@ -28,11 +30,15 @@ const props = defineProps<{
     deletable: boolean;
     /** False for a club admin, who has no club list to return to. */
     listable: boolean;
+    /** Only for a BLSV club, and only the one the viewer is working in. */
+    blsvStatistic: boolean;
 }>();
 
 // Not an Inertia link: a file download, so a visit would leave the SPA
 // looking for a component. Same reason as the SEPA and member exports.
 const exportHref = ClubExportController.url(props.club.id);
+
+const blsvStatisticHref = blsvStatisticRoute(props.club.id);
 
 const confirmingDeletion = ref(false);
 
@@ -94,6 +100,33 @@ defineOptions({
                 </div>
             </div>
         </Form>
+
+        <section
+            v-if="blsvStatistic"
+            class="mt-8 flex flex-col gap-3 rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border"
+        >
+            <h2 class="text-sm font-medium">{{ $t('BLSV statistic') }}</h2>
+            <p class="text-sm text-muted-foreground">
+                {{
+                    $t(
+                        'The yearly report as of 1 January: the age statistic as a PDF, plus one member list per BLSV section as CSV.',
+                    )
+                }}
+            </p>
+            <div>
+                <!-- An Inertia link: unlike the export this opens a page that
+                lists the generated files, it is not a download itself. -->
+                <Button variant="outline" as-child>
+                    <Link
+                        :href="blsvStatisticHref"
+                        data-test="blsv-statistic-link"
+                    >
+                        <ChartColumn class="size-4" />
+                        {{ $t('Build statistic') }}
+                    </Link>
+                </Button>
+            </div>
+        </section>
 
         <section
             class="mt-8 flex flex-col gap-3 rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border"

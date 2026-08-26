@@ -181,8 +181,9 @@ export type DebitableSubscription = {
 };
 
 /**
- * One generated file offered on the debit result page. `href` is a bare name
- * under /downloads; the server prefixes the current club (DownloadController).
+ * One generated file offered for download — the SEPA collection's results and
+ * the BLSV statistic. `href` names the file under /downloads without a club;
+ * the server puts the current club's prefix back on (DownloadController).
  */
 export type GeneratedDownload = {
     name: string;

@@ -84,7 +84,7 @@ Sammel-Abbuchung (`POST subscriptions/debit` → `subscriptions/Debit`):
 
 Bei UI-Texten mit Zähler aufpassen: `$t()` pluralisiert nicht. ":count Beiträge" liest sich bei 1 falsch — entweder eine Formulierung wählen, die nicht flektiert (":selected von :total ausgewählt"), oder `trans_choice`.
 
-`GET downloads/{filename}` (DownloadController, Gate `downloadGeneratedFiles` = hasAdminRights) ist der einzige Ausgang für `storage/downloads`. Die Dateien liegen mit `{club_id}_`-Präfix, die URL trägt nur den nackten Namen — der Controller setzt den Präfix des *aufrufenden* Vereins davor, damit eine URL nie die Datei eines anderen Vereins benennen kann. Das ist auch der Weg für die BLSV-Statistik, sobald die einen Bildschirm bekommt.
+`GET downloads/{filename}` (DownloadController, Gate `downloadGeneratedFiles` = hasAdminRights) ist der einzige Ausgang für `storage/downloads`. Die Dateien liegen mit `{club_id}_`-Präfix, die URL trägt nur den nackten Namen — der Controller setzt den Präfix des *aufrufenden* Vereins davor, damit eine URL nie die Datei eines anderen Vereins benennen kann. Das ist auch der Weg für die BLSV-Statistik, die seit 2026-08-26 einen Bildschirm hat (BlsvStatisticController — siehe die Regel unter app/Http/Controllers/BlsvStatisticController.php).
 
 `Subscription::generateSepa()` legt `storage/downloads` jetzt selbst an (`File::ensureDirectoryExists`) — das Verzeichnis ist gitignored und nach einem Deploy weg, `file_put_contents` wäre sonst beim ersten Einzug fatal.
 

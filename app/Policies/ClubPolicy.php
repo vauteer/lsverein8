@@ -67,6 +67,29 @@ class ClubPolicy
         return $this->update($user, $club);
     }
 
+    /**
+     * The yearly BLSV age statistic, and the CSVs that go with it.
+     *
+     * `hasAdminRights`, like the SEPA collection: the generated files list
+     * every member by name, gender and date of birth.
+     *
+     * Deliberately not delegating to update(), which would let a root account
+     * build it from another club's page. Member and Section carry ClubScope,
+     * so the numbers are always the current club's while the files would be
+     * written under the club in the URL — root switches first, the way the
+     * club list already asks it to for the member count.
+     *
+     * A club that is not in the BLSV has nothing to report; its sections carry
+     * no `blsv_id` either (SectionValidationRules prohibits it), so the
+     * statistic would come out empty rather than wrong.
+     */
+    public function blsvStatistic(User $user, Club $club): bool
+    {
+        return $club->id === currentClubId()
+            && $club->blsv_member
+            && $user->hasAdminRights($club->id);
+    }
+
     public function switchTo(User $user, Club $club): bool
     {
         if ($club->id === $user->club_id) {

@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -267,6 +268,12 @@ class Club extends Model
      * Builds the yearly BLSV age statistic, writes one CSV per section plus a
      * summary CSV and PDF to storage/downloads.
      *
+     * Only ever meaningful for the club the caller is working in: Member and
+     * Section carry ClubScope, so the numbers are the *current* club's however
+     * this is invoked, while the files are named after `$this`. Calling it on
+     * another Club would file one club's members under another's name — hence
+     * ClubPolicy::blsvStatistic(), which refuses anything but the current club.
+     *
      * @return array<int, array{name: string, href: string}>
      */
     public function getBLSVStatistic(): array
@@ -276,7 +283,12 @@ class Club extends Model
         Member::$_keyDate = $keyDate;
         $year = $keyDate->year;
 
-        $files = [];
+        // storage/downloads is not in version control and is wiped by a
+        // deploy, so it may simply not be there the first time a club builds
+        // its statistic. The file_put_contents() calls below would fatal.
+        File::ensureDirectoryExists(storage_path('downloads'));
+
+        $sectionFiles = [];
         $stats = [-1 => self::getBlankStat()];
         $totals = self::getBlankStat();
 
@@ -325,26 +337,38 @@ class Club extends Model
 
             if ($count > 0) {
                 $stats[$section->blsv_id] = $stat + ['name' => $section->name];
-                $filename = "BE{$year}_{$section->name}.csv";
-                file_put_contents(storage_path("downloads/{$this->id}_".$filename), $csv);
-
-                $files[] = ['name' => $section->name, 'href' => "/downloads/{$filename}"];
+                $sectionFiles[] = $this->writeDownload("BE{$year}_{$section->name}.csv", $csv, $section->name);
             }
         }
 
-        $filename = "BE{$year}_Gesamt.csv";
-        file_put_contents(storage_path("downloads/{$this->id}_".$filename), $totalCsv);
-        $files[] = ['name' => 'Alle Sparten', 'href' => "/downloads/{$filename}"];
-
         $pdf = new BlsvPdf;
-        $filename = 'blsv_stat.pdf';
-        file_put_contents(
-            storage_path("downloads/{$this->id}_".$filename),
-            $pdf->getOutput($stats, $keyDate, $this->name)
-        );
-        $files[] = ['name' => 'Alters-Statistik', 'href' => "/downloads/{$filename}"];
 
-        return array_reverse($files);
+        // The statistic first, then the file that covers every section, then
+        // the sections themselves in BLSV order — the two summaries are what
+        // the club actually submits.
+        return [
+            $this->writeDownload('blsv_stat.pdf', $pdf->getOutput($stats, $keyDate, $this->name), __('Age statistic')),
+            $this->writeDownload("BE{$year}_Gesamt.csv", $totalCsv, __('All sections')),
+            ...$sectionFiles,
+        ];
+    }
+
+    /**
+     * Write one generated file to storage/downloads and describe it for the
+     * download list. The name is stored with the club prefix but handed out
+     * bare: DownloadController puts the *caller's* prefix back on, so a URL
+     * can never name another club's file.
+     *
+     * @return array{name: string, href: string}
+     */
+    private function writeDownload(string $filename, string $contents, string $label): array
+    {
+        file_put_contents(storage_path("downloads/{$this->id}_".$filename), $contents);
+
+        // route(), not "/downloads/{$filename}": a section name may carry
+        // spaces or umlauts (see the name rule in SectionValidationRules),
+        // and only this encodes them.
+        return ['name' => $label, 'href' => route('downloads.show', $filename, absolute: false)];
     }
 
     public function calcBlsvDebit(float $childrenDue, float $teenDue, float $adultDue): float

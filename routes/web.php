@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BackupController;
+use App\Http\Controllers\BlsvStatisticController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubExportController;
 use App\Http\Controllers\ClubSwitchController;
@@ -214,6 +215,11 @@ Route::middleware(['auth'])->group(function () {
     // are switched into.
     Route::get('clubs/{club}/export', ClubExportController::class)
         ->name('clubs.export')->can('export', 'club');
+    // The yearly BLSV report. Only ever for the club the caller is working in
+    // — the members it counts come from ClubScope, not from the URL — which is
+    // what ClubPolicy::blsvStatistic() enforces.
+    Route::get('clubs/{club}/blsv-statistic', BlsvStatisticController::class)
+        ->name('clubs.blsv-statistic')->can('blsvStatistic', 'club');
     Route::get('clubs/{club}/edit', [ClubController::class, 'edit'])
         ->name('clubs.edit')->can('update', 'club');
     Route::put('clubs/{club}', [ClubController::class, 'update'])
