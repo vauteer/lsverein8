@@ -49,6 +49,12 @@ class AppServiceProvider extends ServiceProvider
         // A backup is the whole database — every club — and a restore replaces
         // it wholesale, so this is root-only for the same reason.
         Gate::define('manageBackups', fn (User $user): bool => (bool) $user->admin);
+
+        // storage/downloads holds the SEPA file and the BLSV statistic, which
+        // carry the members' names, IBANs and mandate dates. DownloadController
+        // resolves a name against the caller's own club, so this only has to
+        // establish that they may see the club's bank data at all.
+        Gate::define('downloadGeneratedFiles', fn (User $user): bool => $user->hasAdminRights());
     }
 
     /**

@@ -53,3 +53,41 @@ Der Wechsel schreibt `users.club_id` (ClubSwitchController), nicht Session-State
 Logo-Upload (seit 2026-08-25): `ClubController::applyLogo()` speichert, ersetzt oder leert `clubs.logo` und ruft danach `Club::removeOrphanLogos()`. `remove_logo` gewinnt gegen eine gleichzeitig gesendete Datei.
 
 Wichtig für Tests: der Sweep läuft bei **jedem** store und update, nicht nur beim Hochladen — siehe die Regel zur Speicher-Isolierung unter `tests/**`.
+
+## Subscription CRUD: kein Shared-Zweig, Cascade macht die Policy zur einzigen Bremse
+SubscriptionController/Policy/ValidationRules folgen dem Section-/Event-/Role-Muster, mit drei bewussten Abweichungen:
+
+- Subscription trägt `ClubScope`, nicht `ClubWithSharedScope`. Es gibt also keine installationsweiten Zeilen (`club_id` nie null), keinen root-only-Zweig in der Policy, kein `shared`-Feld in der Resource und keinen `(bool) $user->admin`-Cast. Die Unique-Regel prüft nur `club_id = currentClubId()` und deckt sich damit exakt mit dem DB-Key `unique(club_id, name)`.
+- `member_subscription.subscription_id` ist ON DELETE CASCADE (member_role ist RESTRICT, member_section gar nichts). Die Datenbank würde die Zuordnungen also klaglos mitlöschen — `SubscriptionPolicy::delete()` mit `! $subscription->isUsed()` ist die einzige Bremse, nicht bloß die Übersetzung eines DB-Fehlers in ein 403.
+- `transfer_text` darf die globale `SEPA_REGEX` NICHT wiederverwenden: die verbietet `<` und `>`, der Verwendungszweck braucht sie aber für die Platzhalter `<AJ>/<VN>/<NN>`. Dafür steht `SubscriptionValidationRules::TRANSFER_TEXT_REGEX`. Unbedenklich, weil `Subscription::generateSepa()` die Platzhalter ersetzt, bevor der Text in die XML geht — übertragen wird also SEPA-sauberer Text.
+
+`subscriptions.amount` ist decimal(8,2) und kommt aus MySQL als String, aus SQLite als Float zurück; deshalb hat das Model jetzt `casts()` mit `'amount' => 'float'`. Die Resource formatiert zusätzlich `amount_label` serverseitig (deutsches Dezimalkomma gehört nicht in ein Vue-Template, gleiche Begründung wie bei ClubDisplay).
+
+Nicht portiert aus lsverein7: die Sammel-Abbuchung (`SubscriptionController::debit()` plus Seite `Subscriptions/Debit.vue`, Checkboxen in der Liste). `Subscription::debit()`/`generateSepa()` im Model sind da und getestet (SepaGenerationTest), es fehlt nur die UI. `Subscription::VAR_DESCRIPTION` (hartkodiertes deutsches 'Variablen: <AJ> Jahr, …') wurde dabei entfernt — der Hinweis läuft jetzt über `$t()`/de.json.
+
+## Sammel-Abbuchung und der /downloads-Ausgang
+Die Beitragsliste ist nach `amount`, dann `name` sortiert (nicht nach Name wie die Geschwister-CRUDs) — so wie lsverein7. `SubscriptionController::pageOf()` spiegelt genau diese Reihenfolge; `(club_id, name)` ist unique, deshalb bricht `name` einen Betrags-Gleichstand vollständig und es braucht keine id-Ebene.
+
+Die Sammel-Abbuchung ist eine eigene Aktion mit Dialog (`SubscriptionDebitDialog.vue`), **keine** Auswahlspalte in der Tabelle. Die erste Fassung hatte Checkboxen pro Zeile plus eine Werkzeugleiste; am 2026-08-26 verworfen, weil nicht erkennbar war, wie man überhaupt abbucht. Nicht zurückbauen.
+
+Zwei Dinge, die daran hängen:
+- Der Dialog bekommt `debitable` aus `SubscriptionController::debitOptions()` — **alle** Beiträge des Vereins, ungefiltert und unpaginiert. Was abgebucht wird, darf nicht davon abhängen, auf welcher Seite oder in welcher Suche der Benutzer gerade steht.
+- Beiträge mit `amount = 0` (Ehrenmitglieder) tauchen dort nicht auf, und `SubscriptionDebitRequest` lehnt sie zusätzlich mit `->where('amount', '>', 0)` ab. In der Tabelle bleiben sie sichtbar. `freeCount` sagt dem Dialog nur, ob er die Lücke erklären soll.
+
+Sammel-Abbuchung (`POST subscriptions/debit` → `subscriptions/Debit`):
+- `SubscriptionPolicy::debit()` = `hasAdminRights()`, weil die Aktion eine SEPA-Datei für den ganzen Verein schreibt.
+- `SubscriptionDebitRequest` muss `Rule::exists()` **von Hand** auf `club_id = currentClubId()` einschränken: `exists` setzt eine einfache Query ab und erbt den ClubScope des Models nicht. Ohne das könnte ein Club-Admin fremde Beiträge einziehen.
+- Die Ids gehen als `array_values(array_map(...))` weiter — `Subscription::debit()` erwartet `list<int>`, und `array_map` allein behält Lücken aus einem `subscriptions[3]`-Payload.
+- Der POST rendert eine Seite (kein Redirect), wie in lsverein7. Ein Reload der Ergebnisseite bucht also erneut ab.
+
+`Subscription::amountLabel()` ist die einzige Stelle, die einen Betrag formatiert (Resource, Dialog-Liste, `__toString()`). Der vierte Parameter von `number_format()` ist dort nicht optional: er steht per Default ebenfalls auf ',', wodurch 1234.5 als "1,234,56" herauskam. Deutsche Dezimalkommas gehören serverseitig gesetzt, nicht ins Vue-Template.
+
+Bei UI-Texten mit Zähler aufpassen: `$t()` pluralisiert nicht. ":count Beiträge" liest sich bei 1 falsch — entweder eine Formulierung wählen, die nicht flektiert (":selected von :total ausgewählt"), oder `trans_choice`.
+
+`GET downloads/{filename}` (DownloadController, Gate `downloadGeneratedFiles` = hasAdminRights) ist der einzige Ausgang für `storage/downloads`. Die Dateien liegen mit `{club_id}_`-Präfix, die URL trägt nur den nackten Namen — der Controller setzt den Präfix des *aufrufenden* Vereins davor, damit eine URL nie die Datei eines anderen Vereins benennen kann. Das ist auch der Weg für die BLSV-Statistik, sobald die einen Bildschirm bekommt.
+
+`Subscription::generateSepa()` legt `storage/downloads` jetzt selbst an (`File::ensureDirectoryExists`) — das Verzeichnis ist gitignored und nach einem Deploy weg, `file_put_contents` wäre sonst beim ersten Einzug fatal.
+
+Fallstrick für Tests: `storage/downloads` ist bewusst nicht gefakt (siehe Regel unter `tests/**`). Eine Fixture-Datei für einen „anderen Verein" deshalb nie unter einer echten Club-Id ablegen — SubscriptionManagementTest nutzt 999, damit sie nichts überschreibt, was Verein 2 wirklich erzeugt hat.
+
+Offen: `Member::availablePaymentMethods()` liefert hartkodierte deutsche Labels ('Konto'/'Rechnung'/'Nichtzahler'), die über die Außenstände-Tabelle unübersetzt ins UI durchschlagen. Kandidat für ein `PaymentMethod`-Enum nach dem Muster von ClubDisplay/Locale — hängt am Member-CRUD, der noch fehlt.

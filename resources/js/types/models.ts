@@ -116,6 +116,64 @@ export type RoleFormData = {
 };
 
 /**
+ * A subscription as sent to the index listing: the subscription's own columns
+ * plus the pre-formatted amount and the number of the current club's members
+ * holding it.
+ */
+export type SubscriptionResource = {
+    id: number;
+    name: string;
+    amount: number;
+    /** Formatted server-side, so the decimal comma is not in a template. */
+    amount_label: string;
+    transfer_text: string | null;
+    memo: string | null;
+    members_count: number;
+    modifiable: boolean;
+    deletable: boolean;
+};
+
+/**
+ * The subscription fields sent to the create/edit forms.
+ */
+export type SubscriptionFormData = {
+    id: number;
+    name: string;
+    amount: number;
+    transfer_text: string | null;
+    memo: string | null;
+};
+
+/**
+ * One fee the collection dialog offers. 0 € fees never appear here: there is
+ * nothing to collect from them (SubscriptionController::debitOptions()).
+ */
+export type DebitableSubscription = {
+    id: number;
+    name: string;
+    amount_label: string;
+};
+
+/**
+ * One generated file offered on the debit result page. `href` is a bare name
+ * under /downloads; the server prefixes the current club (DownloadController).
+ */
+export type GeneratedDownload = {
+    name: string;
+    href: string;
+};
+
+/**
+ * A member who holds one of the collected subscriptions but does not pay by
+ * direct debit, so they have to be billed by hand.
+ */
+export type OutstandingPayment = {
+    name: string;
+    subscription: string;
+    paymentMethod: string;
+};
+
+/**
  * A club as sent to the (root-only) index listing. Bank details are absent on
  * purpose — they belong on the form, not in a list.
  */

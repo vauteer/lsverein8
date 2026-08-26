@@ -7,6 +7,7 @@ import {
     LayoutGrid,
     Building2,
     Shapes,
+    Euro,
     UserCog,
     Users,
 } from '@lucide/vue';
@@ -32,6 +33,7 @@ import { index as events } from '@/routes/events';
 import { index as logViewer } from '@/routes/log-viewer';
 import { index as roles } from '@/routes/roles';
 import { index as sections } from '@/routes/sections';
+import { index as subscriptions } from '@/routes/subscriptions';
 import { index as users } from '@/routes/users';
 import type { NavItem } from '@/types';
 
@@ -57,6 +59,11 @@ const mainNavItems = computed<NavItem[]>(() => [
         title: wTrans('Roles').value,
         href: roles(),
         icon: UserCog,
+    },
+    {
+        title: wTrans('Subscriptions').value,
+        href: subscriptions(),
+        icon: Euro,
     },
     ...(page.props.auth.canManageUsers
         ? [

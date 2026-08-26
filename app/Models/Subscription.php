@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Stringable;
 
 /**
@@ -38,7 +39,18 @@ class Subscription extends Model implements Stringable
     /** @use HasFactory<SubscriptionFactory> */
     use HasFactory;
 
-    public const VAR_DESCRIPTION = 'Variablen: <AJ> Jahr, <VN> Vorname, <NN> Nachname';
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        // decimal(8,2) comes back from MySQL as a string but from SQLite as a
+        // float; the cast keeps `@property float $amount` honest on both, and
+        // keeps the JSON the index sends numeric.
+        return [
+            'amount' => 'float',
+        ];
+    }
 
     /**
      * @return BelongsTo<Club, $this>
@@ -64,11 +76,20 @@ class Subscription extends Model implements Stringable
         return DB::table('member_subscription')->where('subscription_id', $this->id)->exists();
     }
 
+    /**
+     * The amount as it is shown to the user, e.g. "1.234,50 €".
+     */
+    public function amountLabel(): string
+    {
+        // The fourth argument is not optional here: number_format() defaults
+        // the thousands separator to ',' as well, which turned 1234.5 into
+        // "1,234,56" once an amount reached four digits.
+        return number_format($this->amount, 2, ',', '.').' €';
+    }
+
     public function __toString(): string
     {
-        $amount = number_format($this->amount, 2, ',');
-
-        return "{$this->name} ($amount €)";
+        return "{$this->name} ({$this->amountLabel()})";
     }
 
     /**
@@ -163,6 +184,11 @@ class Subscription extends Model implements Stringable
         $data['nbOfTxs'] = count($payments);
         $data['ctrlSum'] = sprintf('%01.2f', $totalAmount);
         $data['payments'] = $payments;
+
+        // storage/downloads is not in version control and is wiped by a
+        // deploy, so it may simply not be there the first time a club
+        // collects. file_put_contents() below would fatal on that.
+        File::ensureDirectoryExists(storage_path('downloads'));
 
         $sepaName = 'sepa.xml';
         $sepaPath = storage_path("downloads/{$club->id}_".$sepaName);

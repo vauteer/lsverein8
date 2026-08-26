@@ -3,15 +3,18 @@
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubSwitchController;
+use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SectionController;
+use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserController;
 use App\Models\Club;
 use App\Models\Event;
 use App\Models\Role;
 use App\Models\Section;
+use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -76,6 +79,27 @@ Route::middleware(['auth'])->group(function () {
         ->name('roles.update')->can('update', 'role');
     Route::delete('roles/{role}', [RoleController::class, 'destroy'])
         ->name('roles.destroy')->can('delete', 'role');
+
+    Route::get('subscriptions', [SubscriptionController::class, 'index'])
+        ->name('subscriptions.index')->can('viewAny', Subscription::class);
+    Route::get('subscriptions/create', [SubscriptionController::class, 'create'])
+        ->name('subscriptions.create')->can('create', Subscription::class);
+    Route::post('subscriptions', [SubscriptionController::class, 'store'])
+        ->name('subscriptions.store')->can('create', Subscription::class);
+    Route::get('subscriptions/{subscription}/edit', [SubscriptionController::class, 'edit'])
+        ->name('subscriptions.edit')->can('update', 'subscription');
+    Route::put('subscriptions/{subscription}', [SubscriptionController::class, 'update'])
+        ->name('subscriptions.update')->can('update', 'subscription');
+    Route::delete('subscriptions/{subscription}', [SubscriptionController::class, 'destroy'])
+        ->name('subscriptions.destroy')->can('delete', 'subscription');
+    Route::post('subscriptions/debit', [SubscriptionController::class, 'debit'])
+        ->name('subscriptions.debit')->can('debit', Subscription::class);
+
+    // The generated SEPA and BLSV files. {filename} carries no club prefix;
+    // DownloadController adds the caller's own, so the URL cannot name
+    // another club's file.
+    Route::get('downloads/{filename}', [DownloadController::class, 'show'])
+        ->name('downloads.show')->middleware('can:downloadGeneratedFiles');
 
     // Root sees and edits every club; a club admin only the one they are
     // currently working in, so there is no index for them (ClubPolicy).
