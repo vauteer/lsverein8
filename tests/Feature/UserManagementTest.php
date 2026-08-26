@@ -68,8 +68,14 @@ test('the index lists only the users of the current club', function () {
 });
 
 test('the index reports the last login and can be searched', function () {
-    $admin = clubUser(attributes: ['name' => 'Zora Admin']);
-    $target = clubUser(ClubRole::Basic, attributes: ['name' => 'Anna Beispiel']);
+    // Emails pinned, not just names: the search covers `email` too, and the
+    // factory's random address occasionally contained the term (johanna@…,
+    // susanna@…), which made this fail once in a while for no reason.
+    $admin = clubUser(attributes: ['name' => 'Zora Admin', 'email' => 'zora@example.test']);
+    $target = clubUser(ClubRole::Basic, attributes: [
+        'name' => 'Anna Beispiel',
+        'email' => 'beispiel@example.test',
+    ]);
 
     Tracing::create([
         'at' => now()->subDay(),

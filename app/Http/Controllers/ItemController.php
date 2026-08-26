@@ -23,7 +23,7 @@ class ItemController extends Controller
         return Inertia::render('items/Index', [
             'items' => ItemResource::collection(
                 Item::query()
-                    ->withCount('members')
+                    ->withMemberCounts()
                     ->when($search !== '', fn (Builder $query) => $query
                         ->where('name', 'like', "%{$search}%"))
                     ->orderBy('name')

@@ -23,7 +23,7 @@ class EventController extends Controller
         return Inertia::render('events/Index', [
             'events' => EventResource::collection(
                 Event::query()
-                    ->withCount('members')
+                    ->withMemberCount()
                     ->when($search !== '', fn (Builder $query) => $query
                         ->where('name', 'like', "%{$search}%"))
                     ->orderBy('name')

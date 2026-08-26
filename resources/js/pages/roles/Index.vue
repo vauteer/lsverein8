@@ -21,6 +21,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { index as members } from '@/routes/members';
 import { create, edit, index } from '@/routes/roles';
 import type { BreadcrumbItem, RoleResource, Paginated } from '@/types';
 
@@ -111,7 +112,10 @@ defineOptions({
                     <TableRow>
                         <TableHead>{{ $t('Name') }}</TableHead>
                         <TableHead class="text-right">
-                            {{ $t('Members') }}
+                            {{ $t('Current') }}
+                        </TableHead>
+                        <TableHead class="text-right">
+                            {{ $t('Ever') }}
                         </TableHead>
                         <TableHead class="text-right">
                             {{ $t('Actions') }}
@@ -137,7 +141,50 @@ defineOptions({
                             </span>
                         </TableCell>
                         <TableCell class="text-right tabular-nums">
-                            {{ role.members_count }}
+                            <Link
+                                v-if="role.members_count > 0"
+                                :href="
+                                    members({
+                                        query: {
+                                            filter: `role_${role.id}`,
+                                        },
+                                    })
+                                "
+                                class="underline-offset-4 hover:underline"
+                                :aria-label="
+                                    $t('Show the members holding :name', {
+                                        name: role.name,
+                                    })
+                                "
+                            >
+                                {{ role.members_count }}
+                            </Link>
+                            <span v-else class="text-muted-foreground">
+                                {{ role.members_count }}
+                            </span>
+                        </TableCell>
+                        <TableCell class="text-right tabular-nums">
+                            <Link
+                                v-if="role.ever_members_count > 0"
+                                :href="
+                                    members({
+                                        query: {
+                                            filter: `ever_role_${role.id}`,
+                                        },
+                                    })
+                                "
+                                class="underline-offset-4 hover:underline"
+                                :aria-label="
+                                    $t('Show everyone who ever held :name', {
+                                        name: role.name,
+                                    })
+                                "
+                            >
+                                {{ role.ever_members_count }}
+                            </Link>
+                            <span v-else class="text-muted-foreground">
+                                {{ role.ever_members_count }}
+                            </span>
                         </TableCell>
                         <TableCell>
                             <div class="flex justify-end gap-1">
@@ -171,7 +218,7 @@ defineOptions({
                             </div>
                         </TableCell>
                     </TableRow>
-                    <TableEmpty v-if="roles.data.length === 0" :colspan="3">
+                    <TableEmpty v-if="roles.data.length === 0" :colspan="4">
                         {{
                             search ? $t('No roles found.') : $t('No roles yet.')
                         }}

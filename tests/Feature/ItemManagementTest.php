@@ -64,7 +64,10 @@ test('the index counts only the current club members and can be searched', funct
     $item = Item::factory()->create(['club_id' => 1, 'name' => 'Jacke Bayern 2000']);
     Item::factory()->create(['club_id' => 1, 'name' => 'Helm 1950']);
 
-    $item->members()->attach(Member::factory()->ofClub(1)->create()->id, ['from' => now()->subYear()]);
+    $holder = Member::factory()->ofClub(1)->create();
+    $holder->memberships()->attach(1, ['from' => '2016-01-01', 'to' => null]);
+    $item->members()->attach($holder->id, ['from' => now()->subYear()]);
+
     // Another club's member holds it too, but must not be counted here.
     $item->members()->attach(Member::factory()->create()->id, ['from' => now()->subYear()]);
 
@@ -76,6 +79,63 @@ test('the index counts only the current club members and can be searched', funct
             ->where('items.data.0.name', 'Jacke Bayern 2000')
             ->where('items.data.0.members_count', 1)
             ->where('filters.search', 'Jacke')
+        );
+});
+
+test('the two counts are what is still out and what was ever issued', function () {
+    $item = Item::factory()->create(['club_id' => 1, 'name' => 'Helm 1950']);
+
+    // Still has it: both columns.
+    $holder = Member::factory()->ofClub(1)->create(['surname' => 'Traegerin']);
+    $holder->memberships()->attach(1, ['from' => '2016-01-01', 'to' => null]);
+    $holder->items()->attach($item->id, ['from' => '2016-01-01', 'to' => null]);
+
+    // Gave it back: "ever" only.
+    $returned = Member::factory()->ofClub(1)->create(['surname' => 'Rueckgeberin']);
+    $returned->memberships()->attach(1, ['from' => '2010-01-01', 'to' => null]);
+    $returned->items()->attach($item->id, ['from' => '2010-01-01', 'to' => '2015-12-31']);
+
+    $this->actingAs(itemUser());
+
+    $this->get(route('items.index', ['search' => 'Helm']))
+        ->assertInertia(fn ($page) => $page
+            ->has('items.data', 1)
+            ->where('items.data.0.members_count', 1)
+            ->where('items.data.0.ever_members_count', 2)
+        );
+
+    // Each number equals the selection it links to.
+    $this->get(route('members.index', ['filter' => "item_{$item->id}"]))
+        ->assertInertia(fn ($page) => $page
+            ->has('members.data', 1)
+            ->where('members.data.0.surname', 'Traegerin')
+        );
+
+    $this->get(route('members.index', ['filter' => "ever_item_{$item->id}"]))
+        ->assertInertia(fn ($page) => $page->has('members.data', 2));
+});
+
+test('the ever selection keeps former members, as its name says', function () {
+    $item = Item::factory()->create(['club_id' => 1, 'name' => 'Helm 1950']);
+
+    $gone = Member::factory()->ofClub(1)->create(['surname' => 'Ausgetreten']);
+    $gone->memberships()->attach(1, ['from' => '2005-01-01', 'to' => '2009-12-31']);
+    $gone->items()->attach($item->id, ['from' => '2005-01-01', 'to' => '2009-12-31']);
+
+    $this->actingAs(itemUser());
+
+    // ever_item used to be narrowed with members(), which dropped exactly the
+    // people the selection exists to show. ever_role never was.
+    $this->get(route('members.index', ['filter' => "ever_item_{$item->id}"]))
+        ->assertInertia(fn ($page) => $page
+            ->has('members.data', 1)
+            ->where('members.data.0.surname', 'Ausgetreten')
+        );
+
+    $this->get(route('items.index', ['search' => 'Helm']))
+        ->assertInertia(fn ($page) => $page
+            ->where('items.data.0.members_count', 0)
+            ->where('items.data.0.ever_members_count', 1)
         );
 });
 

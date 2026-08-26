@@ -58,6 +58,9 @@ test('the index counts only the current club members and can be searched', funct
     Section::factory()->create(['club_id' => 1, 'name' => 'Fussball']);
 
     $member = Member::factory()->ofClub(1)->create();
+    $member->memberships()->attach(1, ['from' => '2016-01-01', 'to' => null]);
+
+    // Another club's member holds it too, but must not be counted here.
     $foreignMember = Member::factory()->create();
 
     $section->members()->attach([$member->id, $foreignMember->id], ['from' => now()->subYear()]);
@@ -70,6 +73,40 @@ test('the index counts only the current club members and can be searched', funct
             ->where('sections.data.0.id', $section->id)
             ->where('sections.data.0.members_count', 1)
             ->where('filters.search', 'Tenn')
+        );
+});
+
+test('the count is the members in the section now, matching what it links to', function () {
+    $section = Section::factory()->create(['club_id' => 1, 'name' => 'Tennis']);
+
+    // In the section and in the club: counted.
+    $current = Member::factory()->ofClub(1)->create(['surname' => 'Aktiv']);
+    $current->memberships()->attach(1, ['from' => '2016-01-01', 'to' => null]);
+    $current->sections()->attach($section->id, ['from' => '2016-01-01', 'to' => null]);
+
+    // Left the section but still in the club.
+    $leftSection = Member::factory()->ofClub(1)->create(['surname' => 'Sparte']);
+    $leftSection->memberships()->attach(1, ['from' => '2016-01-01', 'to' => null]);
+    $leftSection->sections()->attach($section->id, ['from' => '2016-01-01', 'to' => '2020-01-01']);
+
+    // Left the club but the section row was never closed.
+    $leftClub = Member::factory()->ofClub(1)->create(['surname' => 'Verein']);
+    $leftClub->memberships()->attach(1, ['from' => '2010-01-01', 'to' => '2015-01-01']);
+    $leftClub->sections()->attach($section->id, ['from' => '2010-01-01', 'to' => null]);
+
+    $this->actingAs(sectionUser());
+
+    // A plain withCount('members') read 3 here; Fussball in production read
+    // 222 where the selection shows 103, so the number linked to half the
+    // people it promised.
+    $this->get(route('sections.index'))
+        ->assertInertia(fn ($page) => $page->where('sections.data.0.members_count', 1));
+
+    // Exactly what the selection the number links to returns.
+    $this->get(route('members.index', ['filter' => "section_{$section->id}"]))
+        ->assertInertia(fn ($page) => $page
+            ->has('members.data', 1)
+            ->where('members.data.0.surname', 'Aktiv')
         );
 });
 

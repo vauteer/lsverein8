@@ -23,7 +23,7 @@ class SectionController extends Controller
         return Inertia::render('sections/Index', [
             'sections' => SectionResource::collection(
                 Section::query()
-                    ->withCount('members')
+                    ->withCurrentMemberCount()
                     ->when($search !== '', fn (Builder $query) => $query
                         ->where('name', 'like', "%{$search}%"))
                     ->orderBy('name')

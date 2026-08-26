@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\AssignedMemberCount;
 use App\Models\Scopes\ClubWithSharedScope;
 use Carbon\CarbonInterface;
 use Database\Factories\RoleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -45,6 +48,38 @@ class Role extends Model
             ->withPivot(['from', 'to', 'memo'])
             ->withTimestamps()
             ->using(MemberRole::class);
+    }
+
+    /**
+     * The two member counts the list shows, each matching the selection its
+     * number links to.
+     *
+     * `members_count` mirrors `Member::hasRole()` — whoever holds the role right now.
+     * `ever_members_count` mirrors `Member::everRole()`, which asks only that the
+     * assignment started before the key date, former members included.
+     *
+     * A plain `withCount('members')` answered neither: it counted every row
+     * the pivot ever held, and counted a member twice where the pivot holds
+     * the pair twice.
+     *
+     * Note the strict `<` and `>`, which is what those scopes use — unlike
+     * `Member::inSections()`, which is inclusive at both ends. The difference
+     * comes from lsverein7 and is mirrored rather than fixed: changing it here
+     * alone would put the counts back out of step with the selections.
+     *
+     * @param  Builder<Role>  $query
+     */
+    #[Scope]
+    protected function withMemberCounts(Builder $query): void
+    {
+        $query->addSelect([
+            'members_count' => AssignedMemberCount::current(
+                'roles', 'member_role', 'role_id', '<', '>'
+            ),
+            'ever_members_count' => AssignedMemberCount::ever(
+                'roles', 'member_role', 'role_id', '<'
+            ),
+        ]);
     }
 
     public function isUsed(): bool

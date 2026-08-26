@@ -77,7 +77,9 @@ test('the index formats the amount and counts only the current club members', fu
         'amount' => 1234.5,
     ]);
 
-    $subscription->members()->attach(Member::factory()->ofClub(1)->create()->id);
+    $holder = Member::factory()->ofClub(1)->create();
+    $holder->memberships()->attach(1, ['from' => '2016-01-01', 'to' => null]);
+    $subscription->members()->attach($holder->id);
 
     $this->actingAs(subscriptionUser())
         ->get(route('subscriptions.index'))
@@ -87,6 +89,39 @@ test('the index formats the amount and counts only the current club members', fu
             ->where('subscriptions.data.0.amount', 1234.5)
             ->where('subscriptions.data.0.amount_label', '1.234,50 €')
             ->where('subscriptions.data.0.members_count', 1)
+        );
+});
+
+test('the count is who holds the subscription now, matching what it links to', function () {
+    $subscription = Subscription::factory()->create([
+        'club_id' => 1, 'name' => 'Erwachsen', 'amount' => 60,
+    ]);
+
+    // Holds it and is in the club: counted.
+    $current = Member::factory()->ofClub(1)->create(['surname' => 'Zahlerin']);
+    $current->memberships()->attach(1, ['from' => '2016-01-01', 'to' => null]);
+    $current->subscriptions()->attach($subscription->id);
+
+    // Left the club, but member_subscription has no dates so the row stayed.
+    // That is exactly what inflated the number: Erwachsen read 242 in
+    // production where the selection shows 140.
+    $gone = Member::factory()->ofClub(1)->create(['surname' => 'Ausgetreten']);
+    $gone->memberships()->attach(1, ['from' => '2005-01-01', 'to' => '2009-12-31']);
+    $gone->subscriptions()->attach($subscription->id);
+
+    $this->actingAs(subscriptionUser());
+
+    $this->get(route('subscriptions.index', ['search' => 'Erwachsen']))
+        ->assertInertia(fn ($page) => $page
+            ->has('subscriptions.data', 1)
+            ->where('subscriptions.data.0.members_count', 1)
+        );
+
+    // Exactly what the number links to.
+    $this->get(route('members.index', ['filter' => "subscription_{$subscription->id}"]))
+        ->assertInertia(fn ($page) => $page
+            ->has('members.data', 1)
+            ->where('members.data.0.surname', 'Zahlerin')
         );
 });
 

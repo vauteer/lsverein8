@@ -22,6 +22,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { create, edit, index } from '@/routes/events';
+import { index as members } from '@/routes/members';
 import type { BreadcrumbItem, EventResource, Paginated } from '@/types';
 
 const props = defineProps<{
@@ -135,7 +136,30 @@ defineOptions({
                             </span>
                         </TableCell>
                         <TableCell class="text-right tabular-nums">
-                            {{ event.members_count }}
+                            <!-- The number is the same set the selection
+                            shows, so it doubles as the way there. Nothing to
+                            click at zero. -->
+                            <Link
+                                v-if="event.members_count > 0"
+                                :href="
+                                    members({
+                                        query: {
+                                            filter: `event_${event.id}`,
+                                        },
+                                    })
+                                "
+                                class="underline-offset-4 hover:underline"
+                                :aria-label="
+                                    $t('Show everyone given :name', {
+                                        name: event.name,
+                                    })
+                                "
+                            >
+                                {{ event.members_count }}
+                            </Link>
+                            <span v-else class="text-muted-foreground">
+                                {{ event.members_count }}
+                            </span>
                         </TableCell>
                         <TableCell>
                             <div class="flex justify-end gap-1">

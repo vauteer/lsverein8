@@ -22,6 +22,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { index as members } from '@/routes/members';
 import { create, edit, index } from '@/routes/subscriptions';
 import type {
     BreadcrumbItem,
@@ -171,7 +172,30 @@ defineOptions({
                             {{ subscription.transfer_text ?? '—' }}
                         </TableCell>
                         <TableCell class="text-right tabular-nums">
-                            {{ subscription.members_count }}
+                            <!-- The number is the same set the selection
+                            shows, so it doubles as the way there. Nothing to
+                            click at zero. -->
+                            <Link
+                                v-if="subscription.members_count > 0"
+                                :href="
+                                    members({
+                                        query: {
+                                            filter: `subscription_${subscription.id}`,
+                                        },
+                                    })
+                                "
+                                class="underline-offset-4 hover:underline"
+                                :aria-label="
+                                    $t('Show the members paying :name', {
+                                        name: subscription.name,
+                                    })
+                                "
+                            >
+                                {{ subscription.members_count }}
+                            </Link>
+                            <span v-else class="text-muted-foreground">
+                                {{ subscription.members_count }}
+                            </span>
                         </TableCell>
                         <TableCell>
                             <div class="flex justify-end gap-1">

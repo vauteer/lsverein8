@@ -82,6 +82,9 @@ test('the index counts only the current club members and can be searched', funct
     Role::factory()->create(['club_id' => 1, 'name' => 'Platzwart']);
 
     $member = Member::factory()->ofClub(1)->create();
+    $member->memberships()->attach(1, ['from' => '2016-01-01', 'to' => null]);
+
+    // Another club's member holds it too, but must not be counted here.
     $foreignMember = Member::factory()->create();
 
     $role->members()->attach([$member->id, $foreignMember->id], ['from' => now()->subYear()]);
@@ -94,6 +97,65 @@ test('the index counts only the current club members and can be searched', funct
             ->where('roles.data.0.id', $role->id)
             ->where('roles.data.0.members_count', 1)
             ->where('filters.search', 'Jugend')
+        );
+});
+
+test('the two counts are who holds the role now and who ever did', function () {
+    // Not one of the seven roles insert_roles_defaults seeds into every
+    // installation — those are listed too, and would sort ahead of it.
+    $role = Role::factory()->create(['club_id' => 1, 'name' => 'Platzwart']);
+
+    // Holds it and is in the club: both columns.
+    $current = Member::factory()->ofClub(1)->create(['surname' => 'Aktiv']);
+    $current->memberships()->attach(1, ['from' => '2016-01-01', 'to' => null]);
+    $current->roles()->attach($role->id, ['from' => '2016-01-01', 'to' => null]);
+
+    // Handed the role on, still in the club: "ever" only.
+    $former = Member::factory()->ofClub(1)->create(['surname' => 'Vorgaenger']);
+    $former->memberships()->attach(1, ['from' => '2010-01-01', 'to' => null]);
+    $former->roles()->attach($role->id, ['from' => '2010-01-01', 'to' => '2015-12-31']);
+
+    // Left the club altogether: "ever" only, because that selection is not
+    // narrowed to current members.
+    $gone = Member::factory()->ofClub(1)->create(['surname' => 'Ausgetreten']);
+    $gone->memberships()->attach(1, ['from' => '2005-01-01', 'to' => '2009-12-31']);
+    $gone->roles()->attach($role->id, ['from' => '2005-01-01', 'to' => '2009-12-31']);
+
+    $this->actingAs(roleUser());
+
+    $this->get(route('roles.index', ['search' => 'Platzwart']))
+        ->assertInertia(fn ($page) => $page
+            ->has('roles.data', 1)
+            ->where('roles.data.0.members_count', 1)
+            ->where('roles.data.0.ever_members_count', 3)
+        );
+
+    // Each number equals the selection it links to.
+    $this->get(route('members.index', ['filter' => "role_{$role->id}"]))
+        ->assertInertia(fn ($page) => $page
+            ->has('members.data', 1)
+            ->where('members.data.0.surname', 'Aktiv')
+        );
+
+    $this->get(route('members.index', ['filter' => "ever_role_{$role->id}"]))
+        ->assertInertia(fn ($page) => $page->has('members.data', 3));
+});
+
+test('a member who held the same role twice counts once', function () {
+    $role = Role::factory()->create(['club_id' => 1, 'name' => 'Platzwart']);
+
+    $member = Member::factory()->ofClub(1)->create();
+    $member->memberships()->attach(1, ['from' => '2000-01-01', 'to' => null]);
+    // Production holds four such pairs in member_role, one with both ranges
+    // open at once — count(*) reported that member as two people.
+    $member->roles()->attach($role->id, ['from' => '2000-01-01', 'to' => '2004-12-31']);
+    $member->roles()->attach($role->id, ['from' => '2010-01-01', 'to' => null]);
+
+    $this->actingAs(roleUser())
+        ->get(route('roles.index', ['search' => 'Platzwart']))
+        ->assertInertia(fn ($page) => $page
+            ->where('roles.data.0.members_count', 1)
+            ->where('roles.data.0.ever_members_count', 1)
         );
 });
 

@@ -2,6 +2,7 @@
 paths:
   - app/Backup.php
   - app/ClubExport.php
+  - app/AssignedMemberCount.php
 ---
 
 # App
@@ -31,3 +32,56 @@ Authorization is the `manageBackups` gate (AppServiceProvider), root-only via `u
 **`tracings` ist bewusst nicht dabei:** das Protokoll hängt an `user_id`/`row_id` ohne eigenen Verein, eine ehrliche Aufteilung gibt es nicht. `debits` ist neu dabei (in lsverein7 vergessen), es hängt über `member_id` am Verein.
 
 Der Verein kommt aus der **Route**, nicht aus `currentClub()`: root arbeitet womöglich in Verein 1 und sieht die Seite von Verein 2 an. `ClubPolicy::export()` delegiert an `update()` — root für jeden Verein, Club-Admin nur für den aktuellen.
+
+## Die Mitglieder-Zähler müssen zur verlinkten Auswahl passen — count(distinct), nicht withCount
+Die Zahlen auf den Listen von Abteilungen, Funktionen und Inventar sind **Links** auf die Mitgliederliste mit der passenden Auswahl. Damit Zahl und Ziel nie auseinanderlaufen, baut `App\AssignedMemberCount::for()` jeden Zähler als Unterabfrage, die genau den zugehörigen Member-Scope spiegelt.
+
+| Spalte | Scope-Aufruf | spiegelt | Operatoren | `members()`? |
+| --- | --- | --- | --- | --- |
+| Abteilungen „Mitglieder" | `Section::withCurrentMemberCount()` | `Member::inSections()` | `<=` / `>=` | ja |
+| Funktionen „Aktuell" | `Role::withMemberCounts()` | `Member::hasRole()` | `<` / `>` | ja |
+| Funktionen „Jemals" | dieselbe | `Member::everRole()` | `<` / — | **nein** |
+| Inventar „Aktuell" | `Item::withMemberCounts()` | `Member::hasItem()` | `<` / `>` | ja |
+| Inventar „Jemals" | dieselbe | `Member::everItem()` | `<` / — | **nein** |
+
+Drei Dinge, die man nicht „aufräumen" darf:
+
+1. **`count(distinct member_id)`, nicht `withCount()`.** Die Pivots erlauben dasselbe Paar mehrfach mit verschiedenen Zeiträumen. In Produktion (2026-08-26): vier solche Paare in `member_role`, eines davon mit **zwei gleichzeitig offenen** Zeiträumen — `count(*)` meldete diese eine Person als zwei. `withCount()` kann kein DISTINCT, deshalb `addSelect([...])` mit einer Unterabfrage.
+2. **Die unterschiedlichen Operatoren sind Absicht.** Abteilungen sind an beiden Enden einschließend, Funktionen und Inventar strikt — aus lsverein7 übernommen. Wer nur den Zähler vereinheitlicht, bringt ihn wieder aus dem Tritt mit der Auswahl; eine echte Vereinheitlichung müsste die drei Member-Scopes ändern.
+3. **Die „Jemals"-Auswahlen dürfen kein `members()` bekommen.** Sie existieren, um Ehemalige zu zeigen. `ever_item` hatte es fälschlich (`$query->members()->everItem($id)`) und ließ damit genau die Leute weg, für die es gedacht ist; `ever_role` hatte es nie. Am 2026-08-26 in `SelectsMembers::applyFilter()` korrigiert, Test in ItemManagementTest.
+
+Alle Argumente von `for()` sind `literal-string`, weil sie in rohes SQL gehen — nichts aus einem Request darf sie erreichen.
+
+`isUsed()` ist davon unberührt und zählt weiter jede Zeile: für „darf gelöscht werden" ist die Historie die richtige Frage.
+
+Testfalle: `insert_roles_defaults` sät sieben installationsweite Funktionen (u. a. „Kassier"), `insert_events_defaults` sieben Ehrungen. Eine Fixture mit so einem Namen kollidiert oder sortiert sich davor — deshalb „Platzwart" plus `search` in RoleManagementTest.
+
+## Alle fünf Mitglieder-Zähler laufen über AssignedMemberCount
+Jede Zahl in einer Listenspalte „Mitglieder"/„Aktuell"/„Jemals" ist ein **Link** auf die Mitgliederliste mit der passenden Auswahl. Damit Zahl und Ziel nie auseinanderlaufen, baut `App\AssignedMemberCount` jeden Zähler als Unterabfrage, die genau den zugehörigen Member-Scope spiegelt. Drei Formen:
+
+| Methode | wer | Bedingung |
+| --- | --- | --- |
+| `current()` | Abteilung/Funktion/Inventar „Aktuell" | `memberIds()` **und** offener Zeitraum |
+| `ever()` | Funktion/Inventar „Jemals", Ehrungen | nur: Zuordnung hat begonnen (`from`/`date` < Stichtag) |
+| `held()` | Beiträge | nur `memberIds()` — der Pivot hat gar keine Daten |
+
+| Spalte | Scope | spiegelt | Operatoren |
+| --- | --- | --- | --- |
+| Abteilungen | `Section::withCurrentMemberCount()` | `Member::inSections()` | `<=` / `>=` |
+| Funktionen Aktuell/Jemals | `Role::withMemberCounts()` | `hasRole()` / `everRole()` | `<` / `>` |
+| Inventar Aktuell/Jemals | `Item::withMemberCounts()` | `hasItem()` / `everItem()` | `<` / `>` |
+| Ehrungen | `Event::withMemberCount()` | `hadEvent()` | `date <` |
+| Beiträge | `Subscription::withCurrentMemberCount()` | `members()->hasSubscription()` | — |
+
+Vier Dinge, die man nicht „aufräumen" darf:
+
+1. **`count(distinct member_id)`, nie `withCount()`.** Jeder Pivot erlaubt dasselbe Paar mehrfach. In Produktion (2026-08-26): vier Paare in `member_role` (eines mit **zwei gleichzeitig offenen** Zeiträumen — `count(*)` meldete eine Person als zwei), eines in `event_member`. `withCount()` kann kein DISTINCT.
+2. **Die unterschiedlichen Operatoren sind Absicht** und kommen aus lsverein7: Abteilungen einschließend, Funktionen/Inventar strikt. Nur den Zähler zu vereinheitlichen bringt ihn wieder aus dem Tritt mit der Auswahl.
+3. **`ever()` bekommt kein `memberIds()`.** Die „Jemals"-Auswahlen und Ehrungen existieren, um Ehemalige zu zeigen. `ever_item` hatte fälschlich `members()` und ließ genau die weg — am 2026-08-26 in `SelectsMembers::applyFilter()` korrigiert.
+4. **Ehrungen zählen `date < Stichtag`.** Sechs Zeilen in `event_member` sind auf heute oder später datiert; `withCount()` zählte sie, `hadEvent()` nicht.
+
+Größenordnung des alten Fehlers an echten Daten: Fussball 222 → 103, Tennis 139 → 68, Beitrag „Erwachsen" 242 → 140, „Jugend" 14 → 2.
+
+`isUsed()` ist unberührt und zählt weiter jede Zeile: für „darf gelöscht werden" ist die Historie die richtige Frage.
+
+Testfallen: `insert_roles_defaults` sät sieben Funktionen (u. a. „Kassier"), `insert_events_defaults` sieben Ehrungen — eine Fixture mit so einem Namen kollidiert oder sortiert sich davor. Und eine Fixture, die ein Mitglied nur an den Pivot hängt, ohne `memberships()->attach()`, zählt bei `current()`/`held()` **nicht** mit.

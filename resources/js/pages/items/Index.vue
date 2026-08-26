@@ -22,6 +22,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { create, edit, index } from '@/routes/items';
+import { index as members } from '@/routes/members';
 import type { BreadcrumbItem, ItemResource, Paginated } from '@/types';
 
 const props = defineProps<{
@@ -109,7 +110,10 @@ defineOptions({
                     <TableRow>
                         <TableHead>{{ $t('Name') }}</TableHead>
                         <TableHead class="text-right">
-                            {{ $t('Members') }}
+                            {{ $t('Current') }}
+                        </TableHead>
+                        <TableHead class="text-right">
+                            {{ $t('Ever') }}
                         </TableHead>
                         <TableHead class="text-right">
                             {{ $t('Actions') }}
@@ -122,7 +126,50 @@ defineOptions({
                             {{ item.name }}
                         </TableCell>
                         <TableCell class="text-right tabular-nums">
-                            {{ item.members_count }}
+                            <Link
+                                v-if="item.members_count > 0"
+                                :href="
+                                    members({
+                                        query: {
+                                            filter: `item_${item.id}`,
+                                        },
+                                    })
+                                "
+                                class="underline-offset-4 hover:underline"
+                                :aria-label="
+                                    $t('Show who has :name', {
+                                        name: item.name,
+                                    })
+                                "
+                            >
+                                {{ item.members_count }}
+                            </Link>
+                            <span v-else class="text-muted-foreground">
+                                {{ item.members_count }}
+                            </span>
+                        </TableCell>
+                        <TableCell class="text-right tabular-nums">
+                            <Link
+                                v-if="item.ever_members_count > 0"
+                                :href="
+                                    members({
+                                        query: {
+                                            filter: `ever_item_${item.id}`,
+                                        },
+                                    })
+                                "
+                                class="underline-offset-4 hover:underline"
+                                :aria-label="
+                                    $t('Show everyone who ever had :name', {
+                                        name: item.name,
+                                    })
+                                "
+                            >
+                                {{ item.ever_members_count }}
+                            </Link>
+                            <span v-else class="text-muted-foreground">
+                                {{ item.ever_members_count }}
+                            </span>
                         </TableCell>
                         <TableCell>
                             <div class="flex justify-end gap-1">
@@ -156,7 +203,7 @@ defineOptions({
                             </div>
                         </TableCell>
                     </TableRow>
-                    <TableEmpty v-if="items.data.length === 0" :colspan="3">
+                    <TableEmpty v-if="items.data.length === 0" :colspan="4">
                         {{
                             search ? $t('No items found.') : $t('No items yet.')
                         }}

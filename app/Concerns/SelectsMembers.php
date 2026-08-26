@@ -103,7 +103,7 @@ trait SelectsMembers
             'ever_role' => $query->everRole($id),
             'event' => $query->hadEvent($id),
             'item' => $query->members()->hasItem($id),
-            'ever_item' => $query->members()->everItem($id),
+            'ever_item' => $query->everItem($id),
             'subscription' => $query->members()->hasSubscription($id),
             'payment' => $this->applyPaymentFilter($key, $query),
         };

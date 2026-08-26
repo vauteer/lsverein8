@@ -79,3 +79,26 @@ Folge, und so gewollt: wer je im Verein war, hat Abteilungen, Funktionen oder Eh
 `debits` gehört bewusst dazu: eine noch nicht eingezogene Lastschrift darf nicht mit dem Mitglied verschwinden.
 
 Der Löschdialog auf `members/Edit.vue` sagt deshalb „Zu diesem Mitglied ist nichts erfasst, es ist also nichts weiter betroffen" — der frühere Text versprach das Gegenteil und listete auf, was alles mitgelöscht wird.
+
+## members_count zählt aktuelle Mitglieder — und muss zur verlinkten Auswahl passen
+Die Spalte „Mitglieder" auf den Listen von Abteilungen, Funktionen und Inventar ist ein **Link** auf die Mitgliederliste mit der passenden Auswahl (`section_X`, `role_X`, `item_X`). Damit die Zahl und das Ziel nicht auseinanderlaufen, zählt sie seit 2026-08-26 nur noch **aktuelle** Zuordnungen: `Section|Role|Item::withCurrentMemberCount()` statt `withCount('members')`.
+
+Vorher zählte sie jede Pivot-Zeile, die je existierte. An den Produktionsdaten: Fussball zeigte **222**, die Auswahl liefert **103**; Tennis 139 → 68; „Ausgetreten" 3 → 0. Ein Klick auf die Zahl landete also auf der Hälfte der versprochenen Leute.
+
+**Jeder Scope spiegelt genau den Filter, auf den er verlinkt** — das ist die tragende Eigenschaft, nicht die Formulierung:
+
+| Scope | spiegelt | Operatoren |
+| --- | --- | --- |
+| `Section::withCurrentMemberCount()` | `Member::inSections()` | `from <= keyDate`, `to >= keyDate` |
+| `Role::withCurrentMemberCount()` | `Member::hasRole()` | `from < keyDate`, `to > keyDate` |
+| `Item::withCurrentMemberCount()` | `Member::hasItem()` | `from < keyDate`, `to > keyDate` |
+
+Die **unterschiedlichen Operatoren sind Absicht**: Abteilungen sind an beiden Enden einschließend, Funktionen und Inventar strikt. Das kommt aus lsverein7 und wird gespiegelt, **nicht** vereinheitlicht — wer nur den Zähler anpasst, bringt ihn wieder aus dem Tritt mit der Auswahl. Eine Vereinheitlichung müsste die drei Member-Scopes ändern und damit, was die Auswahlen liefern.
+
+Alle drei hängen zusätzlich an `Member::memberIds()` (lebend, offene Mitgliedschaft) — dieselbe Menge, die `members()` liefert, weil die Filter `$query->members()->inSections(...)` lauten.
+
+`count(*)` über die Pivot-Zeile, nicht `count(distinct member_id)`: zwei gleichzeitig offene Zeiträume für dasselbe Paar gibt es nicht (2026-08-26 in Produktion geprüft).
+
+`isUsed()` ist davon **unberührt** und zählt weiter jede Zeile — für „darf gelöscht werden" ist die Historie die richtige Frage.
+
+Testfalle: `insert_roles_defaults` sät sieben installationsweite Funktionen (u. a. „Kassier"), `insert_events_defaults` sieben Ehrungen. Eine Fixture mit so einem Namen kollidiert oder sortiert sich davor — in `RoleManagementTest` deshalb „Platzwart" plus `search`.

@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\AssignedMemberCount;
 use App\Models\Scopes\ClubScope;
 use App\Pdf\SepaPdf;
 use Carbon\CarbonInterface;
 use Database\Factories\SubscriptionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -70,6 +73,30 @@ class Subscription extends Model implements Stringable
             ->withPivot(['memo'])
             ->withTimestamps()
             ->using(MemberSubscription::class);
+    }
+
+    /**
+     * Count the members who currently hold this subscription.
+     *
+     * Mirrors the `subscription_X` selection (`members()->hasSubscription()`),
+     * so the number and what it links to cannot disagree. `member_subscription`
+     * carries no dates, so "current" can only mean a current member: living,
+     * with an open club membership.
+     *
+     * A plain `withCount('members')` counted everyone who ever held it,
+     * including the long departed — Erwachsen read 242 where the selection
+     * shows 140, which also overstates what the club actually collects.
+     *
+     * @param  Builder<Subscription>  $query
+     */
+    #[Scope]
+    protected function withCurrentMemberCount(Builder $query): void
+    {
+        $query->addSelect([
+            'members_count' => AssignedMemberCount::held(
+                'subscriptions', 'member_subscription', 'subscription_id'
+            ),
+        ]);
     }
 
     public function isUsed(): bool

@@ -101,7 +101,10 @@ export type BackupResource = {
 export type RoleResource = {
     id: number;
     name: string;
+    /** Members assigned right now; the number links to that selection. */
     members_count: number;
+    /** Members ever assigned, former members included; its own selection. */
+    ever_members_count: number;
     shared: boolean;
     modifiable: boolean;
     deletable: boolean;
@@ -122,7 +125,10 @@ export type RoleFormData = {
 export type ItemResource = {
     id: number;
     name: string;
+    /** Members assigned right now; the number links to that selection. */
     members_count: number;
+    /** Members ever assigned, former members included; its own selection. */
+    ever_members_count: number;
     modifiable: boolean;
     deletable: boolean;
 };

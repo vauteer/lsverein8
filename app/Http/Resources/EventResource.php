@@ -14,7 +14,7 @@ class EventResource extends JsonResource
     /**
      * Transform the resource into an array.
      *
-     * `members_count` is not a column; it comes from the withCount('members')
+     * `members_count` is not a column; it comes from the withMemberCount() scope
      * the index applies, and counts only the current club's members because
      * Member carries the ClubScope.
      *

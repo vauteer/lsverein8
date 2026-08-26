@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\AssignedMemberCount;
 use App\Enums\ClubDisplay;
 use App\Enums\Locale;
 use App\Models\Scopes\ClubScope;
@@ -10,6 +11,8 @@ use Carbon\CarbonInterface;
 use Database\Factories\ClubFactory;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -86,6 +89,22 @@ class Club extends Model
             ->withTimestamps()
             ->withoutGlobalScope(ClubScope::class)
             ->using(ClubMember::class);
+    }
+
+    /**
+     * Count the current members of each club in the list.
+     *
+     * The same set the member list's default selection shows, so the number on
+     * the row of the club the viewer is working in doubles as a link to it. A
+     * plain `withCount('members')` counted every row of `members`, the long
+     * departed and the deceased included.
+     *
+     * @param  Builder<Club>  $query
+     */
+    #[Scope]
+    protected function withCurrentMemberCount(Builder $query): void
+    {
+        $query->addSelect(['members_count' => AssignedMemberCount::ofClub()]);
     }
 
     /**

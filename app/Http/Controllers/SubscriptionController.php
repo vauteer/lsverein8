@@ -31,7 +31,7 @@ class SubscriptionController extends Controller
         return Inertia::render('subscriptions/Index', [
             'subscriptions' => SubscriptionResource::collection(
                 Subscription::query()
-                    ->withCount('members')
+                    ->withCurrentMemberCount()
                     ->when($search !== '', fn (Builder $query) => $query
                         ->where('name', 'like', "%{$search}%"))
                     ->orderBy('amount')

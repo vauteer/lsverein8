@@ -83,6 +83,36 @@ test('the list shows every club with its member and user counts', function () {
         );
 });
 
+test('the member count is the current members of each club', function () {
+    $other = Club::factory()->create(['name' => 'FF Andersdorf']);
+
+    // Own club: one current member, one who left, one who died. Only the
+    // first is counted, matching the member list's default selection.
+    Member::factory()->ofClub(1)->create()->memberships()->attach(1, ['from' => '2016-01-01']);
+    Member::factory()->ofClub(1)->create()->memberships()->attach(1, ['from' => '2005-01-01', 'to' => '2009-12-31']);
+    Member::factory()->ofClub(1)->deceased()->create()->memberships()->attach(1, ['from' => '2010-01-01']);
+
+    // Counted per club, not for whoever is looking: currentClubId() is 1, so a
+    // count leaning on Member::memberIds() would report 0 here.
+    Member::factory()->ofClub($other->id)->create()
+        ->memberships()->attach($other->id, ['from' => '2016-01-01']);
+    Member::factory()->ofClub($other->id)->create()
+        ->memberships()->attach($other->id, ['from' => '2016-01-01']);
+
+    $this->actingAs(clubManagementUser(attributes: ['admin' => true]))
+        ->get(route('clubs.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('clubs.data.0.id', $other->id)
+            ->where('clubs.data.0.members_count', 2)
+            ->where('clubs.data.1.id', 1)
+            ->where('clubs.data.1.members_count', 1)
+        );
+
+    // And it agrees with what the number links to, for the club being worked in.
+    $this->get(route('members.index'))
+        ->assertInertia(fn ($page) => $page->has('members.data', 1));
+});
+
 test('a club admin may edit the current club but not another one', function () {
     $other = Club::factory()->create();
 

@@ -97,6 +97,40 @@ test('the index counts only the current club members and can be searched', funct
         );
 });
 
+test('the count is who has been given the honour, matching what it links to', function () {
+    $event = Event::factory()->create(['club_id' => 1, 'name' => 'Zeltlager']);
+
+    $given = Member::factory()->ofClub(1)->create(['surname' => 'Geehrt']);
+    $given->events()->attach($event->id, ['date' => '2020-06-01']);
+
+    // Former members keep their honours, so the selection shows them and the
+    // count includes them — no members() restriction on either side.
+    $gone = Member::factory()->ofClub(1)->create(['surname' => 'Ausgetreten']);
+    $gone->memberships()->attach(1, ['from' => '2005-01-01', 'to' => '2009-12-31']);
+    $gone->events()->attach($event->id, ['date' => '2008-06-01']);
+
+    // Twice over the years: one person, not two. event_member holds one such
+    // pair in production.
+    $given->events()->attach($event->id, ['date' => '2022-06-01']);
+
+    // Dated ahead, so hadEvent() excludes it; six such rows exist in
+    // production and withCount('members') counted every one.
+    $planned = Member::factory()->ofClub(1)->create(['surname' => 'Vorgemerkt']);
+    $planned->events()->attach($event->id, ['date' => now()->addMonth()]);
+
+    $this->actingAs(eventUser());
+
+    $this->get(route('events.index', ['search' => 'Zelt']))
+        ->assertInertia(fn ($page) => $page
+            ->has('events.data', 1)
+            ->where('events.data.0.members_count', 2)
+        );
+
+    // Exactly what the number links to.
+    $this->get(route('members.index', ['filter' => "event_{$event->id}"]))
+        ->assertInertia(fn ($page) => $page->has('members.data', 2));
+});
+
 test('a member without admin rights may view but not change events', function () {
     $event = Event::factory()->create(['club_id' => 1]);
 

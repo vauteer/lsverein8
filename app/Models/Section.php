@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\AssignedMemberCount;
 use App\Models\Scopes\ClubWithSharedScope;
 use Carbon\CarbonInterface;
 use Database\Factories\SectionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -111,6 +114,31 @@ class Section extends Model
             ->withPivot(['from', 'to', 'memo'])
             ->withTimestamps()
             ->using(MemberSection::class);
+    }
+
+    /**
+     * Count only the members who are in the section right now.
+     *
+     * Deliberately the same set `Member::inSections()` returns, so the number
+     * in the list and the member selection it links to cannot disagree. A
+     * plain `withCount('members')` counted every row `member_section` ever
+     * held — Fussball read 222 where the selection shows 103, so clicking the
+     * number landed on half the people it promised.
+     *
+     * Inclusive `<=` / `>=`, which is what `Member::inSections()` uses; roles
+     * and items are strict at both ends. That difference is lsverein7's and is
+     * mirrored rather than fixed.
+     *
+     * @param  Builder<Section>  $query
+     */
+    #[Scope]
+    protected function withCurrentMemberCount(Builder $query): void
+    {
+        $query->addSelect([
+            'members_count' => AssignedMemberCount::current(
+                'sections', 'member_section', 'section_id', '<=', '>='
+            ),
+        ]);
     }
 
     public function isUsed(): bool

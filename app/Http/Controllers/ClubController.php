@@ -30,7 +30,8 @@ class ClubController extends Controller
         return Inertia::render('clubs/Index', [
             'clubs' => ClubResource::collection(
                 Club::query()
-                    ->withCount(['members', 'users'])
+                    ->withCount('users')
+                    ->withCurrentMemberCount()
                     ->when($search !== '', fn (Builder $query) => $query
                         ->where('name', 'like', "%{$search}%")
                         ->orWhere('city', 'like', "%{$search}%"))

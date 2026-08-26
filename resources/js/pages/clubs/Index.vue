@@ -24,6 +24,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { create, edit, index } from '@/routes/clubs';
+import { index as members } from '@/routes/members';
 import type { BreadcrumbItem, ClubResource, Paginated } from '@/types';
 
 const props = defineProps<{
@@ -154,7 +155,30 @@ defineOptions({
                             {{ club.city }}
                         </TableCell>
                         <TableCell class="text-right tabular-nums">
-                            {{ club.members_count }}
+                            <!-- Only the current club's row is a link: the
+                            member list is scoped to the club the viewer is
+                            working in, so on any other row it would show the
+                            wrong people. Switch first — the row offers that. -->
+                            <Link
+                                v-if="club.current && club.members_count > 0"
+                                :href="members()"
+                                class="underline-offset-4 hover:underline"
+                                :aria-label="
+                                    $t('Show the members of :name', {
+                                        name: club.name,
+                                    })
+                                "
+                            >
+                                {{ club.members_count }}
+                            </Link>
+                            <span
+                                v-else
+                                :class="
+                                    club.current ? '' : 'text-muted-foreground'
+                                "
+                            >
+                                {{ club.members_count }}
+                            </span>
                         </TableCell>
                         <TableCell class="text-right tabular-nums">
                             {{ club.users_count }}

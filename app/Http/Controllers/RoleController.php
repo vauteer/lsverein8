@@ -23,7 +23,7 @@ class RoleController extends Controller
         return Inertia::render('roles/Index', [
             'roles' => RoleResource::collection(
                 Role::query()
-                    ->withCount('members')
+                    ->withMemberCounts()
                     ->when($search !== '', fn (Builder $query) => $query
                         ->where('name', 'like', "%{$search}%"))
                     ->orderBy('name')

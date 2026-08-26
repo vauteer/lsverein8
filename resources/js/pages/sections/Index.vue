@@ -21,6 +21,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { index as members } from '@/routes/members';
 import { create, edit, index } from '@/routes/sections';
 import type { BreadcrumbItem, Paginated, SectionResource } from '@/types';
 
@@ -154,7 +155,30 @@ defineOptions({
                             {{ section.blsv_label ?? '—' }}
                         </TableCell>
                         <TableCell class="text-right tabular-nums">
-                            {{ section.members_count }}
+                            <!-- The number is the same set the selection
+                            shows, so it doubles as the way there. Nothing to
+                            click when the section is empty. -->
+                            <Link
+                                v-if="section.members_count > 0"
+                                :href="
+                                    members({
+                                        query: {
+                                            filter: `section_${section.id}`,
+                                        },
+                                    })
+                                "
+                                class="underline-offset-4 hover:underline"
+                                :aria-label="
+                                    $t('Show the members of :name', {
+                                        name: section.name,
+                                    })
+                                "
+                            >
+                                {{ section.members_count }}
+                            </Link>
+                            <span v-else class="text-muted-foreground">
+                                {{ section.members_count }}
+                            </span>
                         </TableCell>
                         <TableCell>
                             <div class="flex justify-end gap-1">
