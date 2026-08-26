@@ -9,15 +9,6 @@ use Illuminate\Validation\Rule;
 trait SubscriptionValidationRules
 {
     /**
-     * The SEPA character set plus the angle brackets of the <AJ>/<VN>/<NN>
-     * placeholders. The global SEPA_REGEX cannot be reused here: it rejects
-     * `<` and `>`, and by the time the text reaches the XML
-     * Subscription::generateSepa() has already substituted the placeholders
-     * away, so the value that is actually transmitted is SEPA-clean.
-     */
-    protected const string TRANSFER_TEXT_REGEX = '/^[a-zA-Z0-9?:()+<>, \/\.\-]*$/';
-
-    /**
      * Get the validation rules used to validate a club's subscription.
      *
      * `club_id` is deliberately absent: it is set from the current club when
@@ -46,7 +37,7 @@ trait SubscriptionValidationRules
                 'required',
                 'string',
                 'max:191',
-                'regex:'.self::TRANSFER_TEXT_REGEX,
+                'regex:'.TRANSFER_TEXT_REGEX,
             ],
             'memo' => ['nullable', 'string', 'max:191'],
         ];

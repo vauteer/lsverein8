@@ -58,3 +58,12 @@ The empty `withTwoFactor(): static {}` stub was also the single phpstan error th
 The null comes from the model, not the column. `User::factory()->create()` (or any `create()`) without an explicit `admin` does not read the column default back into the instance, so the attribute is simply absent from `getAttributes()` and `$user->admin` returns null until the row is re-read. Anything typed `: bool` that returns `$user->admin` raw will fatal — that is why SectionPolicy, EventPolicy and the `viewLogViewer` gate all cast with `(bool)`.
 
 Do not "simplify" those casts away, and do not repeat the older explanation that the column is nullable: it is not, and that wording caused the cast to be removed once and broke seven tests.
+
+## debits hat kein club_id — MemberClubScope holt den Verein über das Mitglied
+`debits` ist die einzige Datentabelle ohne eigene `club_id`; sie hängt allein an `member_id`. Deshalb trägt `Debit` `#[ScopedBy([MemberClubScope::class])]` — der Scope baut `whereIn('member_id', Member::query()->select('members.id'))`, und Members eigener ClubScope ist es, was die Unterabfrage einengt. Der Verein steht so nur an einer Stelle.
+
+Das ist keine Kosmetik: lsverein7 hatte hier gar keinen Scope, `Debit::debit()` sammelte also die Lastschriften **aller** Vereine ein und löschte sie danach. Beide Abfragen in `Debit::debit()` laufen über `Debit::query()`, greifen den Scope also mit. `tests/Feature/DebitManagementTest.php` pinnt das ("the collection never reaches another club, not even to delete").
+
+Folge für Route Model Binding: eine fremde Lastschrift ergibt 404, nicht 403 — wie bei `scopedUser()`. `DebitPolicy::update()` prüft trotzdem `hasAdminRights($debit->member->club_id)`, damit die Policy für sich genommen stimmt.
+
+`DebitFactory` erzeugt per Default einen Member in einem *neuen* Verein — genau richtig, um in Tests eine „fremde" Lastschrift zu bekommen.

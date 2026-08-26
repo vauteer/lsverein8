@@ -81,10 +81,7 @@ class Subscription extends Model implements Stringable
      */
     public function amountLabel(): string
     {
-        // The fourth argument is not optional here: number_format() defaults
-        // the thousands separator to ',' as well, which turned 1234.5 into
-        // "1,234,56" once an amount reached four digits.
-        return number_format($this->amount, 2, ',', '.').' €';
+        return formatAmount($this->amount);
     }
 
     public function __toString(): string

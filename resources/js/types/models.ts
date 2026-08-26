@@ -194,6 +194,49 @@ export type OutstandingPayment = {
 };
 
 /**
+ * A one-off direct debit as sent to the index listing: the debit's own columns
+ * plus the member it is booked on and the pre-formatted amount and date.
+ */
+export type DebitResource = {
+    id: number;
+    member_id: number;
+    member_name: string;
+    amount: number;
+    /** Formatted server-side, so the decimal comma is not in a template. */
+    amount_label: string;
+    transfer_text: string;
+    /** ISO, for the form; `due_at_label` is the German one for the table. */
+    due_at: string;
+    due_at_label: string;
+    /** Whether a collection started today would take this row along. */
+    due: boolean;
+    modifiable: boolean;
+    deletable: boolean;
+};
+
+/**
+ * The debit fields sent to the create/edit forms. `member_name` is only there
+ * so the picker can show the member of a debit already on file.
+ */
+export type DebitFormData = {
+    id: number;
+    member_id: number;
+    member_name: string;
+    amount: number;
+    transfer_text: string;
+    due_at: string;
+};
+
+/**
+ * One member the debit form can be booked on: this club's members who have a
+ * bank account on file (DebitController::memberOptions()).
+ */
+export type DebitableMember = {
+    id: number;
+    name: string;
+};
+
+/**
  * A club as sent to the (root-only) index listing. Bank details are absent on
  * purpose — they belong on the form, not in a list.
  */

@@ -2,6 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     Award,
+    Banknote,
     DatabaseBackup,
     FileText,
     LayoutGrid,
@@ -30,6 +31,7 @@ import {
 import { dashboard } from '@/routes';
 import { index as backups } from '@/routes/backups';
 import { edit as editClub, index as clubs } from '@/routes/clubs';
+import { index as debits } from '@/routes/debits';
 import { index as events } from '@/routes/events';
 import { index as items } from '@/routes/items';
 import { index as logViewer } from '@/routes/log-viewer';
@@ -67,6 +69,17 @@ const mainNavItems = computed<NavItem[]>(() => [
         href: subscriptions(),
         icon: Euro,
     },
+    // Admin-only: a debit names a member and the money about to leave their
+    // account, so unlike the fee list this is not open to the whole club.
+    ...(page.props.auth.canManageDebits
+        ? [
+              {
+                  title: wTrans('Debits').value,
+                  href: debits(),
+                  icon: Banknote,
+              },
+          ]
+        : []),
     // Opt-in per club (clubs.use_items); ItemPolicy refuses the screens for
     // a club that has not switched the inventory on.
     ...(page.props.currentClub?.uses_items

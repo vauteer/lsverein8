@@ -3,6 +3,7 @@
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubSwitchController;
+use App\Http\Controllers\DebitController;
 use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\ImpersonationController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\SectionController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserController;
 use App\Models\Club;
+use App\Models\Debit;
 use App\Models\Event;
 use App\Models\Item;
 use App\Models\Role;
@@ -96,6 +98,24 @@ Route::middleware(['auth'])->group(function () {
         ->name('subscriptions.destroy')->can('delete', 'subscription');
     Route::post('subscriptions/debit', [SubscriptionController::class, 'debit'])
         ->name('subscriptions.debit')->can('debit', Subscription::class);
+
+    // One-off direct debits, kept until a collection run takes them along and
+    // clears them. Admin-only throughout: a row names a member and the money
+    // about to leave their account.
+    Route::get('debits', [DebitController::class, 'index'])
+        ->name('debits.index')->can('viewAny', Debit::class);
+    Route::get('debits/create', [DebitController::class, 'create'])
+        ->name('debits.create')->can('create', Debit::class);
+    Route::post('debits', [DebitController::class, 'store'])
+        ->name('debits.store')->can('create', Debit::class);
+    Route::get('debits/{debit}/edit', [DebitController::class, 'edit'])
+        ->name('debits.edit')->can('update', 'debit');
+    Route::put('debits/{debit}', [DebitController::class, 'update'])
+        ->name('debits.update')->can('update', 'debit');
+    Route::delete('debits/{debit}', [DebitController::class, 'destroy'])
+        ->name('debits.destroy')->can('delete', 'debit');
+    Route::post('debits/collect', [DebitController::class, 'collect'])
+        ->name('debits.collect')->can('debit', Debit::class);
 
     // Only for a club that has switched the inventory on; ItemPolicy refuses
     // every action for one that has not.

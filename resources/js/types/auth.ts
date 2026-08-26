@@ -13,6 +13,7 @@ export type Auth = {
     canManageUsers: boolean;
     canViewLogs: boolean;
     canManageBackups: boolean;
+    canManageDebits: boolean;
     canManageClubs: boolean;
     canEditCurrentClub: boolean;
     impersonator: Pick<User, 'id' | 'name'> | null;

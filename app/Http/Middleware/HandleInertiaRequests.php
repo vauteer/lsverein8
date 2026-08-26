@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Club;
+use App\Models\Debit;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
@@ -57,6 +58,9 @@ class HandleInertiaRequests extends Middleware
                 // again, so the sidebar entry and the route cannot disagree.
                 'canViewLogs' => (bool) $request->user()?->can('viewLogViewer'),
                 'canManageBackups' => (bool) $request->user()?->can('manageBackups'),
+                // Admin-only screen, so the sidebar entry is resolved
+                // through the policy rather than repeating its check.
+                'canManageDebits' => (bool) $request->user()?->can('viewAny', Debit::class),
                 // Root only: the list of every club in the installation.
                 'canManageClubs' => (bool) $request->user()?->can('viewAny', Club::class),
                 // A club admin has no list but may edit the club they are in,
