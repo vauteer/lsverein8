@@ -8,6 +8,7 @@ import {
     Building2,
     Shapes,
     Euro,
+    Package,
     UserCog,
     Users,
 } from '@lucide/vue';
@@ -30,6 +31,7 @@ import { dashboard } from '@/routes';
 import { index as backups } from '@/routes/backups';
 import { edit as editClub, index as clubs } from '@/routes/clubs';
 import { index as events } from '@/routes/events';
+import { index as items } from '@/routes/items';
 import { index as logViewer } from '@/routes/log-viewer';
 import { index as roles } from '@/routes/roles';
 import { index as sections } from '@/routes/sections';
@@ -65,6 +67,17 @@ const mainNavItems = computed<NavItem[]>(() => [
         href: subscriptions(),
         icon: Euro,
     },
+    // Opt-in per club (clubs.use_items); ItemPolicy refuses the screens for
+    // a club that has not switched the inventory on.
+    ...(page.props.currentClub?.uses_items
+        ? [
+              {
+                  title: wTrans('Inventory').value,
+                  href: items(),
+                  icon: Package,
+              },
+          ]
+        : []),
     ...(page.props.auth.canManageUsers
         ? [
               {

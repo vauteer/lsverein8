@@ -91,3 +91,20 @@ Bei UI-Texten mit Zähler aufpassen: `$t()` pluralisiert nicht. ":count Beiträg
 Fallstrick für Tests: `storage/downloads` ist bewusst nicht gefakt (siehe Regel unter `tests/**`). Eine Fixture-Datei für einen „anderen Verein" deshalb nie unter einer echten Club-Id ablegen — SubscriptionManagementTest nutzt 999, damit sie nichts überschreibt, was Verein 2 wirklich erzeugt hat.
 
 Offen: `Member::availablePaymentMethods()` liefert hartkodierte deutsche Labels ('Konto'/'Rechnung'/'Nichtzahler'), die über die Außenstände-Tabelle unübersetzt ins UI durchschlagen. Kandidat für ein `PaymentMethod`-Enum nach dem Muster von ClubDisplay/Locale — hängt am Member-CRUD, der noch fehlt.
+
+## Item-CRUD: Inventar ist pro Verein abschaltbar, und items.club_id ist NOT NULL
+Zwei Dinge, in denen das Inventar von Abteilungen/Ehrungen/Funktionen abweicht — beide an der echten Datenbank geprüft (2026-08-26):
+
+**`items.club_id` ist NOT NULL.** `sections`, `events` und `roles` haben die Spalte nullable und darüber ihre installationsweiten Zeilen; `items` (und `subscriptions`) nicht. Es kann also keine vereinsübergreifenden Gegenstände geben. Folge: ItemPolicy hat **keinen** root-only-Zweig, ItemResource kein `shared`-Feld, und die Unique-Regel prüft nur `club_id = currentClubId()` ohne `orWhereNull`. Das entspricht lsverein7, dessen ItemPolicy ebenfalls keinen Null-Zweig hatte — ein Helm gehört einer Feuerwehr, nicht der Installation.
+
+`Item` trug beim Portieren des Model-Layers `ClubWithSharedScope`, obwohl der `club_id IS NULL`-Zweig bei einer NOT-NULL-Spalte nie greifen kann. Am 2026-08-26 auf `ClubScope` umgestellt — dieselbe erzeugte SQL (`where club_id = 1`), aber die Deklaration behauptet nichts mehr, was das Schema nicht hergibt. **Ein Scope bleibt zwingend**: ohne ihn liefert `Item::all()` das Inventar aller Vereine.
+
+Wer geteilte Gegenstände einführen will, braucht beides: eine Migration, die `items.club_id` nullable macht, **und** die Rückkehr zu `ClubWithSharedScope` samt Shared-Zweig in Policy, Resource und Unique-Regel. `tests/Feature/ItemManagementTest.php` pinnt die NOT-NULL-Zusage mit einem Test, der beim Ändern der Spalte rot wird.
+
+**Das Inventar ist pro Verein abschaltbar (`clubs.use_items`).** `ItemPolicy::viewAny()` gibt `currentClub()->use_items` zurück, und `create`/`update`/`delete` hängen daran — alle sechs Routen antworten also mit 403, wenn der Verein kein Inventar führt, nicht nur der Sidebar-Eintrag fehlt. Das weicht bewusst von lsverein7 ab, das nur den Navigationseintrag versteckte (`visible: club.value.useItems`) und /items per Adresszeile offen ließ. Vorbild ist `blsv_id`, das ebenfalls versteckt **und** `prohibitedIf` ist.
+
+Root ist nicht ausgenommen: ein root-Account arbeitet immer innerhalb eines Vereins (alle Scopes hängen an `users.club_id`), sieht das Inventar also dort, wo eines geführt wird, und wechselt sonst den Verein.
+
+Der Sidebar-Eintrag hängt an `currentClub.uses_items` aus HandleInertiaRequests — neu geteilt, damit Eintrag und Policy nicht auseinanderlaufen können. Produktionsstand: Verein 1 (Sportverein) `use_items = false`, Verein 2 (Feuerwehr) `true` mit „Jacke Bayern 2000" und „Helm 1950".
+
+UI-Wortwahl: die Navigation heißt „Inventar" (wie lsverein7 und wie das Vereinsformular-Label „Inventar verwenden"), die einzelne Zeile ist ein „Gegenstand" — gleiches Muster wie Funktionen/Ehrungen. `item_member` trägt `from`/`to`, ein Gegenstand wird also für einen Zeitraum ausgegeben, nicht dauerhaft zugeordnet; die Texte sagen deshalb „ausgegeben".

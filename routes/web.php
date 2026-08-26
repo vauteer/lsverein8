@@ -6,12 +6,14 @@ use App\Http\Controllers\ClubSwitchController;
 use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\ImpersonationController;
+use App\Http\Controllers\ItemController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserController;
 use App\Models\Club;
 use App\Models\Event;
+use App\Models\Item;
 use App\Models\Role;
 use App\Models\Section;
 use App\Models\Subscription;
@@ -94,6 +96,21 @@ Route::middleware(['auth'])->group(function () {
         ->name('subscriptions.destroy')->can('delete', 'subscription');
     Route::post('subscriptions/debit', [SubscriptionController::class, 'debit'])
         ->name('subscriptions.debit')->can('debit', Subscription::class);
+
+    // Only for a club that has switched the inventory on; ItemPolicy refuses
+    // every action for one that has not.
+    Route::get('items', [ItemController::class, 'index'])
+        ->name('items.index')->can('viewAny', Item::class);
+    Route::get('items/create', [ItemController::class, 'create'])
+        ->name('items.create')->can('create', Item::class);
+    Route::post('items', [ItemController::class, 'store'])
+        ->name('items.store')->can('create', Item::class);
+    Route::get('items/{item}/edit', [ItemController::class, 'edit'])
+        ->name('items.edit')->can('update', 'item');
+    Route::put('items/{item}', [ItemController::class, 'update'])
+        ->name('items.update')->can('update', 'item');
+    Route::delete('items/{item}', [ItemController::class, 'destroy'])
+        ->name('items.destroy')->can('delete', 'item');
 
     // The generated SEPA and BLSV files. {filename} carries no club prefix;
     // DownloadController adds the caller's own, so the URL cannot name

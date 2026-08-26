@@ -25,6 +25,8 @@ export type SharedClub = {
     /** From Club.display: a wordmark logo already contains the name. */
     show_logo: boolean;
     show_name: boolean;
+    /** clubs.use_items: the inventory is opt-in per club. */
+    uses_items: boolean;
 };
 
 /** One entry of the sidebar club picker. Empty list when there is one club. */

@@ -116,6 +116,26 @@ export type RoleFormData = {
 };
 
 /**
+ * An inventory item as sent to the index listing: the item's own columns plus
+ * the number of the current club's members it has been issued to.
+ */
+export type ItemResource = {
+    id: number;
+    name: string;
+    members_count: number;
+    modifiable: boolean;
+    deletable: boolean;
+};
+
+/**
+ * The item fields sent to the create/edit forms.
+ */
+export type ItemFormData = {
+    id: number;
+    name: string;
+};
+
+/**
  * A subscription as sent to the index listing: the subscription's own columns
  * plus the pre-formatted amount and the number of the current club's members
  * holding it.

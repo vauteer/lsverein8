@@ -9,7 +9,7 @@ paths:
 ## Model layer ported from lsverein7 — club scoping, pivots, MySQL-only scopes
 The 17 models and 7 pivots came over from lsverein7 with behaviour preserved. Conventions and traps:
 
-- Club scoping is via `#[ScopedBy]` attribute classes, not `booted()` closures. `ClubScope` (Member, Subscription) restricts to `currentClubId()`; `ClubWithSharedScope` (Event, Item, Role, Section) also lets `club_id IS NULL` rows through. Both wrap the condition in a nested closure — lsverein7 did not, so its `orWhere` leaked past other conditions and returned other clubs' rows.
+- Club scoping is via `#[ScopedBy]` attribute classes, not `booted()` closures. `ClubScope` (Item, Member, Subscription) restricts to `currentClubId()`; `ClubWithSharedScope` (Event, Role, Section) also lets `club_id IS NULL` rows through. Which one a model gets follows its column: only those three tables have `club_id` nullable. `items` and `subscriptions` are NOT NULL, so they take the plain scope — Item carried `ClubWithSharedScope` until 2026-08-26, where the `IS NULL` disjunct simply never matched. Both wrap the condition in a nested closure — lsverein7 did not, so its `orWhere` leaked past other conditions and returned other clubs' rows.
 - `currentClubId()` (app/helpers.php, autoloaded via composer `autoload.files`) returns `1` on the CLI, so tests and artisan always read club 1. Tests must create the club with `['id' => 1]`.
 - `Member::$_keyDate` is static global state driving every age/membership calculation. Reset it in `beforeEach`/`afterEach` or tests bleed into each other.
 - This app sets `Date::use(CarbonImmutable::class)`; lsverein7 did not. Type-hint `CarbonInterface`, never `Carbon`, or ported code fatals.
