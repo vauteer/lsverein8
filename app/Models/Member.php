@@ -71,15 +71,6 @@ class Member extends Model
     use HasFactory;
 
     /**
-     * @var array<int, array{id: string, name: string}>
-     */
-    public const EXPORT_FORMATS = [
-        ['id' => 'pdf', 'name' => 'PDF'],
-        ['id' => 'vcf', 'name' => 'vCard'],
-        ['id' => 'csv', 'name' => 'CSV'],
-    ];
-
-    /**
      * @var list<string>
      */
     protected $appends = ['age'];

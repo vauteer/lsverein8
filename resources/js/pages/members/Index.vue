@@ -1,11 +1,25 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { IdCard, Pencil, Plus, Search } from '@lucide/vue';
+import {
+    ChevronDown,
+    Download,
+    IdCard,
+    Pencil,
+    Plus,
+    Search,
+} from '@lucide/vue';
 import { trans } from 'laravel-vue-i18n';
 import { computed, ref, watch } from 'vue';
+import MemberExportController from '@/actions/App/Http/Controllers/MemberExportController';
 import Heading from '@/components/Heading.vue';
 import PaginationNav from '@/components/PaginationNav.vue';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -32,6 +46,7 @@ import {
 import { create, edit, index, show } from '@/routes/members';
 import type {
     BreadcrumbItem,
+    MemberExportFormat,
     MemberListFilters,
     MemberResource,
     Paginated,
@@ -47,6 +62,7 @@ const props = defineProps<{
     /** False for a subscription selection: a subscription has no date range. */
     yearApplies: boolean;
     canCreate: boolean;
+    exportFormats: MemberExportFormat[];
 }>();
 
 const search = ref(props.filters.search);
@@ -87,6 +103,10 @@ watch(search, () => {
 // they come from a picker rather than from typing.
 watch([filter, sort, year], () => reload());
 
+// The download carries the list state, so the file matches the screen.
+const exportHref = (format: string) =>
+    MemberExportController.url(format, { query: listQuery.value });
+
 // So the edit and detail pages can come back to exactly this list.
 const rowQuery = computed(() => ({
     ...listQuery.value,
@@ -118,17 +138,46 @@ defineOptions({
                     })
                 "
             />
-            <Button
-                variant="outline"
-                v-if="canCreate"
-                as-child
-                class="hidden md:inline-flex"
-            >
-                <Link :href="create({ query: rowQuery })">
-                    <Plus class="size-4" />
-                    {{ $t('New member') }}
-                </Link>
-            </Button>
+            <div class="hidden items-center gap-2 md:flex">
+                <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                        <Button
+                            variant="outline"
+                            :disabled="members.meta.total === 0"
+                            data-test="open-export-menu-button"
+                        >
+                            <Download class="size-4" />
+                            {{ $t('Export') }}
+                            <ChevronDown class="size-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" class="w-64">
+                        <!-- Plain anchors, not Inertia links: these are file
+                        downloads, so a visit would leave the SPA looking for a
+                        component. -->
+                        <DropdownMenuItem
+                            v-for="format in exportFormats"
+                            :key="format.id"
+                            as-child
+                        >
+                            <a :href="exportHref(format.id)" download>
+                                <span class="flex flex-col gap-0.5">
+                                    <span>{{ format.name }}</span>
+                                    <span class="text-xs text-muted-foreground">
+                                        {{ format.description }}
+                                    </span>
+                                </span>
+                            </a>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="outline" v-if="canCreate" as-child>
+                    <Link :href="create({ query: rowQuery })">
+                        <Plus class="size-4" />
+                        {{ $t('New member') }}
+                    </Link>
+                </Button>
+            </div>
         </div>
 
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

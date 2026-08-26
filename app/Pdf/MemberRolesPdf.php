@@ -82,6 +82,13 @@ class MemberRolesPdf extends BasePdf
 
         $this->printEntities();
 
-        return $this->Output('I', 'Liste.pdf');
+        // 'S' returns the document as a string. lsverein7 passed 'I' here,
+        // which echoes it to stdout, sends fpdf's own Content-Type headers and
+        // returns '' — the bytes then escaped the response body instead of
+        // being its content. SepaPdf and BlsvPdf always used 'S'.
+        //
+        // Beware the argument order: Fpdf::Output($dest, $name) swaps them
+        // when $name is one character and $dest is not.
+        return $this->Output('S', 'Liste.pdf');
     }
 }

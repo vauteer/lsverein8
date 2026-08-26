@@ -9,6 +9,7 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\MemberController;
+use App\Http\Controllers\MemberExportController;
 use App\Http\Controllers\Members\MemberEventController;
 use App\Http\Controllers\Members\MemberItemController;
 use App\Http\Controllers\Members\MemberRoleController;
@@ -58,6 +59,11 @@ Route::middleware(['auth'])->group(function () {
     // to an admin.
     Route::get('members', [MemberController::class, 'index'])
         ->name('members.index')->can('viewAny', Member::class);
+    // Before members/{member} would ever be consulted, and readable by
+    // everybody who may read the list — the exports carry nothing the list
+    // does not already show.
+    Route::get('members/export/{format}', MemberExportController::class)
+        ->name('members.export')->can('viewAny', Member::class);
     Route::get('members/create', [MemberController::class, 'create'])
         ->name('members.create')->can('create', Member::class);
     Route::post('members', [MemberController::class, 'store'])

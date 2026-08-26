@@ -331,6 +331,13 @@ export type MemberDetail = {
     subscriptions: MemberSubscriptionRow[];
 };
 
+/** One download the member list offers, all of them of the current selection. */
+export type MemberExportFormat = {
+    id: string;
+    name: string;
+    description: string;
+};
+
 /** The state the member list is read with, round-tripped through the URL. */
 export type MemberListFilters = {
     search: string;
