@@ -266,7 +266,7 @@ class Club extends Model
             ->get();
 
         foreach ($members as $member) {
-            $gender = ($member->gender->value === 'm') ? 'm' : 'w';
+            $gender = $member->gender->blsvValue();
             $index = self::getStatIndex($member->age);
             $row = $totals[$index];
             $row[$gender]++;
@@ -287,7 +287,7 @@ class Club extends Model
                 ->get();
 
             foreach ($members as $member) {
-                $gender = $member->gender->value === 'm' ? 'm' : 'w';
+                $gender = $member->gender->blsvValue();
                 $line = ';'.mb_convert_encoding($member->surname, 'ISO-8859-1', 'UTF-8').';'.
                     mb_convert_encoding($member->first_name, 'ISO-8859-1', 'UTF-8').';;'.
                     $gender.';'.

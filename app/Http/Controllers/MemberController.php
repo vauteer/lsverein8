@@ -113,30 +113,53 @@ class MemberController extends Controller
     {
         $member->load(['memberships', 'sections', 'roles', 'subscriptions', 'events', 'items']);
 
+        $modifiable = $request->user()->can('update', $member);
+        // Subscriptions are a treasurer's business, same rule the index uses.
+        $showsFinances = (bool) $request->user()->hasAdminRights();
+        $usesItems = (bool) currentClub()->use_items;
+
         return Inertia::render('members/Show', [
             'member' => [
                 ...$this->readableAttributes($member),
                 'memberships' => $this->rangeRows($member->memberships),
-                'sections' => $this->rangeRows($member->sections),
-                'roles' => $this->rangeRows($member->roles),
-                'items' => $this->rangeRows($member->items),
+                'sections' => $this->rangeRows($member->sections, 'section_id'),
+                'roles' => $this->rangeRows($member->roles, 'role_id'),
+                'items' => $usesItems ? $this->rangeRows($member->items, 'item_id') : [],
                 'events' => array_values($member->events
                     ->map(fn (Event $event): array => [
+                        'id' => $event->pivot->id,
+                        'event_id' => $event->id,
                         'name' => $event->name,
-                        'date' => formatDate($event->pivot->date),
+                        'date' => $event->pivot->date->format('Y-m-d'),
+                        'date_label' => formatDate($event->pivot->date),
                         'memo' => $event->pivot->memo,
                     ])
                     ->all()),
-                'subscriptions' => array_values($member->subscriptions
+                'subscriptions' => $showsFinances ? array_values($member->subscriptions
                     ->map(fn (Subscription $subscription): array => [
+                        'id' => $subscription->pivot->id,
+                        'subscription_id' => $subscription->id,
                         'name' => $subscription->name,
                         'amount_label' => $subscription->amountLabel(),
                         'memo' => $subscription->pivot->memo,
                     ])
-                    ->all()),
+                    ->all()) : [],
             ],
-            'modifiable' => $request->user()->can('update', $member),
-            'showsFinances' => (bool) $request->user()->hasAdminRights(),
+            'modifiable' => $modifiable,
+            'showsFinances' => $showsFinances,
+            'usesItems' => $usesItems,
+            // Only what the dialogs need to offer, and only for somebody who
+            // may actually change something.
+            'options' => $modifiable ? [
+                'sections' => $this->options(Section::query()->orderBy('name')),
+                'roles' => $this->options(Role::query()->orderBy('name')),
+                'events' => $this->options(Event::query()->orderBy('name')),
+                'subscriptions' => $showsFinances
+                    ? $this->options(Subscription::query()->orderBy('amount')->orderBy('name'))
+                    : [],
+                'items' => $usesItems ? $this->options(Item::query()->orderBy('name')) : [],
+            ] : null,
+            'today' => now()->format('Y-m-d'),
             'backQuery' => $this->backQuery($request),
         ]);
     }
@@ -169,6 +192,9 @@ class MemberController extends Controller
             // Only somebody with an open membership can be resigned; for
             // everybody else the button would do nothing.
             'resignable' => $member->isMember(),
+            // The picker's own floor, so the limit MemberResignRequest
+            // enforces is visible before the form is sent.
+            'earliestResignation' => $member->lastOpenStart()?->addDay()->format('Y-m-d'),
             'deletable' => $request->user()->can('delete', $member),
             'today' => now()->format('Y-m-d'),
             'backQuery' => $this->backQuery($request),
@@ -186,7 +212,8 @@ class MemberController extends Controller
 
     /**
      * End the membership: close every open club membership and every open
-     * section on the given date. The member and their history stay.
+     * section on the given date. The member and their history stay — this is
+     * the normal way somebody leaves, as opposed to destroy().
      */
     public function resign(MemberResignRequest $request, Member $member): RedirectResponse
     {
@@ -204,7 +231,12 @@ class MemberController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Membership ended.')]);
 
-        return to_route('members.edit', [$member, ...$this->backQuery($request)]);
+        // To the member page, not back to the edit form and not to the list.
+        // The list would usually no longer contain them — the default
+        // selection is current members — which reads as though something went
+        // wrong. The member page shows the closed ranges instead, which is
+        // exactly what just happened.
+        return to_route('members.show', [$member, ...$this->backQuery($request)]);
     }
 
     public function destroy(Request $request, Member $member): RedirectResponse
@@ -444,7 +476,8 @@ class MemberController extends Controller
     }
 
     /**
-     * Pivot rows carrying a from/to range, as the detail page lists them.
+     * Pivot rows carrying a from/to range, as the member page lists and edits
+     * them.
      *
      * The four relations that have one all name their row `name` and all carry
      * from/to/memo, so a single mapper covers them. The union is a template
@@ -452,33 +485,49 @@ class MemberController extends Controller
      * invariant in TModel: `Collection<int, Club>` is not a
      * `Collection<int, Club|Item|Role|Section>`.
      *
+     * `id` is the pivot row's own key, not the related row's: the same section
+     * or role may be held twice over different ranges, so that is the only
+     * thing that addresses a row. `$foreignKey` names the related column the
+     * edit dialog preselects; memberships have none, the club is implicit.
+     *
      * @template TRelated of Club|Item|Role|Section
      *
      * @param  Collection<int, TRelated>  $related
-     * @return list<array{name: string, range: string, memo: string|null}>
+     * @return list<array{id: int, related_id: int|null, name: string, range: string, from: string, to: string|null, memo: string|null}>
      */
-    private function rangeRows(Collection $related): array
+    private function rangeRows(Collection $related, ?string $foreignKey = null): array
     {
         return array_values($related
             ->map(fn (Club|Item|Role|Section $model): array => [
+                'id' => $model->pivot->id,
+                'related_id' => $foreignKey === null ? null : $model->id,
                 'name' => $model->name,
-                'range' => getRange(
-                    $model->pivot->from->toDateString(),
-                    $model->pivot->to?->toDateString()
-                ),
+                // An open range reads "seit 01.03.2024" rather than
+                // getRange()'s trailing dash. getRange() itself is left alone:
+                // four pivot models and a test depend on that form.
+                'range' => $model->pivot->to === null
+                    ? __('since :date', ['date' => formatDate($model->pivot->from)])
+                    : getRange(
+                        $model->pivot->from->toDateString(),
+                        $model->pivot->to->toDateString()
+                    ),
+                'from' => $model->pivot->from->format('Y-m-d'),
+                'to' => $model->pivot->to?->format('Y-m-d'),
                 'memo' => $model->pivot->memo,
             ])
             ->all());
     }
 
     /**
-     * @param  Builder<Section>|Builder<Subscription>  $query
+     * @template TModel of Event|Item|Role|Section|Subscription
+     *
+     * @param  Builder<TModel>  $query
      * @return list<array{id: int, name: string}>
      */
     private function options(Builder $query): array
     {
         return array_values($query->get(['id', 'name'])
-            ->map(fn (Section|Subscription $model): array => [
+            ->map(fn (Event|Item|Role|Section|Subscription $model): array => [
                 'id' => $model->id,
                 'name' => $model->name,
             ])

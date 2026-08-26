@@ -65,3 +65,20 @@ Grund, am 2026-08-25 an den Produktionsdaten geprüft: keine der 20 Zeilen ist e
 Der Code sprach ohnehin schon von Ehrungen: `Club::honor_years` (in lsverein7 als "Ehrungen Mitgliedsjahre" beschriftet), `Member::honorThisYear()`, der `dueHonor`-Scope, lsverein7s Filter "Fällige Ehrungen" und die CSV-Spalte `Ehrung`. "Ereignisse" war nur der Tabellenname, der ins UI durchgeschlagen ist.
 
 Die Beschreibung auf der Index-Seite nennt beide Arten ausdrücklich ("Ehrungen und Auszeichnungen, die ein Mitglied erhält oder erwirbt"), damit die Feuerwehr ihre Leistungsabzeichen hier vermutet. Das "erhält oder erwirbt" ist bewusst so und nicht "verliehen": Jubiläumsehrungen bekommt man für Zeit, Leistungsabzeichen und Wissenstest muss man sich erarbeiten, und "verliehen" stellt das Mitglied passiv. Gleiches Muster wie bei Funktionen — siehe die Notiz zu "Role".
+
+## Die Relationen gehören auf die Mitgliederseite, nicht ins Bearbeitungsformular
+`members/{id}` (Show.vue) **ist** die Mitgliederseite: Kopf, Stammdaten, dann die sechs Relationen mit [+] und ✎/🗑 je Zeile. `members/{id}/edit` ist nur noch das Formular für die Personendaten. Am 2026-08-26 bewusst so entschieden, gegen lsverein7.
+
+**Warum nicht wie lsverein7:** dort lagen die sechs Tabellen *innerhalb* des `<form>`, das die Stammdaten speichert, und jeder „Neu"/Stift war ein `router.get(...)` auf eine eigene Seite. Wer den Nachnamen korrigierte und dann eine Funktion hinzufügen wollte, verlor die ungespeicherte Korrektur wortlos. Dazu kamen zwei Speichermodelle auf einem Bildschirm (Formular mit Speichern-Knopf vs. sofort schreibende Zeilenaktionen) und dieselben sechs Listen doppelt gepflegt, weil Show sie ohnehin schon anzeigte.
+
+Aufbau:
+
+- `MemberRelationSection.vue` — Titel, Zeilen, [+], je Zeile ✎ und 🗑, plus **eine** Lösch-Bestätigung pro Abschnitt (auf die jeweilige Zeile gerichtet). Rein darstellend, meldet `add`/`edit` nach oben.
+- `MemberRelationDialog.vue` — gemeinsame Hülle: optionale Auswahl, `<slot>` für die formspezifischen Felder (Zeitraum / Datum / nichts), Notiz, Fußzeile. `formKey` erzwingt ein Remount, wenn der Dialog auf eine andere Zeile gerichtet wird — sonst stehen die Werte der vorher bearbeiteten drin.
+- Show.vue hält den Dialogzustand (`openKind` + `editingId`) und rendert die sechs Aufrufe.
+
+Sichtbarkeit: `modifiable` blendet alle Knöpfe aus (Liste bleibt für jeden lesbar), `showsFinances` den ganzen Beitrags-Abschnitt, `usesItems` den Inventar-Abschnitt. `options` ist `null` für einen Nur-Lese-Account — es gibt nichts zu wählen.
+
+**Wayfinder-Falle:** eine Route mit zwei Parametern nimmt ein Tupel, keine Positionsargumente — `MemberSectionController.destroy.form([member.id, row])`, nicht `.form(member.id, row)`. Sonst schlägt `vue-tsc` mit TS2345 zu.
+
+Bewusst nicht hier: die Jahresend-Massenaktion („alle mit 25 Jahren bekommen die Ehrung"). Das ist eine Aktion auf der Liste, nicht auf einem Mitglied; lsverein7 hatte sie auch nicht.

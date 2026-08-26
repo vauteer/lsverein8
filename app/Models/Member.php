@@ -136,6 +136,57 @@ class Member extends Model
         return $entry;
     }
 
+    /**
+     * Whether anything hangs off this member, which is what keeps them from
+     * being deleted.
+     *
+     * Seven tables carry a `member_id`, all of them ON DELETE CASCADE — the
+     * database would take the lot without complaint, so this check is the only
+     * brake, not the translation of a database error into a 403.
+     *
+     * `club_member` is deliberately excluded. Every member has one by
+     * construction (MemberController::store() attaches it), so counting it
+     * would make nobody deletable ever. Ending a membership is `resign()`;
+     * deletion is for a row that should never have existed, and stripping the
+     * memberships off the member page is how you get there.
+     */
+    public function isUsed(): bool
+    {
+        foreach ([
+            'member_section',
+            'member_role',
+            'event_member',
+            'member_subscription',
+            'item_member',
+            'debits',
+        ] as $table) {
+            if (DB::table($table)->where('member_id', $this->id)->exists()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The latest start among the rows a resignation would close: the open club
+     * memberships and the open sections.
+     *
+     * Not the same as entry(). A member who left and rejoined has an entry in
+     * 2000 and an open membership from 2010, and a section may have started
+     * later still — ending on a date before those would write a `to` that
+     * precedes its own `from`. Null when nothing is open.
+     */
+    public function lastOpenStart(): ?CarbonInterface
+    {
+        $starts = $this->memberships()->wherePivotNull('to')->get()
+            ->map(fn (Club $club): CarbonInterface => $club->pivot->from)
+            ->concat($this->sections()->wherePivotNull('to')->get()
+                ->map(fn (Section $section): CarbonInterface => $section->pivot->from));
+
+        return $starts->sortBy(fn (CarbonInterface $start): string => $start->toDateString())->last();
+    }
+
     public function honorThisYear(): int
     {
         $years = $this->membershipYears();

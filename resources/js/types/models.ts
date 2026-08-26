@@ -249,11 +249,57 @@ export type MemberFormData = {
     full_name: string;
 };
 
-/** One pivot row with a from/to range, as the detail page lists it. */
+/**
+ * One pivot row as MemberRelationSection renders it. `id` is the pivot row's
+ * own key, never the related row's: the same section or role may be held twice
+ * over different ranges, so nothing else addresses a row.
+ */
+export type MemberRelationRow = {
+    id: number;
+    name: string;
+    /** The range or date, already formatted for reading. */
+    detail: string;
+    memo: string | null;
+};
+
+/** One pivot row with a from/to range, as the member page lists and edits it. */
 export type MemberRangeRow = {
+    id: number;
+    /** The related section/role/item; null for a membership, whose club is implicit. */
+    related_id: number | null;
     name: string;
     range: string;
+    from: string;
+    to: string | null;
     memo: string | null;
+};
+
+/** One honour: a single date rather than a range. */
+export type MemberEventRow = {
+    id: number;
+    event_id: number;
+    name: string;
+    date: string;
+    date_label: string;
+    memo: string | null;
+};
+
+/** One subscription the member holds. `member_subscription` carries no dates. */
+export type MemberSubscriptionRow = {
+    id: number;
+    subscription_id: number;
+    name: string;
+    amount_label: string;
+    memo: string | null;
+};
+
+/** The pickers the member page's dialogs offer; null for a read-only account. */
+export type MemberRelationOptions = {
+    sections: SelectOption[];
+    roles: SelectOption[];
+    events: SelectOption[];
+    subscriptions: SelectOption[];
+    items: SelectOption[];
 };
 
 /** The member as the read-only detail page shows them, already formatted. */
@@ -281,12 +327,8 @@ export type MemberDetail = {
     sections: MemberRangeRow[];
     roles: MemberRangeRow[];
     items: MemberRangeRow[];
-    events: { name: string; date: string; memo: string | null }[];
-    subscriptions: {
-        name: string;
-        amount_label: string;
-        memo: string | null;
-    }[];
+    events: MemberEventRow[];
+    subscriptions: MemberSubscriptionRow[];
 };
 
 /** The state the member list is read with, round-tripped through the URL. */

@@ -2,6 +2,7 @@
 paths:
   - 'app/Models/**'
   - app/Models/User.php
+  - app/Models/Member.php
 ---
 
 # Models
@@ -67,3 +68,14 @@ Das ist keine Kosmetik: lsverein7 hatte hier gar keinen Scope, `Debit::debit()` 
 Folge für Route Model Binding: eine fremde Lastschrift ergibt 404, nicht 403 — wie bei `scopedUser()`. `DebitPolicy::update()` prüft trotzdem `hasAdminRights($debit->member->club_id)`, damit die Policy für sich genommen stimmt.
 
 `DebitFactory` erzeugt per Default einen Member in einem *neuen* Verein — genau richtig, um in Tests eine „fremde" Lastschrift zu bekommen.
+
+## Member::isUsed() — club_member zählt bewusst nicht mit
+Sieben Tabellen tragen ein `member_id`, **alle ON DELETE CASCADE** (an der Produktionsdatenbank geprüft, 2026-08-26): `club_member`, `member_section`, `member_role`, `event_member`, `member_subscription`, `item_member`, `debits`. Die Datenbank nimmt eine Löschung also klaglos samt kompletter Historie mit — `MemberPolicy::delete()` mit `! $member->isUsed()` ist die **einzige** Bremse, nicht die Übersetzung eines DB-Fehlers in ein 403. Gleiches Muster wie bei Subscription und Item.
+
+`isUsed()` prüft sechs der sieben Tabellen. **`club_member` ist absichtlich ausgenommen**: `MemberController::store()` legt sie bei jedem neuen Mitglied an, ein Mitglied ohne Mitgliedschaft gibt es also gar nicht — würde sie mitzählen, wäre nie jemand löschbar und der Knopf wäre reine Dekoration.
+
+Folge, und so gewollt: wer je im Verein war, hat Abteilungen, Funktionen oder Ehrungen und ist damit **nicht** löschbar. Für einen Austritt gibt es `resign()`. Löschen ist für eine Zeile, die es nie hätte geben dürfen — wer sie doch löschen will, räumt die Relationen erst auf der Mitgliederseite weg. Damit ist der Verlust eine bewusste Folge von Einzelschritten statt einer stillen Nebenwirkung von „Löschen".
+
+`debits` gehört bewusst dazu: eine noch nicht eingezogene Lastschrift darf nicht mit dem Mitglied verschwinden.
+
+Der Löschdialog auf `members/Edit.vue` sagt deshalb „Zu diesem Mitglied ist nichts erfasst, es ist also nichts weiter betroffen" — der frühere Text versprach das Gegenteil und listete auf, was alles mitgelöscht wird.

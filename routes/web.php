@@ -9,6 +9,12 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\MemberController;
+use App\Http\Controllers\Members\MemberEventController;
+use App\Http\Controllers\Members\MemberItemController;
+use App\Http\Controllers\Members\MemberRoleController;
+use App\Http\Controllers\Members\MemberSectionController;
+use App\Http\Controllers\Members\MembershipController;
+use App\Http\Controllers\Members\MemberSubscriptionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\SubscriptionController;
@@ -66,6 +72,34 @@ Route::middleware(['auth'])->group(function () {
         ->name('members.resign')->can('resign', 'member');
     Route::delete('members/{member}', [MemberController::class, 'destroy'])
         ->name('members.destroy')->can('delete', 'member');
+
+    // The member's six relations, all edited from the member page itself.
+    // Changing any of them is an update of the member, so they all sit behind
+    // the same policy check; the row is addressed by pivot id, because the
+    // same section or role may appear twice with different ranges.
+    foreach ([
+        'memberships' => MembershipController::class,
+        'sections' => MemberSectionController::class,
+        'roles' => MemberRoleController::class,
+        'events' => MemberEventController::class,
+        'subscriptions' => MemberSubscriptionController::class,
+    ] as $relation => $controller) {
+        Route::post("members/{member}/{$relation}", [$controller, 'store'])
+            ->name("members.{$relation}.store")->can('update', 'member');
+        Route::put("members/{member}/{$relation}/{row}", [$controller, 'update'])
+            ->name("members.{$relation}.update")->can('update', 'member');
+        Route::delete("members/{member}/{$relation}/{row}", [$controller, 'destroy'])
+            ->name("members.{$relation}.destroy")->can('update', 'member');
+    }
+
+    // The inventory is opt-in per club, so these carry ItemPolicy on top —
+    // a club that keeps no inventory cannot issue one either.
+    Route::post('members/{member}/items', [MemberItemController::class, 'store'])
+        ->name('members.items.store')->can('update', 'member')->can('viewAny', Item::class);
+    Route::put('members/{member}/items/{row}', [MemberItemController::class, 'update'])
+        ->name('members.items.update')->can('update', 'member')->can('viewAny', Item::class);
+    Route::delete('members/{member}/items/{row}', [MemberItemController::class, 'destroy'])
+        ->name('members.items.destroy')->can('update', 'member')->can('viewAny', Item::class);
 
     Route::get('sections', [SectionController::class, 'index'])
         ->name('sections.index')->can('viewAny', Section::class);

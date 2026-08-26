@@ -41,3 +41,14 @@ Drei Enums, alle nach dem Muster von ClubDisplay/Locale (`label()` über `__()`,
 **`MemberSort`** ersetzt die Integer 1..6. **Jeder Zweig endet auf `surname, first_name, id`** — lsverein7 ließ die meisten Sortierungen unaufgelöst, wodurch ein Mitglied bei Gleichstand auf zwei Seiten oder auf keiner erscheinen konnte.
 
 `Gender` hat jetzt ebenfalls `label()`/`options()`; die Case-Namen bleiben deutsch (`Frau`/`Mann`), weil sie aus den Bestandsdaten stammen, die Labels laufen über `Ms`/`Mr` in de.json.
+
+## Gender: drei Fälle, aber die BLSV-Statistik kennt nur zwei
+`Gender` hat seit 2026-08-26 drei Fälle: `Frau = 'f'`, `Mann = 'm'`, `Divers = 'd'`. Die Spalte ist `char(1)`, es brauchte also keine Migration. Die Case-Namen bleiben deutsch (Bestandsdaten), die Labels laufen über `Female`/`Male`/`Diverse` in de.json → „Weiblich"/„Männlich"/„Divers". Das Feldlabel heißt **„Geschlecht"** (`Gender`), nicht mehr „Anrede" — deshalb auch die Adjektive statt „Frau"/„Mann".
+
+**Der Haken: `Club::getBLSVStatistic()` kann kein drittes Geschlecht.** Das CSV-Format gehört dem BLSV und trug immer nur `m` und `w`. Vorher stand an zwei Stellen `$member->gender->value === 'm' ? 'm' : 'w'` — ein diverses Mitglied wäre also stillschweigend als weiblich exportiert **und** in der Frauen-Spalte der Altersstatistik gezählt worden.
+
+Das ist jetzt `Gender::blsvValue()`: gleiches Ergebnis, aber an **einer** Stelle und als bewusste Annahme dokumentiert statt als Nebenwirkung eines Ternärs. `tests/Feature/MemberManagementTest.php` pinnt alle drei Abbildungen.
+
+**`Divers` ist deshalb geparkt, nicht aktiv.** `Gender::selectable()` gibt nur `Frau` und `Mann` zurück; `options()` baut darauf auf (Picker) und `MemberValidationRules` nutzt dieselbe Liste über `Rule::enum(Gender::class)->only(Gender::selectable())`. Bewusst **beides**: nur aus dem Picker nehmen würde einen von Hand geschickten Wert weiter durchlassen.
+
+**Offen:** ob der BLSV einen dritten Wert annimmt (`d`? `x`? eigene Zeile?), ist ungeklärt. Vor dem nächsten Statistiklauf beim Verband nachfragen. Zum Einschalten danach: `selectable()` auf `self::cases()` und `blsvValue()` klären — sonst nichts. Der Test „the diverse gender is parked" wird dann rot und zeigt, was anzupassen ist.

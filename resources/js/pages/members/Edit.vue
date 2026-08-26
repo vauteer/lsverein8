@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { index, show } from '@/routes/members';
+import { index } from '@/routes/members';
 import type {
     BreadcrumbItem,
     MemberFormData,
@@ -32,6 +32,8 @@ const props = defineProps<{
     paymentMethods: SelectOption[];
     /** Only somebody with an open membership can be resigned. */
     resignable: boolean;
+    /** Floor for the resignation date: the day after the latest open start. */
+    earliestResignation: string | null;
     deletable: boolean;
     today: string;
     backQuery: Partial<MemberListFilters> & { page?: number };
@@ -62,21 +64,16 @@ defineOptions({
     <Head :title="$t('Edit :name', { name: member.full_name })" />
 
     <div class="mx-auto w-full max-w-3xl p-4">
-        <div class="flex items-start justify-between gap-4">
-            <Heading
-                :title="member.full_name"
-                :description="
-                    $t('Member number :number', {
-                        number: String(member.member_id),
-                    })
-                "
-            />
-            <Button variant="outline" as-child class="hidden sm:inline-flex">
-                <Link :href="show(member.id, { query: backQuery })">
-                    {{ $t('Details') }}
-                </Link>
-            </Button>
-        </div>
+        <!-- No link to the member page from here: it is reached from the
+        list, and this form is a detour off it. -->
+        <Heading
+            :title="member.full_name"
+            :description="
+                $t('Member number :number', {
+                    number: String(member.member_id),
+                })
+            "
+        />
 
         <Form
             v-bind="MemberController.update.form(props.member.id)"
@@ -130,9 +127,13 @@ defineOptions({
             @update:open="(open) => (confirmingResignation = open)"
         >
             <DialogContent>
+                <!-- Closing on success is not redundant with the redirect:
+                Inertia reuses the page component when the same one comes back,
+                so a dialog left open here would still be open afterwards. -->
                 <Form
                     v-bind="MemberController.resign.form(member.id)"
                     v-slot="{ errors, processing }"
+                    @success="confirmingResignation = false"
                 >
                     <DialogHeader class="space-y-3">
                         <DialogTitle>{{ $t('End membership') }}</DialogTitle>
@@ -152,6 +153,7 @@ defineOptions({
                             name="date"
                             type="date"
                             :default-value="today"
+                            :min="earliestResignation ?? undefined"
                             required
                             class="w-full sm:w-44"
                         />
@@ -192,7 +194,7 @@ defineOptions({
                         <DialogDescription>
                             {{
                                 $t(
-                                    'Their memberships, sections, roles, honours, subscriptions and issued items go with them. To record that somebody has left, end the membership instead. This action cannot be undone.',
+                                    'Nothing is recorded against them, so nothing else is affected. This action cannot be undone.',
                                 )
                             }}
                         </DialogDescription>

@@ -41,13 +41,18 @@ class MemberPolicy
     }
 
     /**
-     * Deleting really deletes — `members` cascades into all six pivots, so a
-     * member's whole history goes with them. Ending the membership
-     * (`resign`) is the normal way somebody leaves; this is for a row that
-     * should never have existed.
+     * Deleting is for a row that should never have existed, and only while
+     * nothing hangs off it. Every table carrying a `member_id` is
+     * ON DELETE CASCADE, so the database would silently take a member's whole
+     * history with them — `isUsed()` is the only brake.
+     *
+     * Somebody who has actually been in the club therefore cannot be deleted:
+     * they have sections, roles, honours. Recording that they left is
+     * `resign()`. To delete anyway, strip the relations on the member page
+     * first — which makes the loss deliberate and visible instead of silent.
      */
     public function delete(User $user, Member $member): bool
     {
-        return $this->update($user, $member);
+        return $this->update($user, $member) && ! $member->isUsed();
     }
 }

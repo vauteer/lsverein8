@@ -63,7 +63,7 @@ const collectsByAccount = computed(() => paymentMethod.value === 'k');
             :class="member ? 'sm:grid-cols-3' : 'sm:grid-cols-2'"
         >
             <div class="grid gap-2">
-                <Label for="gender">{{ $t('Salutation') }}</Label>
+                <Label for="gender">{{ $t('Gender') }}</Label>
                 <Select v-model="gender">
                     <SelectTrigger id="gender" class="w-full">
                         <SelectValue />

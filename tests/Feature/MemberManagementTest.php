@@ -5,8 +5,11 @@ use App\Enums\Gender;
 use App\Enums\MemberFilter;
 use App\Enums\PaymentMethod;
 use App\Models\Club;
+use App\Models\Debit;
+use App\Models\Event;
 use App\Models\Item;
 use App\Models\Member;
+use App\Models\Role;
 use App\Models\Section;
 use App\Models\Subscription;
 use App\Models\User;
@@ -381,6 +384,28 @@ test('only an admin reaches the create form and stores a member', function () {
         ->and($member->subscriptions)->toHaveCount(1);
 });
 
+test('the diverse gender is parked: neither offered nor accepted', function () {
+    $section = Section::factory()->create(['club_id' => 1]);
+
+    // The case exists and the column would hold it, but the BLSV statistic can
+    // only report m or w. Refused outright rather than half-disabled: hiding it
+    // from the picker alone would still let a posted value through.
+    $this->actingAs(memberUser())
+        ->post(route('members.store'), memberPayload([
+            'entry_date' => '2024-03-01',
+            'section_id' => $section->id,
+            'gender' => Gender::Divers->value,
+        ]))
+        ->assertSessionHasErrors('gender');
+
+    expect(Member::query()->where('surname', 'Meier')->count())->toBe(0)
+        ->and(Gender::selectable())->toBe([Gender::Frau, Gender::Mann])
+        // The mapping is ready for the day the association answers.
+        ->and(Gender::Mann->blsvValue())->toBe('m')
+        ->and(Gender::Frau->blsvValue())->toBe('w')
+        ->and(Gender::Divers->blsvValue())->toBe('w');
+});
+
 test('the member number is handed out by the server, never taken from the form', function () {
     $section = Section::factory()->create(['club_id' => 1]);
     Member::factory()->ofClub(1)->create(['member_id' => 41]);
@@ -592,8 +617,10 @@ test('ending a membership closes the memberships and sections but keeps the memb
     $member->sections()->attach($closed->id, ['from' => '2016-01-01', 'to' => '2018-01-01']);
 
     $this->actingAs(memberUser())
+        // To the member page: the default selection is current members, so the
+        // list would usually no longer contain them and reads as a failure.
         ->put(route('members.resign', $member), ['date' => '2024-06-30'])
-        ->assertRedirect(route('members.edit', $member));
+        ->assertRedirect(route('members.show', $member));
 
     $member->refresh()->load(['memberships', 'sections']);
 
@@ -602,6 +629,86 @@ test('ending a membership closes the memberships and sections but keeps the memb
         // An already closed section keeps the date it was closed on.
         ->and($member->sections->firstWhere('id', $closed->id)->pivot->to->format('Y-m-d'))->toBe('2018-01-01')
         ->and(Member::find($member->id))->not->toBeNull();
+});
+
+test('a membership cannot be ended before it started', function () {
+    $member = joinedMember(from: '2016-01-01');
+    $section = Section::factory()->create(['club_id' => 1]);
+    // A section that started later than the membership: the floor is the
+    // latest open start, not the joining date.
+    $member->sections()->attach($section->id, ['from' => '2020-03-01', 'to' => null]);
+
+    $this->actingAs(memberUser());
+
+    foreach (['2015-12-31', '2016-01-01', '2020-03-01'] as $tooEarly) {
+        $this->put(route('members.resign', $member), ['date' => $tooEarly])
+            ->assertSessionHasErrors('date');
+    }
+
+    // One day after the latest open start is the earliest that works.
+    $this->put(route('members.resign', $member), ['date' => '2020-03-02'])
+        ->assertRedirect(route('members.show', $member));
+
+    $member->refresh()->load(['memberships', 'sections']);
+
+    expect($member->memberships->first()->pivot->to->format('Y-m-d'))->toBe('2020-03-02')
+        ->and($member->sections->first()->pivot->to->format('Y-m-d'))->toBe('2020-03-02');
+});
+
+test('a member who rejoined is measured against the open period, not the first one', function () {
+    $member = Member::factory()->ofClub(1)->create();
+    $member->memberships()->attach(1, ['from' => '2000-01-01', 'to' => '2004-12-31']);
+    $member->memberships()->attach(1, ['from' => '2010-01-01', 'to' => null]);
+
+    $this->actingAs(memberUser());
+
+    // After entry() (2000) but inside the closed gap — it would write a `to`
+    // before the open row's own `from`.
+    $this->put(route('members.resign', $member), ['date' => '2005-01-01'])
+        ->assertSessionHasErrors('date');
+
+    $this->put(route('members.resign', $member), ['date' => '2024-06-30'])
+        ->assertRedirect(route('members.show', $member));
+
+    $periods = $member->fresh()->load('memberships')->memberships
+        ->map(fn ($club) => $club->pivot->to->format('Y-m-d'))
+        ->sort()
+        ->values()
+        ->all();
+
+    // The already closed period keeps its own end date.
+    expect($periods)->toBe(['2004-12-31', '2024-06-30']);
+});
+
+test('the edit page ships the floor the picker needs', function () {
+    $member = joinedMember(from: '2016-01-01');
+
+    $this->actingAs(memberUser())
+        ->get(route('members.edit', $member))
+        ->assertInertia(fn ($page) => $page
+            ->where('earliestResignation', '2016-01-02')
+        );
+});
+
+test('the member page is reachable right after resigning, though the list is not', function () {
+    $member = joinedMember();
+
+    $this->actingAs(memberUser())
+        ->put(route('members.resign', $member), ['date' => '2024-06-30'])
+        ->assertRedirect(route('members.show', $member));
+
+    // The page still renders them, with the membership now closed.
+    $this->get(route('members.show', $member))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('member.is_member', false)
+            ->where('member.memberships.0.range', '01.01.2016-30.06.2024')
+        );
+
+    // Whereas the default selection has dropped them, which is why the
+    // redirect does not go there.
+    $this->get(route('members.index'))
+        ->assertInertia(fn ($page) => $page->has('members.data', 0));
 });
 
 test('somebody without an open membership is not offered the resign button', function () {
@@ -622,20 +729,89 @@ test('a non-admin may neither resign nor delete a member', function () {
     $this->delete(route('members.destroy', $member))->assertForbidden();
 });
 
-test('deleting a member takes their history with them', function () {
+test('a member with anything recorded against them cannot be deleted', function () {
     $member = joinedMember();
     $section = Section::factory()->create(['club_id' => 1]);
     $member->sections()->attach($section->id, ['from' => '2016-01-01']);
 
+    $this->actingAs(memberUser());
+
+    // Every member_id column is ON DELETE CASCADE, so the database would take
+    // the whole history without complaint. MemberPolicy is the only brake.
+    $this->delete(route('members.destroy', $member))->assertForbidden();
+
+    expect(Member::find($member->id))->not->toBeNull();
+
+    $this->get(route('members.edit', $member))
+        ->assertInertia(fn ($page) => $page->where('deletable', false));
+});
+
+test('the club membership alone does not block a deletion', function () {
+    // Every member has one by construction, so counting it would make nobody
+    // deletable ever.
+    $member = joinedMember();
+
     $this->actingAs(memberUser())
-        ->delete(route('members.destroy', $member))
-        ->assertRedirect();
+        ->get(route('members.edit', $member))
+        ->assertInertia(fn ($page) => $page->where('deletable', true));
+
+    $this->delete(route('members.destroy', $member))->assertRedirect();
 
     expect(Member::find($member->id))->toBeNull()
-        // members cascades into all six pivots, which is why the edit page
-        // offers "end membership" first.
-        ->and(DB::table('club_member')->where('member_id', $member->id)->count())->toBe(0)
-        ->and(DB::table('member_section')->where('member_id', $member->id)->count())->toBe(0);
+        ->and(DB::table('club_member')->where('member_id', $member->id)->count())->toBe(0);
+});
+
+test('every other reference blocks a deletion, one at a time', function () {
+    $this->actingAs(memberUser());
+
+    $cases = [
+        'section' => fn (Member $m) => $m->sections()->attach(
+            Section::factory()->create(['club_id' => 1])->id, ['from' => '2016-01-01']
+        ),
+        'role' => fn (Member $m) => $m->roles()->attach(
+            Role::factory()->create(['club_id' => 1])->id, ['from' => '2016-01-01']
+        ),
+        'honour' => fn (Member $m) => $m->events()->attach(
+            Event::factory()->create(['club_id' => 1])->id, ['date' => '2016-01-01']
+        ),
+        'subscription' => fn (Member $m) => $m->subscriptions()->attach(
+            Subscription::factory()->create(['club_id' => 1])->id
+        ),
+        'issued item' => fn (Member $m) => $m->items()->attach(
+            Item::factory()->create(['club_id' => 1])->id, ['from' => '2016-01-01']
+        ),
+        // debits.member_id cascades too, and a pending collection is exactly
+        // the kind of thing that must not vanish silently.
+        'debit' => fn (Member $m) => Debit::factory()->create(['member_id' => $m->id]),
+    ];
+
+    foreach ($cases as $label => $attach) {
+        $member = joinedMember();
+        $attach($member);
+
+        expect($member->isUsed())->toBeTrue("a {$label} should block the deletion");
+
+        $this->delete(route('members.destroy', $member))->assertForbidden();
+    }
+});
+
+test('stripping the relations makes a member deletable again', function () {
+    $member = joinedMember();
+    $section = Section::factory()->create(['club_id' => 1]);
+    $member->sections()->attach($section->id, ['from' => '2016-01-01']);
+
+    $this->actingAs(memberUser());
+
+    $this->delete(route('members.destroy', $member))->assertForbidden();
+
+    // The way out is the member page, which makes the loss deliberate rather
+    // than a side effect of pressing Delete.
+    $row = $member->sections()->first()->pivot;
+    $this->delete(route('members.sections.destroy', [$member, $row->id]))->assertRedirect();
+
+    $this->delete(route('members.destroy', $member))->assertRedirect();
+
+    expect(Member::find($member->id))->toBeNull();
 });
 
 test('a member of another club cannot be reached by guessing their id', function () {
