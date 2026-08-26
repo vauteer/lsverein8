@@ -5,6 +5,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | Applies to | Rule file |
 | --- | --- |
 | app/Backup.php | .ai/rules/app.md |
+| config/log-viewer.php | .ai/rules/config.md |
 | app/Enums/** | .ai/rules/enums.md |
 | app/Http/** | .ai/rules/http.md |
 | resources/js/** | .ai/rules/js.md |
