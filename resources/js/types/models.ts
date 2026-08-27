@@ -347,6 +347,17 @@ export type MemberExportFormat = {
     description: string;
 };
 
+/**
+ * A member already on file who matches the one being entered — same club, same
+ * name, same birthday. Shown by the create form, never stored.
+ */
+export type DuplicateMember = {
+    id: number;
+    name: string;
+    member_id: number;
+    href: string;
+};
+
 /** The state the member list is read with, round-tripped through the URL. */
 export type MemberListFilters = {
     search: string;

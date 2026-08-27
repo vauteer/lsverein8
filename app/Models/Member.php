@@ -392,6 +392,46 @@ class Member extends Model
     }
 
     /**
+     * Everybody whose surname, first name and birthday occur more than once in
+     * the club — so both sides of a pair, not just the later one.
+     *
+     * Current and former members alike, deliberately: the pair that costs the
+     * most is a returning member entered as a new record, and one half of that
+     * pair has left. The key date plays no part for the same reason.
+     *
+     * Written with a grouped lookup and an OR chain rather than a correlated
+     * subquery so it also runs on the SQLite test connection — unlike
+     * dueHonor, joined and their MySQL-only siblings.
+     *
+     * @param  Builder<Member>  $query
+     */
+    #[Scope]
+    protected function possibleDuplicates(Builder $query): void
+    {
+        $keys = DB::table('members')
+            ->select('surname', 'first_name', 'birthday')
+            ->where('club_id', currentClubId())
+            ->groupBy('surname', 'first_name', 'birthday')
+            ->havingRaw('count(*) > 1')
+            ->get();
+
+        if ($keys->isEmpty()) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->where(function (Builder $query) use ($keys): void {
+            foreach ($keys as $key) {
+                $query->orWhere(fn (Builder $query) => $query
+                    ->where('surname', $key->surname)
+                    ->where('first_name', $key->first_name)
+                    ->where('birthday', $key->birthday));
+            }
+        });
+    }
+
+    /**
      * @param  Builder<Member>  $query
      */
     #[Scope]

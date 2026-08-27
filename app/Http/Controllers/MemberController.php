@@ -13,6 +13,7 @@ use App\Http\Requests\MemberStoreRequest;
 use App\Http\Requests\MemberUpdateRequest;
 use App\Http\Resources\MemberResource;
 use App\Models\Club;
+use App\Models\ClubMember;
 use App\Models\Event;
 use App\Models\Item;
 use App\Models\Member;
@@ -79,6 +80,10 @@ class MemberController extends Controller
             'subscriptions' => $this->options(Subscription::query()->orderBy('name')),
             'today' => now()->format('Y-m-d'),
             'backQuery' => $this->backQuery($request),
+            // Set only when store() bounced the form because somebody of that
+            // name and birthday is already on file. Flashed, so it is gone on
+            // the next visit.
+            'duplicate' => session('duplicate'),
         ]);
     }
 
@@ -86,6 +91,17 @@ class MemberController extends Controller
     {
         $validated = $request->validated();
         $clubId = currentClubId();
+
+        $duplicate = $this->findDuplicate($validated);
+
+        // Not a rule in MemberStoreRequest: the page needs the found member
+        // itself — their number, their membership dates and a link — and a
+        // FormRequest can only hand back a string.
+        if ($duplicate !== null && ! $request->boolean('confirm_duplicate')) {
+            return back()
+                ->withErrors(['confirm_duplicate' => $this->duplicateMessage($duplicate)])
+                ->with('duplicate', $this->duplicateDetails($duplicate));
+        }
 
         $member = Member::create([
             ...$this->memberAttributes($validated),
@@ -108,7 +124,78 @@ class MemberController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Member created.')]);
 
-        return to_route('members.index', $this->backQuery($request));
+        // To the member page, not back to the list — the same reason resign()
+        // gives. A member who joins next month, or who is outside the current
+        // selection for any other reason, is simply not in the list, which
+        // reads as though the save had failed. Somebody did exactly that and
+        // entered the member a second time.
+        return to_route('members.show', [$member, ...$this->backQuery($request)]);
+    }
+
+    /**
+     * Somebody of the same name and birthday already on file in this club.
+     *
+     * Name plus birthday, not name alone: two Hans Bauers in a village club is
+     * ordinary, the same one twice is not. ClubScope keeps the search inside
+     * the club. Former members count — that is the case worth catching, see
+     * duplicateMessage().
+     *
+     * @param  array<string, mixed>  $validated
+     */
+    private function findDuplicate(array $validated): ?Member
+    {
+        return Member::query()
+            ->where('surname', $validated['surname'])
+            ->where('first_name', $validated['first_name'])
+            ->whereDate('birthday', $validated['birthday'])
+            ->first();
+    }
+
+    /**
+     * What the warning says, which depends on whether they are still a member.
+     *
+     * A former member is the expensive case: entering them again as a new
+     * record loses every year they were in the club, because membershipYears()
+     * sums the club_member rows of *one* member. Two of the four duplicate
+     * groups in production came about that way — one of them costs the person
+     * fourteen years and moves their 25-year honour from 2035 to 2050.
+     */
+    private function duplicateMessage(Member $member): string
+    {
+        $membership = $this->latestMembership($member);
+
+        if ($membership?->to !== null) {
+            return __('There is already a :name, born :birthday, who left on :date. Reopen the membership there instead of entering them again — a new record loses the years they were in the club.', [
+                'name' => $member->first_name.' '.$member->surname,
+                'birthday' => formatDate($member->birthday),
+                'date' => formatDate($membership->to),
+            ]);
+        }
+
+        return __('There is already a :name, born :birthday, in the club. Confirm below if this really is a different person.', [
+            'name' => $member->first_name.' '.$member->surname,
+            'birthday' => formatDate($member->birthday),
+        ]);
+    }
+
+    /**
+     * @return array{id: int, name: string, member_id: int, href: string}
+     */
+    private function duplicateDetails(Member $member): array
+    {
+        return [
+            'id' => $member->id,
+            'name' => $member->first_name.' '.$member->surname,
+            'member_id' => $member->member_id,
+            'href' => route('members.show', $member, absolute: false),
+        ];
+    }
+
+    private function latestMembership(Member $member): ?ClubMember
+    {
+        return $member->memberships()
+            ->orderByPivot('from', 'desc')
+            ->first()?->pivot;
     }
 
     public function show(Request $request, Member $member): Response

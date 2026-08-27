@@ -829,3 +829,180 @@ test('the sidebar carries the member list for everybody in the club', function (
         ->get(route('members.index'))
         ->assertOk();
 });
+
+/**
+ * Somebody entered a new member with a joining date in the future, did not
+ * find them in the default selection afterwards, assumed the save had failed
+ * and entered them a second time. Four such pairs exist in production. These
+ * pin the three measures against it.
+ */
+test('creating a member lands on their page, not back on the list', function () {
+    $section = Section::factory()->create(['club_id' => 1]);
+
+    $this->actingAs(memberUser())
+        ->post(route('members.store'), memberPayload([
+            'entry_date' => now()->addMonth()->format('Y-m-d'),
+            'section_id' => $section->id,
+        ]));
+
+    $member = Member::firstOrFail();
+
+    $this->post(route('members.store'), memberPayload([
+        'surname' => 'Zweiter',
+        'entry_date' => now()->addMonth()->format('Y-m-d'),
+        'section_id' => $section->id,
+    ]))->assertRedirect(route('members.show', Member::query()->where('surname', 'Zweiter')->firstOrFail()));
+
+    // Why it matters: the list does not contain them, because they join next
+    // month — and that emptiness is what read as a failed save.
+    $this->get(route('members.index'))
+        ->assertInertia(fn ($page) => $page->has('members.data', 0));
+
+    $this->get(route('members.show', $member))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('members/Show'));
+});
+
+test('a joining date may be up to three months ahead but no further', function () {
+    $section = Section::factory()->create(['club_id' => 1]);
+
+    $this->actingAs(memberUser());
+
+    $this->post(route('members.store'), memberPayload([
+        'entry_date' => now()->addMonths(2)->format('Y-m-d'),
+        'section_id' => $section->id,
+    ]))->assertSessionHasNoErrors();
+
+    $this->post(route('members.store'), memberPayload([
+        'surname' => 'Anders',
+        'entry_date' => now()->addMonths(4)->format('Y-m-d'),
+        'section_id' => $section->id,
+    ]))->assertSessionHasErrors('entry_date');
+
+    // The mistyped year this bound exists to catch.
+    $this->post(route('members.store'), memberPayload([
+        'surname' => 'Vertippt',
+        'entry_date' => now()->addYears(36)->format('Y-m-d'),
+        'section_id' => $section->id,
+    ]))->assertSessionHasErrors('entry_date');
+});
+
+test('a second member of the same name and birthday is refused until confirmed', function () {
+    $section = Section::factory()->create(['club_id' => 1]);
+    $existing = joinedMember(['surname' => 'Matt', 'first_name' => 'Lena', 'birthday' => '2013-01-24']);
+
+    $this->actingAs(memberUser());
+
+    $payload = memberPayload([
+        'surname' => 'Matt',
+        'first_name' => 'Lena',
+        'birthday' => '2013-01-24',
+        'entry_date' => now()->format('Y-m-d'),
+        'section_id' => $section->id,
+    ]);
+
+    $this->post(route('members.store'), $payload)
+        ->assertSessionHasErrors('confirm_duplicate');
+
+    expect(Member::query()->where('surname', 'Matt')->count())->toBe(1);
+
+    // The page is handed the member itself, not just a sentence, so it can
+    // link to them.
+    $this->get(route('members.create'))
+        ->assertInertia(fn ($page) => $page
+            ->where('duplicate.id', $existing->id)
+            ->where('duplicate.name', 'Lena Matt')
+            ->where('duplicate.href', "/members/{$existing->id}"));
+
+    // Ticking the box gets through — namesakes exist.
+    $this->post(route('members.store'), [...$payload, 'confirm_duplicate' => '1'])
+        ->assertSessionHasNoErrors();
+
+    expect(Member::query()->where('surname', 'Matt')->count())->toBe(2);
+});
+
+test('the warning is not raised by a namesake with a different birthday', function () {
+    $section = Section::factory()->create(['club_id' => 1]);
+    joinedMember(['surname' => 'Bauer', 'first_name' => 'Hans', 'birthday' => '1962-04-08']);
+
+    $this->actingAs(memberUser())
+        ->post(route('members.store'), memberPayload([
+            'surname' => 'Bauer',
+            'first_name' => 'Hans',
+            'birthday' => '2013-04-08',
+            'entry_date' => now()->format('Y-m-d'),
+            'section_id' => $section->id,
+        ]))
+        ->assertSessionHasNoErrors();
+
+    expect(Member::query()->where('surname', 'Bauer')->count())->toBe(2);
+});
+
+test('a member of another club never raises the warning', function () {
+    $other = Club::factory()->create();
+    $section = Section::factory()->create(['club_id' => 1]);
+
+    Member::factory()->ofClub($other->id)->create([
+        'surname' => 'Matt', 'first_name' => 'Lena', 'birthday' => '2013-01-24',
+    ]);
+
+    $this->actingAs(memberUser())
+        ->post(route('members.store'), memberPayload([
+            'surname' => 'Matt',
+            'first_name' => 'Lena',
+            'birthday' => '2013-01-24',
+            'entry_date' => now()->format('Y-m-d'),
+            'section_id' => $section->id,
+        ]))
+        ->assertSessionHasNoErrors();
+});
+
+test('a returning member is told to reopen the membership instead', function () {
+    $section = Section::factory()->create(['club_id' => 1]);
+    $former = joinedMember(['surname' => 'Scherm', 'first_name' => 'Hannes', 'birthday' => '1997-12-12'], from: '2004-02-22');
+    $former->memberships()->updateExistingPivot(1, ['to' => '2018-12-31']);
+
+    $this->actingAs(memberUser())
+        ->post(route('members.store'), memberPayload([
+            'surname' => 'Scherm',
+            'first_name' => 'Hannes',
+            'birthday' => '1997-12-12',
+            'entry_date' => now()->format('Y-m-d'),
+            'section_id' => $section->id,
+        ]))
+        // The expensive case: a new record would drop the fourteen years and
+        // with them the honour that is due for them.
+        ->assertSessionHasErrors(['confirm_duplicate' => __('There is already a :name, born :birthday, who left on :date. Reopen the membership there instead of entering them again — a new record loses the years they were in the club.', [
+            'name' => 'Hannes Scherm',
+            'birthday' => '12.12.1997',
+            'date' => '31.12.2018',
+        ])]);
+});
+
+test('the duplicates selection lists both halves of a pair, current or not', function () {
+    $twinA = joinedMember(['surname' => 'Matt', 'first_name' => 'Lena', 'birthday' => '2013-01-24']);
+    $twinB = joinedMember(['surname' => 'Matt', 'first_name' => 'Lena', 'birthday' => '2013-01-24']);
+    // Left the club, so the default selection would hide them — the whole
+    // point of the selection is that it does not.
+    $former = joinedMember(['surname' => 'Scherm', 'first_name' => 'Hannes', 'birthday' => '1997-12-12'], from: '2004-02-22');
+    $former->memberships()->updateExistingPivot(1, ['to' => '2018-12-31']);
+    $returned = joinedMember(['surname' => 'Scherm', 'first_name' => 'Hannes', 'birthday' => '1997-12-12'], from: '2025-04-22');
+
+    joinedMember(['surname' => 'Einzeln', 'first_name' => 'Erna', 'birthday' => '1970-01-01']);
+
+    $ids = collect(
+        $this->actingAs(memberUser())
+            ->get(route('members.index', ['filter' => 'possible_duplicates']))
+            ->viewData('page')['props']['members']['data']
+    )->pluck('id')->sort()->values()->all();
+
+    expect($ids)->toBe(collect([$twinA, $twinB, $former, $returned])->pluck('id')->sort()->values()->all());
+});
+
+test('the duplicates selection is empty when the club has none', function () {
+    joinedMember(['surname' => 'Einzeln', 'first_name' => 'Erna', 'birthday' => '1970-01-01']);
+
+    $this->actingAs(memberUser())
+        ->get(route('members.index', ['filter' => 'possible_duplicates']))
+        ->assertInertia(fn ($page) => $page->has('members.data', 0));
+});

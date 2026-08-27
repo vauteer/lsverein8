@@ -40,6 +40,8 @@ Drei Enums, alle nach dem Muster von ClubDisplay/Locale (`label()` über `__()`,
 
 **`MemberFilter`** ersetzt lsverein7s Integer 0..13 in URL und Controller-`match`. Ein Lesezeichen sagt jetzt `?filter=due_honours` statt `?filter=10`. `NoSubscription` ist admin-only (`isVisibleTo()`), `optionsFor()` filtert danach.
 
+`All` heißt seit 2026-08-27 schlicht **„Alle"**, vorher „Mit Ehemaligen". Der Zweig ist `$query` — er schränkt außer ClubScope nichts ein und enthält damit auch Verstorbene und künftige Mitglieder. In Verein 1 benannte der alte Name 155 von 186 zusätzlichen Zeilen und verschwieg 30 Verstorbene und 1 Eintritt in der Zukunft. Nicht durch einen aufzählenden Namen ersetzen: der ist schon zweimal falsch geworden. `filterLabel()` landet in der Export-Überschrift und im Dateinamen, aus `mit-ehemaligen-2026.csv` wurde damit `alle-2026.csv`.
+
 **`MemberSort`** ersetzt die Integer 1..6. **Jeder Zweig endet auf `surname, first_name, id`** — lsverein7 ließ die meisten Sortierungen unaufgelöst, wodurch ein Mitglied bei Gleichstand auf zwei Seiten oder auf keiner erscheinen konnte.
 
 `Gender` hat jetzt ebenfalls `label()`/`options()`; die Case-Namen bleiben deutsch (`Frau`/`Mann`), weil sie aus den Bestandsdaten stammen, die Labels laufen über `Ms`/`Mr` in de.json.

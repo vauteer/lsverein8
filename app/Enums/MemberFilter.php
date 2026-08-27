@@ -31,11 +31,12 @@ enum MemberFilter: string
     case HasRole = 'has_role';
     case HadRole = 'had_role';
     case NoSubscription = 'no_subscription';
+    case PossibleDuplicates = 'possible_duplicates';
 
     public function label(): string
     {
         return match ($this) {
-            self::All => __('Including former members'),
+            self::All => __('All'),
             self::Members => __('Members'),
             self::Former => __('Former members'),
             self::MilestoneBirthdays => __('Milestone birthdays'),
@@ -49,6 +50,7 @@ enum MemberFilter: string
             self::HasRole => __('Holds a role'),
             self::HadRole => __('Ever held a role'),
             self::NoSubscription => __('Without a subscription'),
+            self::PossibleDuplicates => __('Possible duplicates'),
         };
     }
 
@@ -69,6 +71,11 @@ enum MemberFilter: string
     public function apply(Builder $query): void
     {
         match ($this) {
+            // Literally no narrowing beyond ClubScope, which is why the
+            // label is just "Alle". It was "Mit Ehemaligen" until 2026-08-27,
+            // which named 155 of the 186 extra rows and silently left out 30
+            // deceased and the members who join next month. Any enumerating
+            // name has to be corrected again the next time a group appears.
             self::All => $query,
             self::Members => $query->members(),
             self::Former => $query->noMembers(),
@@ -83,6 +90,9 @@ enum MemberFilter: string
             self::HasRole => $query->members()->hasRole(),
             self::HadRole => $query->everRole(),
             self::NoSubscription => $query->members()->noSubscription(),
+            // No members() here: both halves of a pair have to show up, and
+            // one of them has usually left.
+            self::PossibleDuplicates => $query->possibleDuplicates(),
         };
     }
 

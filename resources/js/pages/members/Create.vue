@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
+import { TriangleAlert } from '@lucide/vue';
 import { trans } from 'laravel-vue-i18n';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import MemberController from '@/actions/App/Http/Controllers/MemberController';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import MemberFormFields from '@/components/MemberFormFields.vue';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -17,7 +19,12 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { create, index } from '@/routes/members';
-import type { BreadcrumbItem, MemberListFilters, SelectOption } from '@/types';
+import type {
+    BreadcrumbItem,
+    DuplicateMember,
+    MemberListFilters,
+    SelectOption,
+} from '@/types';
 
 const props = defineProps<{
     genders: SelectOption[];
@@ -26,6 +33,8 @@ const props = defineProps<{
     subscriptions: SelectOption[];
     today: string;
     backQuery: Partial<MemberListFilters> & { page?: number };
+    /** Somebody of the same name and birthday is already on file. */
+    duplicate: DuplicateMember | null;
 }>();
 
 const cancelHref = index({ query: props.backQuery });
@@ -38,6 +47,11 @@ const sectionId = ref(
 // club language in UserFormFields.
 const NO_SUBSCRIPTION = 'none';
 const subscriptionId = ref(NO_SUBSCRIPTION);
+
+// Cleared whenever a fresh warning arrives, so a second, different duplicate
+// cannot be waved through by a tick the user set for the first one.
+const confirmDuplicate = ref(false);
+watch(() => props.duplicate, () => (confirmDuplicate.value = false));
 
 defineOptions({
     layout: {
@@ -157,6 +171,43 @@ defineOptions({
                     </div>
                 </div>
             </div>
+
+            <div
+                v-if="duplicate"
+                class="flex flex-col gap-3 rounded-xl border border-destructive/50 p-4"
+                data-test="duplicate-warning"
+            >
+                <p class="flex items-start gap-2 text-sm">
+                    <TriangleAlert class="mt-0.5 size-4 shrink-0 text-destructive" />
+                    <span>{{ errors.confirm_duplicate }}</span>
+                </p>
+                <div>
+                    <!-- A plain anchor would lose the entered data; this is an
+                    Inertia visit, so the browser's back button brings the
+                    half-filled form back. -->
+                    <Link
+                        :href="duplicate.href"
+                        class="text-sm underline underline-offset-4"
+                        data-test="duplicate-link"
+                    >
+                        {{
+                            $t('Open :name (no. :number)', {
+                                name: duplicate.name,
+                                number: String(duplicate.member_id),
+                            })
+                        }}
+                    </Link>
+                </div>
+                <Label class="flex items-center gap-2 text-sm font-normal">
+                    <Checkbox v-model="confirmDuplicate" />
+                    {{ $t('A different person — enter them anyway') }}
+                </Label>
+            </div>
+            <input
+                type="hidden"
+                name="confirm_duplicate"
+                :value="confirmDuplicate ? '1' : ''"
+            />
 
             <div class="flex items-center gap-4">
                 <Button

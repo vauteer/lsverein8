@@ -3,6 +3,7 @@ paths:
   - app/Http/Controllers/MemberExportController.php
   - app/Http/Controllers/BlsvStatisticController.php
   - app/Http/Controllers/DashboardController.php
+  - app/Http/Controllers/MemberController.php
 ---
 
 # Controllers
@@ -100,3 +101,20 @@ Dateiname `BE{Jahr}_Nachmeldung_{TTMM}.{ext}` für beide (z. B. `BE2026_Nachmeld
 Die Spaltenüberschrift heißt seit 2026-08-27 `Spartenkennzeichen`, vorher `Spartennummer` — in **allen** Dateien (beide Exporte und `Club::getBLSVStatistic()`), damit sie nicht auseinanderlaufen.
 
 Testhilfen `xlsxParts()` / `xlsxRows()` in tests/Pest.php lesen eine erzeugte .xlsx als Gitter zurück (Inline-Strings, kein sharedStrings). `numFmts count="0"` in styles.xml ist die Zusage „kein eigenes Format registriert" — OpenSpout schreibt das leere Element immer, `not->toContain('<numFmts')` schlägt also fehl.
+
+## Doppelte Mitglieder: Anlegen landet auf der Mitgliederseite, Warnung statt Sperre
+Am 2026-08-27 gebaut, gegen einen echten Vorfall: ein Benutzer hat Lena Matt mit Eintritt 01.09.2026 angelegt, sie danach in der Standardauswahl „Mitglieder" nicht gefunden (zu Recht — sie tritt erst ein), das Speichern für gescheitert gehalten und sie ein zweites Mal eingegeben. In Produktion gab es **vier** solcher Gruppen.
+
+**`store()` leitet auf `members.show`, nicht auf `members.index`.** Die Begründung stand schon im Code, bei `resign()`: eine Auswahl, die das gerade Bearbeitete nicht enthält, liest sich wie ein Fehlschlag. `store()` folgte ihr nur nicht. Nicht zurückdrehen.
+
+**Duplikatswarnung: `findDuplicate()` sucht Nachname + Vorname + Geburtstag im selben Verein** (ClubScope). Kein harter Block — zwei Hans Bauer in einem Dorfverein sind normal —, sondern ein Fehler auf `confirm_duplicate`, den eine Checkbox im Formular aufhebt.
+
+**Die Prüfung liegt im Controller, nicht in `MemberStoreRequest`.** Die Seite braucht das gefundene Mitglied selbst (Nummer, Mitgliedschaftsdaten, Link); ein FormRequest kann nur einen String zurückgeben. Übergeben wird es per `back()->withErrors()->with('duplicate', …)`, `create()` liest es aus der Session in die Prop.
+
+**Der teure Fall ist der Wiedereintritt, und die Meldung sagt dort etwas anderes.** Bauer Hans und Scherm Hannes wurden nach Jahren Pause als *neues* Mitglied angelegt statt als zweite `club_member`-Zeile. `membershipYears()` summiert die Zeilen **eines** Datensatzes — Scherm verliert dadurch 14 Jahre, seine 25-Jahre-Ehrung rutscht von 2035 auf 2050. Bei einem ausgetretenen Treffer lautet der Text deshalb „Mitgliedschaft dort wieder aufnehmen", nicht „bestätigen".
+
+**`entry_date` ist `before_or_equal:` heute + 3 Monate**, vorher `today`. Ein Verein trägt jemanden zum 1. September ein; wer das nicht darf, schreibt „heute" hin und verfälscht die Mitgliedsjahre. Die Schranke fängt nur das vertippte Jahr. Eigene Meldung `entry_date.before_or_equal`, weil die generische Zeile („darf nicht in der Zukunft liegen") für Geburts- und Sterbedatum weiter gilt.
+
+**`MemberFilter::PossibleDuplicates` / `Member::possibleDuplicates()`** listet **beide** Hälften eines Paars, aktiv oder nicht — deshalb kein `members()` davor und kein Stichtag: die teure Hälfte ist die ausgetretene. Bewusst als gruppierte Abfrage plus OR-Kette geschrieben, nicht als korrelierte Subquery, damit sie anders als `dueHonor`/`joined` auch auf der SQLite-Testverbindung läuft. An Produktionsdaten geprüft: findet in Verein 1 genau die 6 Zeilen der drei Gruppen.
+
+Nicht abgedeckt: `MembershipController` erlaubt für `from` weiter jedes Datum. Dort entsteht die Verwirrung aber nicht — die Aktion antwortet mit `back()` auf die Mitgliederseite, die Zeile ist also sofort sichtbar.

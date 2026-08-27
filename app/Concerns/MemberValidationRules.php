@@ -87,7 +87,11 @@ trait MemberValidationRules
     protected function entryRules(): array
     {
         return [
-            'entry_date' => ['required', 'date', 'before_or_equal:today'],
+            // Three months ahead, not `today`: a club does enter somebody who
+            // joins on 1 September, and refusing that only makes the user put
+            // today's date in, which falsifies the membership years. The bound
+            // is there to catch a mistyped year, nothing more.
+            'entry_date' => ['required', 'date', 'before_or_equal:'.now()->addMonths(3)->toDateString()],
             // Scoped by hand: `exists` runs a plain query and does not pick up
             // the model's ClubScope, so without the where() a new member could
             // be filed under another club's section.
@@ -125,6 +129,9 @@ trait MemberValidationRules
             'enum' => __('The selected :attribute is invalid.'),
             'exists' => __('The selected :attribute is invalid.'),
             'before_or_equal' => __(':attribute may not be in the future.'),
+            // The generic line above is right for a birthday and a date of
+            // death; a joining date may be ahead, just not far.
+            'entry_date.before_or_equal' => __(':attribute may be at most three months ahead.'),
             'death_day.after' => __(':attribute must be after the date of birth.'),
             'account_owner.regex' => __(':attribute may only contain characters the SEPA format allows.'),
             'bic.regex' => __('The BIC is invalid.'),
