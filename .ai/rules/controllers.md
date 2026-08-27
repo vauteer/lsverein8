@@ -21,8 +21,26 @@ Festlegungen:
 - Im Frontend sind die Menüeinträge **einfache `<a download>`**, keine Inertia-Links: sonst sucht die SPA nach einer Komponente. Gleiche Begründung wie bei den SEPA-Downloads.
 - Wayfinder: `MemberExportController.url(format, { query })` — der Query gehört ins **zweite** Argument, sonst TS2353.
 
+## BLSV: ein Sidebar-Eintrag, zwei Routen — die Index-Seite schreibt nichts
+Einstieg ist seit 2026-08-27 der Sidebar-Eintrag „BLSV", nicht mehr ein Abschnitt weit unten in `clubs/Edit.vue` (dort ersatzlos entfernt, samt der Prop `blsvStatistic`). Sichtbar über `auth.canReportToBlsv` aus HandleInertiaRequests, aufgelöst über den Gate `reportToBlsv`.
+
+**Zwei Routen, und die Trennung ist tragend:**
+
+| Route | Aktion | schreibt? |
+| --- | --- | --- |
+| `GET blsv` (`blsv`) | `index()` → `clubs/Blsv.vue` | nein |
+| `GET clubs/{club}/blsv-statistic` (`clubs.blsv-statistic`) | `build()` → `clubs/BlsvStatistic.vue` | **ja** |
+
+`build()` erzeugt die Dateien beim GET. Hinter einem Knopf ist das richtig, hinter einem Sidebar-Eintrag wäre es falsch: jeder neugierige Klick liefe durch alle Sparten eines 585-Mitglieder-Vereins und schriebe neun Dateien. Deshalb die Index-Seite davor. Ein Test pinnt das („the index names both reports and writes nothing").
+
+**Die Index-Route trägt bewusst keinen Vereinsparameter.** Auf der Seite gibt es nichts, was eine fremde Vereins-Id auswählen könnte — der Name kommt aus `currentClub()` —, und ein Parameter, den die Policy ohnehin auf den aktuellen Verein festnagelt, ist Dekoration. Der Gate `reportToBlsv` (AppServiceProvider, neben `manageBackups` und `viewTelescope`) beantwortet ihn für den Verein, in dem der Benutzer arbeitet, und delegiert an `ClubPolicy::blsvStatistic()`. Er darf **nicht** `currentClub()` aufrufen: das ist auf `: Club` typisiert und würde bei einem Konto ohne `club_id` fatal. Deshalb `Club::find(currentClubId())`.
+
+Nebeneffekt, der die Umstellung ausgelöst hat: `defineOptions({ layout: { breadcrumbs } })` wird beim Modul-Laden ausgewertet und sieht keine Props, kann eine Vereins-Id also gar nicht einsetzen. Vorher zeigte die erste Brotkrume von `BlsvStatistic.vue` deshalb auf `/clubs` — für einen Vereins-Admin ein 403. Mit einer parameterlosen Route stimmt der Pfad.
+
+Die Seite bietet beide Meldungen nebeneinander an: Jahresmeldung (Stichtag 1.1., hinter dem Knopf) und Nachmeldung (Stand heute, als direkte Downloads). Die Nachmeldung ist auf `filter=members` festgenagelt und hängt damit gar nicht am Zustand der Mitgliederliste — sie liefert von hier dasselbe wie von dort, weshalb sie an beiden Stellen stehen darf.
+
 ## BLSV-Statistik: immer der aktuelle Verein, GET baut sie neu
-`GET clubs/{club}/blsv-statistic` (BlsvStatisticController, `can('blsvStatistic', 'club')`) erzeugt die Jahresmeldung und listet die Dateien auf `clubs/BlsvStatistic.vue`.
+`build()` erzeugt die Jahresmeldung und listet die Dateien auf `clubs/BlsvStatistic.vue`.
 
 **Der Vereinsparameter ist reine Kosmetik — gerechnet wird immer der aktuelle Verein.** `Member` und `Section` tragen ClubScope, `Club::getBLSVStatistic()` liest also die Mitglieder des Vereins, in dem der Benutzer *arbeitet*, benennt die Dateien aber nach `$this`. Deshalb verlangt `ClubPolicy::blsvStatistic()` ausdrücklich `$club->id === currentClubId()` und delegiert **nicht** an `update()` — sonst könnte root von der Seite eines anderen Vereins aus die Mitglieder des eigenen unter fremdem Namen ablegen. Root wechselt vorher, so wie es die Vereinsliste beim Mitgliederzähler ohnehin verlangt. Dazu `blsv_member` und `hasAdminRights()` (gleiche Schranke wie der Gate `downloadGeneratedFiles` — wer die Dateien nicht laden darf, soll sie nicht erzeugen).
 
@@ -30,9 +48,11 @@ Ein GET, der schreibt, ist Absicht (wie lsverein7): gespeichert wird nur nach st
 
 `Club::writeDownload()` bildet den href mit `route('downloads.show', $filename, absolute: false)`, nicht mit `"/downloads/{$name}"` wie `Subscription::generateSepa()`: die CSV heißt `BE{Jahr}_{Spartenname}.csv`, und ein Spartenname darf laut SectionValidationRules Leerzeichen und Umlaute tragen. Nur `route()` kodiert die.
 
-Reihenfolge der Downloads: Alters-Statistik (PDF), Alle Sparten (CSV), dann die Sparten in BLSV-Nummernfolge. lsverein7 lieferte durch ein `array_reverse()` die Sparten absteigend — das war ein Nebeneffekt, nicht gewollt. Leere Sparten bekommen gar keine Datei.
+Reihenfolge der Downloads: Altersstatistik (PDF), **Mitgliedermeldung (Excel)**, Mitgliedermeldung (CSV), dann die Sparten in BLSV-Nummernfolge. Die Excel-Datei steht direkt hinter der Statistik, weil sie die ist, die der Verein tatsächlich hochlädt — der BLSV will Excel. lsverein7 lieferte durch ein `array_reverse()` die Sparten absteigend — das war ein Nebeneffekt, nicht gewollt. Leere Sparten bekommen gar keine Datei.
 
-Einstieg ist die Vereinsseite (`clubs/Edit.vue`, Abschnitt neben dem Vereinsexport), sichtbar über die Prop `blsvStatistic`. Im Template ist der Wayfinder-Helper deshalb als `blsvStatisticRoute` importiert — Prop und Helper hießen sonst gleich.
+Jeder Eintrag trägt seit 2026-08-27 ein `description` neben dem `name` (`GeneratedDownload.description` ist optional — die SEPA-Seiten teilen den Typ und liefern keines). „Alters-Statistik" und „Alle Sparten" sagten nicht, wofür die Datei da ist; jetzt heißt es „Mitgliedermeldung (Excel)" mit der Unterzeile „Alle Sparten in einer Datei — diese lädt der Verein beim BLSV hoch".
+
+**`App\BlsvMemberReport` rendert alle Mitgliederlisten, die an den BLSV gehen** — die Jahresmeldung hier und die Nachmeldung im MemberExportController. Welche Zeilen hineingehen, entscheidet der Aufrufer (hier nach Sparte sortiert und zum 1.1. gelesen, dort nach Mitglied und zum Stichtag der Liste); geteilt wird nur die Darstellung: Spalten, Trennzeichen, ISO-8859-1, die Excel-Typen. `csv($rows, withHeader: false)` schreibt die Sparten-Dateien, die anders als die beiden Gesamt-Dateien keine Kopfzeile tragen — so war es in lsverein7 und so bleibt es.
 
 ## Dashboard: jede Zahl ist die Auswahl, auf die sie verlinkt — und keine MySQL-only-Scopes
 `GET dashboard` (DashboardController, nur `auth`) zeigt Kennzahlen, Altersstruktur, Vereinszugehörigkeit, 10-Jahres-Entwicklung, Abteilungen und (nur Admin) Beiträge.
@@ -55,11 +75,11 @@ Die Beiträge-Karte ist admin-only (`hasAdminRights()`), gleiche Begründung wie
 ## BLSV-Export: nur meldende Vereine, nur die Auswahl „Mitglieder", eine Zeile je Sparte
 Zwei Formate, beide „Für die Mitgliedernachmeldung": `MemberExport::BlsvExcel` ('blsv-xlsx', „BLSV (Excel)") und `MemberExport::Blsv` ('blsv', „BLSV (CSV)"). Spalten in beiden: `Titel | Name | Vorname | Namenszusatz | Geschlecht | Geburtsdatum | Spartenkennzeichen`, Titel und Namenszusatz immer leer.
 
-**`blsvRows()` baut die Zeilen einmal, beide Schreiber lesen daraus** — die Excel-Datei und das CSV dürfen den Verein nie verschieden beschreiben. Wer eine Zeilenregel ändert, ändert sie dort, nicht in einem der beiden Schreiber.
+**Gerendert wird in `App\BlsvMemberReport`, nicht hier** — dieselbe Klasse, die auch die Jahresmeldung schreibt (siehe den BLSV-Abschnitt weiter unten). `blsvRows()` im Controller sammelt nur die Zeilen der Nachmeldung; Spalten, Typen und Kodierung liegen an einer Stelle, damit Excel-Datei und CSV den Verein nie verschieden beschreiben. Ein Test baut das CSV aus dem Sheet nach und vergleicht beide wörtlich.
 
 **Der BLSV will eine Excel-Datei.** Bis dahin hat Gerald das CSV von Hand in die BLSV-Vorlage kopiert; genau dieses Einfügen ging schief. Deshalb sind in der .xlsx die zwei Spalten, die *kein* Text sind, echte Typen: Geburtsdatum als Datums-Serial mit dem eingebauten Kurzdatumsformat (numFmtId 14, in OpenSpout als `'mm-dd-yy'` zu schreiben — deutsches Excel zeigt TT.MM.JJJJ), Spartenkennzeichen als Zahl. Titel und Namenszusatz sind `EmptyCell`, also gar keine `<c>`-Zelle, wie in der Vorlage.
 
-Geschrieben mit **openspout/openspout** (2026-08-27 aufgenommen, einziges neues Paket, hängt nur an PHP-Extensions). Der Schreiber kann nur in einen echten Pfad schreiben (er baut ein Zip), deshalb `tempnam()` und zurücklesen — die Datei geht direkt an den Browser und gehört **nicht** nach storage/downloads wie die Jahresstatistik.
+Geschrieben mit **openspout/openspout** (2026-08-27 aufgenommen, einziges neues Paket, hängt nur an PHP-Extensions). Der Schreiber kann nur in einen echten Pfad schreiben (er baut ein Zip), deshalb `tempnam()` und zurücklesen.
 
 Das CSV bleibt bewusst daneben stehen, als Ausweichpfad falls der Verband die .xlsx beanstandet. Struktur unverändert wie `BE{Jahr}_Gesamt.csv` aus `Club::getBLSVStatistic()`: Semikolon, CRLF, gequotetes `d.m.y`, ISO-8859-1 (einmal am Schluss konvertiert, nicht pro Feld).
 

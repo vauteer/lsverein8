@@ -188,6 +188,8 @@ export type DebitableSubscription = {
 export type GeneratedDownload = {
     name: string;
     href: string;
+    /** Set by the BLSV statistic; the SEPA screens list files without one. */
+    description?: string;
 };
 
 /**

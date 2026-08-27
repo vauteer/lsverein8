@@ -48,6 +48,7 @@ function blsvMember(Club $club, Section $section, string $surname, string $birth
 }
 
 test('guests are redirected to the login page', function () {
+    $this->get(route('blsv'))->assertRedirect(route('login'));
     $this->get(route('clubs.blsv-statistic', $this->club))->assertRedirect(route('login'));
 });
 
@@ -67,12 +68,16 @@ test('the page lists the pdf, the total csv and one csv per populated section', 
             ->component('clubs/BlsvStatistic')
             ->where('clubName', 'Sportverein')
             ->where('keyDate', now()->startOfYear()->format('d.m.Y'))
-            // The two summaries first, then only the section that has members;
-            // Tennis is empty and so is left out entirely.
-            ->where('downloads.0.name', 'Alters-Statistik')
-            ->where('downloads.1.name', 'Alle Sparten')
-            ->where('downloads.2.name', 'Fussball')
-            ->has('downloads', 3));
+            // The age statistic, then the Excel the club actually submits,
+            // then the same rows as CSV, then only the section that has
+            // members; Tennis is empty and so is left out entirely.
+            ->where('downloads.0.name', 'Altersstatistik (PDF)')
+            ->where('downloads.1.name', 'Mitgliedermeldung (Excel)')
+            ->where('downloads.2.name', 'Mitgliedermeldung (CSV)')
+            ->where('downloads.3.name', 'Sparte: Fussball (CSV)')
+            // Every entry says what it is for, not just what it is called.
+            ->where('downloads.1.description', 'Alle Sparten in einer Datei — diese lädt der Verein beim BLSV hoch')
+            ->has('downloads', 4));
 
     expect($tennis->fresh())->not->toBeNull();
 });
@@ -120,9 +125,9 @@ test('a section name with a space survives the href', function () {
 
     $year = now()->startOfYear()->year;
 
-    expect($downloads[2]['href'])->toBe("/downloads/BE{$year}_Fitness%20und%20Turnen.csv");
+    expect($downloads[3]['href'])->toBe("/downloads/BE{$year}_Fitness%20und%20Turnen.csv");
 
-    $this->get($downloads[2]['href'])->assertOk();
+    $this->get($downloads[3]['href'])->assertOk();
 });
 
 test('only an admin of the club may build it', function () {
@@ -154,14 +159,70 @@ test('another club is refused even for a root account', function () {
     $this->get(route('clubs.blsv-statistic', $other))->assertForbidden();
 });
 
-test('the club page offers the statistic only where it may be built', function () {
+test('the sidebar offers BLSV only where the reports may be built', function () {
+    // Moved off the club form on 2026-08-27: the entry point is the sidebar
+    // now, so this is where the same condition has to hold.
     $this->actingAs(blsvUser());
 
-    $this->get(route('clubs.edit', $this->club))
-        ->assertInertia(fn ($page) => $page->where('blsvStatistic', true));
+    $this->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('auth.canReportToBlsv', true));
 
     $this->club->update(['blsv_member' => false]);
 
-    $this->get(route('clubs.edit', $this->club))
-        ->assertInertia(fn ($page) => $page->where('blsvStatistic', false));
+    $this->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('auth.canReportToBlsv', false));
+});
+
+test('an account that may not build them gets no sidebar entry and no page', function () {
+    $this->actingAs(blsvUser(ClubRole::Advanced));
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('auth.canReportToBlsv', false));
+
+    $this->get(route('blsv'))->assertForbidden();
+});
+
+test('the index names both reports and writes nothing', function () {
+    $section = Section::factory()->create(['club_id' => 1, 'blsv_id' => 9, 'name' => 'Fussball']);
+    blsvMember($this->club, $section, 'Kicker', '1990-01-01', 'm');
+
+    $year = now()->startOfYear()->year;
+    @unlink(storage_path("downloads/1_BE{$year}_Gesamt.csv"));
+
+    $this->actingAs(blsvUser())
+        ->get(route('blsv'))
+        ->assertInertia(fn ($page) => $page
+            ->component('clubs/Blsv')
+            ->where('clubName', 'Sportverein')
+            ->where('statisticKeyDate', now()->startOfYear()->format('d.m.Y'))
+            ->where('reportKeyDate', now()->format('d.m.Y'))
+            // Only the two BLSV formats, Excel first.
+            ->where('reportFormats.0.id', 'blsv-xlsx')
+            ->where('reportFormats.1.id', 'blsv')
+            ->has('reportFormats', 2));
+
+    // Opening the index must not build the yearly files — that is the whole
+    // reason it exists rather than the sidebar pointing at the statistic.
+    expect(file_exists(storage_path("downloads/1_BE{$year}_Gesamt.csv")))->toBeFalse();
+});
+
+test('the excel file holds the same rows as the total csv', function () {
+    $football = Section::factory()->create(['club_id' => 1, 'blsv_id' => 9, 'name' => 'Fussball']);
+    blsvMember($this->club, $football, 'Kicker', '1990-01-01', 'm');
+    blsvMember($this->club, $football, 'Grün', '1985-03-20', 'f');
+
+    $this->actingAs(blsvUser());
+    $this->get(route('clubs.blsv-statistic', $this->club))->assertOk();
+
+    $year = now()->startOfYear()->year;
+
+    [$sheet] = xlsxParts((string) file_get_contents(storage_path("downloads/1_BE{$year}_Gesamt.xlsx")));
+    $rows = xlsxRows($sheet);
+
+    expect($rows[0])->toBe(['Titel', 'Name', 'Vorname', 'Namenszusatz', 'Geschlecht', 'Geburtsdatum', 'Spartenkennzeichen'])
+        // Sorted by surname within the section, as the CSV is, and 'f' is
+        // reported as 'w' — see Gender::blsvValue().
+        ->and(array_column(array_slice($rows, 1), 1))->toBe(['Grün', 'Kicker'])
+        ->and(array_column(array_slice($rows, 1), 4))->toBe(['w', 'm'])
+        ->and(array_column(array_slice($rows, 1), 6))->toBe(['9', '9']);
 });

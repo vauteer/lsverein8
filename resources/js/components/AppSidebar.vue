@@ -3,6 +3,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     Award,
     Banknote,
+    ClipboardList,
     Contact,
     DatabaseBackup,
     FileText,
@@ -31,7 +32,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { about, dashboard, telescope } from '@/routes';
+import { about, blsv, dashboard, telescope } from '@/routes';
 import { index as backups } from '@/routes/backups';
 import { edit as editClub, index as clubs } from '@/routes/clubs';
 import { index as debits } from '@/routes/debits';
@@ -107,6 +108,20 @@ const mainNavItems = computed<NavItem[]>(() => [
                   title: wTrans('Users').value,
                   href: users(),
                   icon: Users,
+              },
+          ]
+        : []),
+    // The club's yearly report and its Nachmeldungen to the association.
+    // Only where the club is a BLSV member and the account may build them, so
+    // the Feuerwehr never sees it. Everything above this entry is the club's
+    // own data; from here down it is administration — and the BLSV report is
+    // exactly that boundary, the club's duty outward.
+    ...(page.props.auth.canReportToBlsv
+        ? [
+              {
+                  title: wTrans('BLSV').value,
+                  href: blsv(),
+                  icon: ClipboardList,
               },
           ]
         : []),

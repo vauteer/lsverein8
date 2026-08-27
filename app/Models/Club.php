@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\AssignedMemberCount;
+use App\BlsvMemberReport;
 use App\Enums\AgeBracket;
 use App\Enums\ClubDisplay;
 use App\Enums\Locale;
@@ -275,7 +276,7 @@ class Club extends Model
      * another Club would file one club's members under another's name — hence
      * ClubPolicy::blsvStatistic(), which refuses anything but the current club.
      *
-     * @return array<int, array{name: string, href: string}>
+     * @return array<int, array{name: string, href: string, description: string}>
      */
     public function getBLSVStatistic(): array
     {
@@ -292,6 +293,7 @@ class Club extends Model
         $sectionFiles = [];
         $stats = [-1 => self::getBlankStat()];
         $totals = self::getBlankStat();
+        $totalRows = [];
 
         $members = Member::members()
             ->orderBy('surname')->orderBy('first_name')
@@ -307,12 +309,9 @@ class Club extends Model
 
         $stats[-1] = $totals;
 
-        $totalCsv = "Titel;Name;Vorname;Namenszusatz;Geschlecht;Geburtsdatum;Spartenkennzeichen\r\n";
-
         foreach (Section::whereNotNull('blsv_id')->orderBy('blsv_id')->get() as $section) {
-            $csv = null;
+            $rows = [];
             $stat = self::getBlankStat();
-            $count = 0;
 
             $members = Member::members()->inBlsvSections($section->blsv_id)
                 ->orderBy('surname')->orderBy('first_name')
@@ -320,36 +319,61 @@ class Club extends Model
 
             foreach ($members as $member) {
                 $gender = $member->gender->blsvValue();
-                $line = ';'.mb_convert_encoding($member->surname, 'ISO-8859-1', 'UTF-8').';'.
-                    mb_convert_encoding($member->first_name, 'ISO-8859-1', 'UTF-8').';;'.
-                    $gender.';'.
-                    '"'.$member->birthday->format('d.m.y').'";'.
-                    $section->blsv_id."\r\n";
 
-                $csv .= $line;
-                $totalCsv .= $line;
+                $rows[] = [
+                    'surname' => $member->surname,
+                    'first_name' => $member->first_name,
+                    'gender' => $gender,
+                    'birthday' => $member->birthday,
+                    'blsv_id' => $section->blsv_id,
+                ];
 
                 $index = self::getStatIndex($member->age);
-                $row = $stat[$index];
-                $row[$gender]++;
-                $stat[$index] = $row;
-                $count++;
+                $statRow = $stat[$index];
+                $statRow[$gender]++;
+                $stat[$index] = $statRow;
             }
 
-            if ($count > 0) {
+            if ($rows !== []) {
                 $stats[$section->blsv_id] = $stat + ['name' => $section->name];
-                $sectionFiles[] = $this->writeDownload("BE{$year}_{$section->name}.csv", $csv, $section->name);
+                $totalRows = [...$totalRows, ...$rows];
+
+                // No header on a section file, unlike the two that cover the
+                // whole club — that is how lsverein7 wrote them.
+                $sectionFiles[] = $this->writeDownload(
+                    "BE{$year}_{$section->name}.csv",
+                    BlsvMemberReport::csv($rows, withHeader: false),
+                    __('Section: :name (CSV)', ['name' => $section->name]),
+                    __('Only the members of this section'),
+                );
             }
         }
 
         $pdf = new BlsvPdf;
 
-        // The statistic first, then the file that covers every section, then
-        // the sections themselves in BLSV order — the two summaries are what
-        // the club actually submits.
+        // The age statistic first, then the two files that cover every
+        // section, then the sections themselves in BLSV order. The Excel file
+        // sits directly behind the statistic because it is the one the club
+        // actually submits.
         return [
-            $this->writeDownload('blsv_stat.pdf', $pdf->getOutput($stats, $keyDate, $this->name), __('Age statistic')),
-            $this->writeDownload("BE{$year}_Gesamt.csv", $totalCsv, __('All sections')),
+            $this->writeDownload(
+                'blsv_stat.pdf',
+                $pdf->getOutput($stats, $keyDate, $this->name),
+                __('Age statistic (PDF)'),
+                __('Members by age and gender, per section and in total'),
+            ),
+            $this->writeDownload(
+                "BE{$year}_Gesamt.xlsx",
+                BlsvMemberReport::xlsx($totalRows),
+                __('Member report (Excel)'),
+                __('Every section in one file — this is what the club submits'),
+            ),
+            $this->writeDownload(
+                "BE{$year}_Gesamt.csv",
+                BlsvMemberReport::csv($totalRows),
+                __('Member report (CSV)'),
+                __('The same rows, should the association not take Excel'),
+            ),
             ...$sectionFiles,
         ];
     }
@@ -360,16 +384,20 @@ class Club extends Model
      * bare: DownloadController puts the *caller's* prefix back on, so a URL
      * can never name another club's file.
      *
-     * @return array{name: string, href: string}
+     * @return array{name: string, href: string, description: string}
      */
-    private function writeDownload(string $filename, string $contents, string $label): array
+    private function writeDownload(string $filename, string $contents, string $label, string $description): array
     {
         file_put_contents(storage_path("downloads/{$this->id}_".$filename), $contents);
 
         // route(), not "/downloads/{$filename}": a section name may carry
         // spaces or umlauts (see the name rule in SectionValidationRules),
         // and only this encodes them.
-        return ['name' => $label, 'href' => route('downloads.show', $filename, absolute: false)];
+        return [
+            'name' => $label,
+            'description' => $description,
+            'href' => route('downloads.show', $filename, absolute: false),
+        ];
     }
 
     public function calcBlsvDebit(float $childrenDue, float $teenDue, float $adultDue): float

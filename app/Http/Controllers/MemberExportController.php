@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\BlsvMemberReport;
 use App\Concerns\SelectsMembers;
 use App\Enums\MemberExport;
 use App\Models\Member;
@@ -12,11 +13,6 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
-use OpenSpout\Common\Entity\Cell;
-use OpenSpout\Common\Entity\Row;
-use OpenSpout\Common\Entity\Style\Style;
-use OpenSpout\Writer\XLSX\Options;
-use OpenSpout\Writer\XLSX\Writer;
 use RuntimeException;
 
 /**
@@ -30,16 +26,6 @@ use RuntimeException;
 class MemberExportController extends Controller
 {
     use SelectsMembers;
-
-    /**
-     * The BLSV's column order, shared by both formats it accepts.
-     *
-     * @var list<string>
-     */
-    private const array BLSV_COLUMNS = [
-        'Titel', 'Name', 'Vorname', 'Namenszusatz',
-        'Geschlecht', 'Geburtsdatum', 'Spartenkennzeichen',
-    ];
 
     public function __invoke(Request $request, MemberExport $format): Response
     {
@@ -70,8 +56,8 @@ class MemberExportController extends Controller
                 $this->rightHeadline(),
             ),
             MemberExport::Csv => $this->csv($members),
-            MemberExport::Blsv => $this->blsvCsv($members),
-            MemberExport::BlsvExcel => $this->blsvExcel($members),
+            MemberExport::Blsv => BlsvMemberReport::csv($this->blsvRows($members)),
+            MemberExport::BlsvExcel => BlsvMemberReport::xlsx($this->blsvRows($members)),
             MemberExport::VCard => view('vcards', [
                 'members' => $members,
                 'clubName' => currentClub()->name,
@@ -135,22 +121,17 @@ class MemberExportController extends Controller
     }
 
     /**
-     * The rows the BLSV wants, in its column order: Titel, Name, Vorname,
-     * Namenszusatz, Geschlecht, Geburtsdatum, Spartenkennzeichen. Titel and
-     * Namenszusatz are always blank and are left to the writers.
+     * The rows of a Nachmeldung: every member of the selection, once per BLSV
+     * section they are in on the key date. BlsvMemberReport renders them.
      *
-     * Built once for both BLSV formats — the Excel file and the CSV must never
-     * describe the club differently.
+     * The Nachmeldung and the yearly statistic answer different questions,
+     * which is why both exist. Club::getBLSVStatistic() is the yearly report
+     * and is always read at 1 January; this one describes the club today, so
+     * it uses the list's key date. A Nachmeldung is not a delta — the club
+     * uploads its whole membership — which is why the formats are offered for
+     * the "Mitglieder" selection only.
      *
-     * The two BLSV exports and the yearly statistic answer different
-     * questions, which is why they coexist. Club::getBLSVStatistic() is the
-     * yearly report and is always read at 1 January; these are for a
-     * Nachmeldung during the year, so they are read at the list's key date —
-     * normally today. A Nachmeldung is not a delta: the club uploads its whole
-     * membership, which is why the formats are offered for the "Mitglieder"
-     * selection only.
-     *
-     * A member appears once per BLSV section rather than once per person: the
+     * A member appears once per section rather than once per person: the
      * Spartenkennzeichen is what the association counts. Sections without a
      * `blsv_id` produce no row at all — there is nothing to report them under.
      * In production every current member of the reporting club sits in at
@@ -202,94 +183,6 @@ class MemberExportController extends Controller
         ksort($ids);
 
         return array_keys($ids);
-    }
-
-    /**
-     * The same columns, separator, quoting and encoding as the
-     * `BE{year}_Gesamt.csv` that Club::getBLSVStatistic() writes.
-     *
-     * @param  Collection<int, Member>  $members
-     */
-    private function blsvCsv(Collection $members): string
-    {
-        $csv = implode(';', self::BLSV_COLUMNS)."\r\n";
-
-        foreach ($this->blsvRows($members) as $row) {
-            $csv .= ';'.$row['surname'].';'.$row['first_name'].';;'.
-                $row['gender'].';'.
-                '"'.$row['birthday']->format('d.m.y').'";'.
-                $row['blsv_id']."\r\n";
-        }
-
-        // Converted once at the end rather than per field as
-        // Club::getBLSVStatistic() does, for the reason given in csv().
-        return (string) mb_convert_encoding($csv, 'ISO-8859-1', 'UTF-8');
-    }
-
-    /**
-     * The same rows as an .xlsx, laid out like the BLSV's own
-     * `BE{year}_{month}_Mitgliederimport.xlsx` template.
-     *
-     * This is what the association actually wants; until now the club pasted
-     * the CSV into that template by hand. The paste is exactly where it went
-     * wrong, so the two columns that are *not* text carry real types here:
-     * Geburtsdatum is a date serial with the built-in short-date format (id 14
-     * — 'mm-dd-yy' is the OOXML spelling, which German Excel renders as
-     * TT.MM.JJJJ), and Spartenkennzeichen is a number. Titel and Namenszusatz
-     * stay empty cells, as in the template.
-     *
-     * The writer only writes to a real path (it builds a zip), so the file is
-     * assembled in the system temp directory and read back — it is handed
-     * straight to the browser and never belongs in storage/downloads.
-     *
-     * @param  Collection<int, Member>  $members
-     */
-    private function blsvExcel(Collection $members): string
-    {
-        // The built-in format, so styles.xml carries a plain numFmtId="14"
-        // with no <numFmts> of its own, exactly like the BLSV template.
-        $dateStyle = new Style(format: 'mm-dd-yy');
-
-        $rows = [Row::fromValues(self::BLSV_COLUMNS)];
-
-        foreach ($this->blsvRows($members) as $row) {
-            $rows[] = new Row([
-                0 => new Cell\EmptyCell(null),
-                1 => new Cell\StringCell($row['surname']),
-                2 => new Cell\StringCell($row['first_name']),
-                3 => new Cell\EmptyCell(null),
-                4 => new Cell\StringCell($row['gender']),
-                5 => new Cell\DateTimeCell($row['birthday'], $dateStyle),
-                6 => new Cell\NumericCell($row['blsv_id']),
-            ]);
-        }
-
-        $path = tempnam(sys_get_temp_dir(), 'blsv-');
-
-        if ($path === false) {
-            throw new RuntimeException('Could not open a temporary file for the BLSV Excel export.');
-        }
-
-        try {
-            // Calibri 11, the template's font — the association ignores it,
-            // but a file that opens looking like the one before it is one
-            // fewer thing for the user to wonder about.
-            $writer = new Writer(new Options(new Style(fontSize: 11, fontName: 'Calibri')));
-            $writer->openToFile($path);
-            $writer->getCurrentSheet()->setName('Tabelle1');
-            $writer->addRows($rows);
-            $writer->close();
-
-            $content = file_get_contents($path);
-        } finally {
-            @unlink($path);
-        }
-
-        if ($content === false) {
-            throw new RuntimeException('Could not read back the BLSV Excel export.');
-        }
-
-        return $content;
     }
 
     /**

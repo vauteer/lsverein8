@@ -225,10 +225,16 @@ Route::middleware(['auth'])->group(function () {
     // are switched into.
     Route::get('clubs/{club}/export', ClubExportController::class)
         ->name('clubs.export')->can('export', 'club');
-    // The yearly BLSV report. Only ever for the club the caller is working in
-    // — the members it counts come from ClubScope, not from the URL — which is
-    // what ClubPolicy::blsvStatistic() enforces.
-    Route::get('clubs/{club}/blsv-statistic', BlsvStatisticController::class)
+    // Everything that goes to the BLSV. Only ever for the club the caller is
+    // working in — the members it counts come from ClubScope, not from the URL
+    // — which is what ClubPolicy::blsvStatistic() enforces.
+    //
+    // Two routes on purpose: the sidebar lands on the index, which writes
+    // nothing, and the yearly statistic stays behind a button because opening
+    // it rebuilds every file.
+    Route::get('blsv', [BlsvStatisticController::class, 'index'])
+        ->name('blsv')->can('reportToBlsv');
+    Route::get('clubs/{club}/blsv-statistic', [BlsvStatisticController::class, 'build'])
         ->name('clubs.blsv-statistic')->can('blsvStatistic', 'club');
     Route::get('clubs/{club}/edit', [ClubController::class, 'edit'])
         ->name('clubs.edit')->can('update', 'club');

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Club;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -62,6 +63,19 @@ class AppServiceProvider extends ServiceProvider
         // resolves a name against the caller's own club, so this only has to
         // establish that they may see the club's bank data at all.
         Gate::define('downloadGeneratedFiles', fn (User $user): bool => $user->hasAdminRights());
+
+        // The BLSV screen is always the current club's — there is nothing on it
+        // that another club's id could select — so it takes no club parameter
+        // and this gate answers for the one the user is working in. Building
+        // the yearly statistic keeps its own club-bound policy check, which is
+        // what stops root filing one club's members under another's name.
+        Gate::define('reportToBlsv', function (User $user): bool {
+            // Not currentClub(): it is typed to return a Club and would fatal
+            // for an account with no club_id.
+            $club = Club::find(currentClubId());
+
+            return $club !== null && $user->can('blsvStatistic', $club);
+        });
     }
 
     /**

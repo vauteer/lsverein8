@@ -4,28 +4,22 @@ import { Download, TriangleAlert } from '@lucide/vue';
 import { trans } from 'laravel-vue-i18n';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
-import { edit, index } from '@/routes/clubs';
+import { blsv } from '@/routes';
 import type { BreadcrumbItem, GeneratedDownload } from '@/types';
 
-const props = defineProps<{
-    clubId: number;
+defineProps<{
     clubName: string;
     keyDate: string;
     downloads: GeneratedDownload[];
 }>();
 
-const backHref = edit(props.clubId);
-
 defineOptions({
     layout: {
         breadcrumbs: [
-            // Static, like the club form's: defineOptions() is hoisted out
-            // of setup and cannot see props, so the trail cannot name the
-            // club it came from.
-            { title: trans('Clubs'), href: index() } satisfies BreadcrumbItem,
+            { title: trans('BLSV'), href: blsv() } satisfies BreadcrumbItem,
             {
-                title: trans('BLSV statistic'),
-                href: index(),
+                title: trans('Yearly report'),
+                href: blsv(),
             } satisfies BreadcrumbItem,
         ],
     },
@@ -33,11 +27,11 @@ defineOptions({
 </script>
 
 <template>
-    <Head :title="$t('BLSV statistic')" />
+    <Head :title="$t('Yearly report')" />
 
     <div class="mx-auto flex w-full max-w-2xl flex-col gap-6 p-4">
         <Heading
-            :title="$t('BLSV statistic')"
+            :title="$t('Yearly report')"
             :description="
                 $t(':name, as of :date', { name: clubName, date: keyDate })
             "
@@ -52,11 +46,16 @@ defineOptions({
                 :key="download.href"
                 :href="download.href"
                 download
-                class="flex items-center gap-3 rounded-xl border border-sidebar-border/70 p-4 text-sm font-medium hover:bg-muted dark:border-sidebar-border"
+                class="flex items-start gap-3 rounded-xl border border-sidebar-border/70 p-4 hover:bg-muted dark:border-sidebar-border"
                 data-test="blsv-download-link"
             >
-                <Download class="size-4 shrink-0 text-muted-foreground" />
-                {{ download.name }}
+                <Download class="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <span class="flex flex-col gap-0.5">
+                    <span class="text-sm font-medium">{{ download.name }}</span>
+                    <span class="text-xs text-muted-foreground">
+                        {{ download.description }}
+                    </span>
+                </span>
             </a>
             <p class="text-sm text-muted-foreground">
                 {{
@@ -83,7 +82,7 @@ defineOptions({
 
         <div>
             <Button variant="ghost" as-child>
-                <Link :href="backHref">{{ $t('Back') }}</Link>
+                <Link :href="blsv()">{{ $t('Back') }}</Link>
             </Button>
         </div>
     </div>

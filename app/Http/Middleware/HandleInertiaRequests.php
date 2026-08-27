@@ -68,6 +68,11 @@ class HandleInertiaRequests extends Middleware
                 // which is what puts a single "Verein" entry in their sidebar.
                 'canEditCurrentClub' => $currentClub !== null
                     && $request->user()->can('update', $currentClub),
+                // The BLSV entry appears only for a club that reports to the
+                // association, and only for an admin of it — the same policy
+                // the two routes carry, so entry and route cannot disagree.
+                'canReportToBlsv' => $currentClub !== null
+                    && $request->user()->can('blsvStatistic', $currentClub),
                 // Set while a root account is logged in as somebody else, so
                 // the banner can name them and offer a way back.
                 'impersonator' => $impersonatorId === null

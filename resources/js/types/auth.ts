@@ -17,6 +17,8 @@ export type Auth = {
     canManageDebits: boolean;
     canManageClubs: boolean;
     canEditCurrentClub: boolean;
+    /** Club reports to the BLSV and the account may build those reports. */
+    canReportToBlsv: boolean;
     impersonator: Pick<User, 'id' | 'name'> | null;
 };
 

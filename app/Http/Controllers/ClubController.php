@@ -86,10 +86,6 @@ class ClubController extends Controller
             // A root account reaches this page from the list and goes back to
             // it; a club admin has no list to go back to.
             'listable' => $request->user()->can('viewAny', Club::class),
-            // Only for a BLSV club, and only for the one being worked in —
-            // the statistic counts the members ClubScope hands out, not the
-            // ones belonging to the club in the URL (ClubPolicy).
-            'blsvStatistic' => $request->user()->can('blsvStatistic', $club),
         ]);
     }
 
