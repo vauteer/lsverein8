@@ -4,9 +4,13 @@ namespace App\Http\Controllers\Members;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Members\MemberSectionRequest;
+use App\Models\ClubMember;
 use App\Models\Member;
 use App\Models\MemberSection;
+use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Date;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 /**
@@ -30,7 +34,18 @@ class MemberSectionController extends Controller
 
     public function update(MemberSectionRequest $request, Member $member, int $row): RedirectResponse
     {
-        $this->rowOf($member, $row)->update($request->validated());
+        $validated = $request->validated();
+        $pivot = $this->rowOf($member, $row);
+
+        // Closing the row is what would leave the member with none; moving its
+        // start or editing the note cannot.
+        if ($this->closes($validated['to'] ?? null) && $this->isLastActiveSection($member, $pivot)) {
+            throw ValidationException::withMessages([
+                'to' => $this->lastSectionMessage(),
+            ]);
+        }
+
+        $pivot->update($validated);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Section updated.')]);
 
@@ -39,11 +54,73 @@ class MemberSectionController extends Controller
 
     public function destroy(Member $member, int $row): RedirectResponse
     {
-        $this->rowOf($member, $row)->delete();
+        $pivot = $this->rowOf($member, $row);
+
+        if ($this->isLastActiveSection($member, $pivot)) {
+            // A toast, not a validation error: deleting a row goes through a
+            // confirmation dialog with no field to hang a message on.
+            Inertia::flash('toast', ['type' => 'error', 'message' => $this->lastSectionMessage()]);
+
+            return back();
+        }
+
+        $pivot->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Section removed.')]);
 
         return back();
+    }
+
+    /**
+     * Whether this row is the only section the member is currently in, in a
+     * club where that is not allowed to happen.
+     *
+     * A BLSV club reports its members section by section — somebody counted in
+     * the yearly Meldung has to sit in one, and a member in none would simply
+     * be missing from the file (Club::getBLSVStatistic() builds it per
+     * section). So the club must be a blsv_member, the membership must still
+     * be open, and this must be the last row keeping it true.
+     *
+     * "Active" is `to IS NULL OR to >= today`, the same reading inRange() and
+     * the statistic use — a row ending today still counts today.
+     */
+    private function isLastActiveSection(Member $member, MemberSection $row): bool
+    {
+        if (! currentClub()->blsv_member || ! $this->isActive($row->to)) {
+            return false;
+        }
+
+        $today = Date::now()->startOfDay();
+
+        $stillAMember = ClubMember::query()
+            ->where('member_id', $member->id)
+            ->where(fn ($query) => $query->whereNull('to')->orWhere('to', '>=', $today))
+            ->exists();
+
+        if (! $stillAMember) {
+            return false;
+        }
+
+        return ! MemberSection::query()
+            ->where('member_id', $member->id)
+            ->whereKeyNot($row->id)
+            ->where(fn ($query) => $query->whereNull('to')->orWhere('to', '>=', $today))
+            ->exists();
+    }
+
+    private function closes(?string $to): bool
+    {
+        return ! $this->isActive($to === null ? null : Date::parse($to));
+    }
+
+    private function isActive(?CarbonInterface $to): bool
+    {
+        return $to === null || $to->gte(Date::now()->startOfDay());
+    }
+
+    private function lastSectionMessage(): string
+    {
+        return __('A member of a BLSV club has to be in at least one section. Add the new one first, or end the membership instead.');
     }
 
     /**

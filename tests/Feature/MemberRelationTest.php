@@ -5,6 +5,7 @@ use App\Models\Club;
 use App\Models\Event;
 use App\Models\Item;
 use App\Models\Member;
+use App\Models\MemberSection;
 use App\Models\Role;
 use App\Models\Section;
 use App\Models\Subscription;
@@ -380,4 +381,131 @@ test('a read-only account is not shown the subscriptions section at all', functi
             ->where('showsFinances', true)
             ->has('member.subscriptions', 1)
         );
+});
+
+/**
+ * A BLSV club reports its members section by section, so somebody still in the
+ * club has to be in at least one — a member in none would simply be missing
+ * from the yearly Meldung. Refused at the point of entry rather than found
+ * later.
+ */
+function blsvClub(): void
+{
+    Club::query()->whereKey(1)->update(['blsv_member' => true]);
+}
+
+test('the last active section of a member cannot be closed in a blsv club', function () {
+    blsvClub();
+    $section = Section::factory()->create(['club_id' => 1]);
+    $this->member->sections()->attach($section->id, ['from' => '2016-01-01']);
+    $row = $this->member->sections()->first()->pivot;
+
+    $this->actingAs(relationUser())
+        ->put(route('members.sections.update', [$this->member, $row->id]), [
+            'section_id' => $section->id,
+            'from' => '2016-01-01',
+            'to' => '2020-12-31',
+            'memo' => null,
+        ])
+        ->assertSessionHasErrors('to');
+
+    expect($row->refresh()->to)->toBeNull();
+});
+
+test('the last active section of a member cannot be deleted in a blsv club', function () {
+    blsvClub();
+    $section = Section::factory()->create(['club_id' => 1]);
+    $this->member->sections()->attach($section->id, ['from' => '2016-01-01']);
+    $row = $this->member->sections()->first()->pivot;
+
+    // No form to hang an error on, so this one comes back as a toast — the
+    // row simply survives.
+    $this->actingAs(relationUser())
+        ->delete(route('members.sections.destroy', [$this->member, $row->id]))
+        ->assertRedirect();
+
+    expect($this->member->sections()->count())->toBe(1);
+});
+
+test('a second active section frees the first to be closed or removed', function () {
+    blsvClub();
+    $first = Section::factory()->create(['club_id' => 1]);
+    $second = Section::factory()->create(['club_id' => 1]);
+    $this->member->sections()->attach($first->id, ['from' => '2016-01-01']);
+    $this->member->sections()->attach($second->id, ['from' => '2020-01-01']);
+
+    $row = MemberSection::query()->where('section_id', $first->id)->firstOrFail();
+
+    $this->actingAs(relationUser())
+        ->delete(route('members.sections.destroy', [$this->member, $row->id]))
+        ->assertRedirect();
+
+    expect($this->member->sections()->count())->toBe(1);
+});
+
+test('a section already closed is not what the guard is about', function () {
+    blsvClub();
+    $open = Section::factory()->create(['club_id' => 1]);
+    $closed = Section::factory()->create(['club_id' => 1]);
+    $this->member->sections()->attach($open->id, ['from' => '2016-01-01']);
+    $this->member->sections()->attach($closed->id, ['from' => '2010-01-01', 'to' => '2012-12-31']);
+
+    // Removing a spell that ended years ago leaves the member in one section,
+    // so it is none of the guard's business.
+    $row = MemberSection::query()->where('section_id', $closed->id)->firstOrFail();
+
+    $this->actingAs(relationUser())
+        ->delete(route('members.sections.destroy', [$this->member, $row->id]))
+        ->assertRedirect();
+
+    expect($this->member->sections()->count())->toBe(1);
+});
+
+test('the note and the start of the last section stay editable', function () {
+    blsvClub();
+    $section = Section::factory()->create(['club_id' => 1]);
+    $this->member->sections()->attach($section->id, ['from' => '2016-01-01']);
+    $row = $this->member->sections()->first()->pivot;
+
+    // Only closing the row can leave the member with none.
+    $this->actingAs(relationUser())
+        ->put(route('members.sections.update', [$this->member, $row->id]), [
+            'section_id' => $section->id,
+            'from' => '2015-01-01',
+            'to' => null,
+            'memo' => 'Korrigiert',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($row->refresh()->memo)->toBe('Korrigiert')
+        ->and($row->from->format('Y-m-d'))->toBe('2015-01-01');
+});
+
+test('a member who has left may lose their last section', function () {
+    blsvClub();
+    $section = Section::factory()->create(['club_id' => 1]);
+    $this->member->sections()->attach($section->id, ['from' => '2016-01-01']);
+    // resign() closes membership and sections together; the guard must not
+    // then block tidying up what it left behind.
+    $this->member->memberships()->updateExistingPivot(1, ['to' => '2020-12-31']);
+    $row = $this->member->sections()->first()->pivot;
+
+    $this->actingAs(relationUser())
+        ->delete(route('members.sections.destroy', [$this->member, $row->id]))
+        ->assertRedirect();
+
+    expect($this->member->sections()->count())->toBe(0);
+});
+
+test('a club outside the BLSV is not held to this', function () {
+    $section = Section::factory()->create(['club_id' => 1]);
+    $this->member->sections()->attach($section->id, ['from' => '2016-01-01']);
+    $row = $this->member->sections()->first()->pivot;
+
+    // The Feuerwehr keeps sections too, but reports to nobody.
+    $this->actingAs(relationUser())
+        ->delete(route('members.sections.destroy', [$this->member, $row->id]))
+        ->assertRedirect();
+
+    expect($this->member->sections()->count())->toBe(0);
 });
