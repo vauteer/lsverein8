@@ -6,6 +6,7 @@ import {
     Contact,
     DatabaseBackup,
     FileText,
+    Info,
     LayoutGrid,
     Building2,
     Shapes,
@@ -30,7 +31,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard, telescope } from '@/routes';
+import { about, dashboard, telescope } from '@/routes';
 import { index as backups } from '@/routes/backups';
 import { edit as editClub, index as clubs } from '@/routes/clubs';
 import { index as debits } from '@/routes/debits';
@@ -163,6 +164,13 @@ const mainNavItems = computed<NavItem[]>(() => [
               },
           ]
         : []),
+    // Last, and for everybody: credits and the contact address, which is
+    // where a user goes when something on one of the screens above is wrong.
+    {
+        title: wTrans('About').value,
+        href: about(),
+        icon: Info,
+    },
 ]);
 </script>
 

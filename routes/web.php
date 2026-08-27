@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AboutController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\BlsvStatisticController;
 use App\Http\Controllers\ClubController;
@@ -42,6 +43,10 @@ Route::get('/', HomeController::class)->name('home');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+
+    // Credits and the contact address: nothing club-specific, so it is
+    // behind nothing but `auth` — as is the dashboard above it.
+    Route::get('about', AboutController::class)->name('about');
 
     // Reachable by the impersonated session too, which is never root.
     Route::delete('impersonate', [ImpersonationController::class, 'destroy'])->name('impersonate.destroy');
