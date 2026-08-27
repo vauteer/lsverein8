@@ -15,6 +15,8 @@ enum MemberExport: string
     case Roles = 'roles';
     case Csv = 'csv';
     case VCard = 'vcf';
+    case BlsvExcel = 'blsv-xlsx';
+    case Blsv = 'blsv';
 
     public function label(): string
     {
@@ -23,6 +25,8 @@ enum MemberExport: string
             self::Roles => __('PDF (roles)'),
             self::Csv => __('CSV'),
             self::VCard => __('vCard'),
+            self::BlsvExcel => __('BLSV (Excel)'),
+            self::Blsv => __('BLSV (CSV)'),
         };
     }
 
@@ -33,6 +37,7 @@ enum MemberExport: string
             self::Roles => __('Who holds which role'),
             self::Csv => __('For a spreadsheet'),
             self::VCard => __('Contacts for a phone or mail client'),
+            self::BlsvExcel, self::Blsv => __('For a supplementary member report'),
         };
     }
 
@@ -43,8 +48,9 @@ enum MemberExport: string
     {
         return match ($this) {
             self::Addresses, self::Roles => 'pdf',
-            self::Csv => 'csv',
+            self::Csv, self::Blsv => 'csv',
             self::VCard => 'vcf',
+            self::BlsvExcel => 'xlsx',
         };
     }
 
@@ -54,25 +60,56 @@ enum MemberExport: string
             self::Addresses, self::Roles => 'application/pdf',
             // text/csv would be the modern spelling; this is what lsverein7
             // sent and what the spreadsheet on the other end expects.
-            self::Csv => 'text/comma-separated-values',
+            self::Csv, self::Blsv => 'text/comma-separated-values',
             self::VCard => 'text/vcard',
+            self::BlsvExcel => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         };
     }
 
     /**
-     * The offered formats, as {id, name} options for the frontend.
+     * Whether this format may be handed out for the given selection.
+     *
+     * Only the two BLSV files say no. They carry a Spartenkennzeichen per
+     * line, which exists only for a club that reports to the association, and
+     * a Nachmeldung has to carry *every* member — the association reads the
+     * file as the club's whole membership, not as a delta. Offering them for
+     * "Ex-Mitglieder" or a single section would produce a file that looks
+     * submittable and would under-report the club.
+     * Enforced in MemberExportController as well as hidden in the menu.
+     */
+    public function isAvailableFor(string $filter): bool
+    {
+        if (! $this->isBlsv()) {
+            return true;
+        }
+
+        return currentClub()->blsv_member && $filter === MemberFilter::Members->value;
+    }
+
+    /**
+     * Whether this format is one of the two the BLSV accepts. They carry the
+     * same rows in the same column order; only the container differs.
+     */
+    public function isBlsv(): bool
+    {
+        return $this === self::BlsvExcel || $this === self::Blsv;
+    }
+
+    /**
+     * The formats offered for a selection, as {id, name} options for the
+     * frontend.
      *
      * @return list<array{id: string, name: string, description: string}>
      */
-    public static function options(): array
+    public static function optionsFor(string $filter): array
     {
-        return array_map(
+        return array_values(array_map(
             fn (self $format): array => [
                 'id' => $format->value,
                 'name' => $format->label(),
                 'description' => $format->description(),
             ],
-            self::cases()
-        );
+            array_filter(self::cases(), fn (self $format): bool => $format->isAvailableFor($filter))
+        ));
     }
 }

@@ -307,7 +307,7 @@ class Club extends Model
 
         $stats[-1] = $totals;
 
-        $totalCsv = "Titel;Name;Vorname;Namenszusatz;Geschlecht;Geburtsdatum;Spartennummer\r\n";
+        $totalCsv = "Titel;Name;Vorname;Namenszusatz;Geschlecht;Geburtsdatum;Spartenkennzeichen\r\n";
 
         foreach (Section::whereNotNull('blsv_id')->orderBy('blsv_id')->get() as $section) {
             $csv = null;

@@ -19,7 +19,8 @@
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
         "league/flysystem-aws-s3-v3": "^3.0",
-        "opcodesio/log-viewer": "^3.24"
+        "opcodesio/log-viewer": "^3.24",
+        "openspout/openspout": "^5.11"
     },
     "require-dev": {
         "barryvdh/laravel-debugbar": "^4.4",

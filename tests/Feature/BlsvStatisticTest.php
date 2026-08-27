@@ -89,9 +89,9 @@ test('the csv holds the section members and the total holds every member', funct
     $totalCsv = file_get_contents(storage_path("downloads/1_BE{$year}_Gesamt.csv"));
 
     expect($sectionCsv)->toContain($kicker->surname)
-        // Name;Vorname;Namenszusatz;Geschlecht;"Geburtstag";Spartennummer
+        // Name;Vorname;Namenszusatz;Geschlecht;"Geburtstag";Spartenkennzeichen
         ->and($sectionCsv)->toContain(';m;"01.01.90";9')
-        ->and($totalCsv)->toStartWith('Titel;Name;Vorname;Namenszusatz;Geschlecht;Geburtsdatum;Spartennummer')
+        ->and($totalCsv)->toStartWith('Titel;Name;Vorname;Namenszusatz;Geschlecht;Geburtsdatum;Spartenkennzeichen')
         ->and($totalCsv)->toContain($kicker->surname);
 });
 

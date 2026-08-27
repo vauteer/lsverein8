@@ -8,7 +8,7 @@ paths:
 # Controllers
 
 ## Exporte teilen die Auswahl mit der Liste — über SelectsMembers
-Vier Formate (`App\Enums\MemberExport`: `pdf`, `roles`, `csv`, `vcf`), eine Route: `GET members/export/{format}`, aufgelöst per impliziter Enum-Bindung — ein unbekanntes Format ergibt 404 statt einer leeren Datei. Der Enum ersetzt `Member::EXPORT_FORMATS`, ein const-Array unübersetzter Labels, das nichts las und dem das Funktionen-PDF fehlte.
+Sechs Formate (`App\Enums\MemberExport`: `pdf`, `roles`, `csv`, `vcf`, `blsv-xlsx`, `blsv`), eine Route: `GET members/export/{format}`, aufgelöst per impliziter Enum-Bindung — ein unbekanntes Format ergibt 404 statt einer leeren Datei. Der Enum ersetzt `Member::EXPORT_FORMATS`, ein const-Array unübersetzter Labels, das nichts las und dem das Funktionen-PDF fehlte.
 
 **`App\Concerns\SelectsMembers` ist der Kern.** Die Auswahl-Maschinerie (`selection()`, `applyFilter()`, `dynamicFilters()`, `filterLabel()`, `resolveYear()`) lag vorher privat im MemberController; sie ist herausgezogen, damit ein PDF oder CSV nie etwas anderes enthält als der Bildschirm, von dem aus es gestartet wurde. Insbesondere setzt `selection()` `Member::$_keyDate` — der Export rechnet Alter und Mitgliedsjahre also gegen dasselbe Stichjahr wie die Liste.
 
@@ -51,3 +51,32 @@ Einstieg ist die Vereinsseite (`clubs/Edit.vue`, Abschnitt neben dem Vereinsexpo
 Die Mitglieder werden **einmal** geladen (`members()->with('memberships')`) und in PHP in Alters- und Zugehörigkeitsbänder sortiert — wie `Club::getBLSVStatistic()`. Eine Abfrage je Gruppe wäre eine Abfrage je Gruppe **und** Geschlecht.
 
 Die Beiträge-Karte ist admin-only (`hasAdminRights()`), gleiche Begründung wie bei `MemberResource` und `MemberFilter::NoSubscription`.
+
+## BLSV-Export: nur meldende Vereine, nur die Auswahl „Mitglieder", eine Zeile je Sparte
+Zwei Formate, beide „Für die Mitgliedernachmeldung": `MemberExport::BlsvExcel` ('blsv-xlsx', „BLSV (Excel)") und `MemberExport::Blsv` ('blsv', „BLSV (CSV)"). Spalten in beiden: `Titel | Name | Vorname | Namenszusatz | Geschlecht | Geburtsdatum | Spartenkennzeichen`, Titel und Namenszusatz immer leer.
+
+**`blsvRows()` baut die Zeilen einmal, beide Schreiber lesen daraus** — die Excel-Datei und das CSV dürfen den Verein nie verschieden beschreiben. Wer eine Zeilenregel ändert, ändert sie dort, nicht in einem der beiden Schreiber.
+
+**Der BLSV will eine Excel-Datei.** Bis dahin hat Gerald das CSV von Hand in die BLSV-Vorlage kopiert; genau dieses Einfügen ging schief. Deshalb sind in der .xlsx die zwei Spalten, die *kein* Text sind, echte Typen: Geburtsdatum als Datums-Serial mit dem eingebauten Kurzdatumsformat (numFmtId 14, in OpenSpout als `'mm-dd-yy'` zu schreiben — deutsches Excel zeigt TT.MM.JJJJ), Spartenkennzeichen als Zahl. Titel und Namenszusatz sind `EmptyCell`, also gar keine `<c>`-Zelle, wie in der Vorlage.
+
+Geschrieben mit **openspout/openspout** (2026-08-27 aufgenommen, einziges neues Paket, hängt nur an PHP-Extensions). Der Schreiber kann nur in einen echten Pfad schreiben (er baut ein Zip), deshalb `tempnam()` und zurücklesen — die Datei geht direkt an den Browser und gehört **nicht** nach storage/downloads wie die Jahresstatistik.
+
+Das CSV bleibt bewusst daneben stehen, als Ausweichpfad falls der Verband die .xlsx beanstandet. Struktur unverändert wie `BE{Jahr}_Gesamt.csv` aus `Club::getBLSVStatistic()`: Semikolon, CRLF, gequotetes `d.m.y`, ISO-8859-1 (einmal am Schluss konvertiert, nicht pro Feld).
+
+Am 2026-08-27 gegen die echte BLSV-Vorlage `BE2026_08_Mitgliederimport.xlsx` geprüft: Kopfzeile identisch, A/D durchgängig leer, gleiche Spartenmenge, 269 von 275 Zeilen deckungsgleich. Die Abweichungen sind alle echte Datenänderungen seit der Vorlage (Austritte, ein gelöschtes Mitglied, Neueintritte), keine Formatfehler.
+
+**Die beiden Dateien beantworten verschiedene Fragen — deshalb gibt es beide.** Die Jahresstatistik (`BlsvStatisticController`) ist die Jahresmeldung und wird **immer** zum 1.1. gelesen. Dieser Export ist für die **Nachmeldung während des Jahres** und liest deshalb zum Stichtag der Liste, im Normalfall heute. Beim Stichtag also nicht „vereinheitlichen".
+
+Eine Nachmeldung ist **kein Delta**: der Verein lädt seinen *gesamten* Mitgliederbestand hoch. Genau darum ist das Format nur für die Auswahl „Mitglieder" da — eine Teilmenge sähe einreichbar aus und würde den Verein untermelden.
+
+`MemberExport::isAvailableFor()` sperrt **beide** doppelt (`isBlsv()` fasst sie zusammen): `currentClub()->blsv_member` **und** Filter `members`. Der Enum filtert damit `optionsFor()` (Menü), und `MemberExportController` ruft `abort_unless()` — eine getippte URL bekommt 404. Deshalb heißt die Fabrik-Methode `optionsFor(string $filter)`, nicht mehr `options()`.
+
+**Ein Mitglied ergibt eine Zeile je BLSV-Sparte, nicht je Person** — das Spartenkennzeichen ist, was der Verband zählt. Nach `blsv_id` dedupliziert (es gibt Mitglieder mit zwei Pivot-Zeilen für dieselbe Sparte) und aufsteigend sortiert. Sparten ohne `blsv_id` ergeben gar keine Zeile.
+
+An den Produktionsdaten geprüft (2026-08-27): Verein 1 (der einzige mit `blsv_member`), Auswahl „Mitglieder" → 254 Mitglieder, 278 Zeilen, **0 ohne Sparte**. Alle sieben Sparten von Verein 1 haben eine `blsv_id`. Ein Sonderfall „Mitglied ohne Spartenkennzeichen" existiert dort also nicht — nicht dafür umbauen, ohne das neu zu zählen.
+
+Dateiname `BE{Jahr}_Nachmeldung_{TTMM}.{ext}` für beide (z. B. `BE2026_Nachmeldung_2708.xlsx`), statt des generischen `filename()`. Generisch hieße die Datei „mitglieder-2026.csv", also genau wie der einfache CSV-Export; und ein Verein meldet mehrmals im Jahr nach, das Datum hält die Dateien im Download-Ordner auseinander. Jahr **und** Tag kommen aus `Member::getKeyDate()`, nicht das Jahr aus `$selection['year']` — so können sie nicht auseinanderlaufen (ein vergangenes Jahr wird zum 31.12. gelesen).
+
+Die Spaltenüberschrift heißt seit 2026-08-27 `Spartenkennzeichen`, vorher `Spartennummer` — in **allen** Dateien (beide Exporte und `Club::getBLSVStatistic()`), damit sie nicht auseinanderlaufen.
+
+Testhilfen `xlsxParts()` / `xlsxRows()` in tests/Pest.php lesen eine erzeugte .xlsx als Gitter zurück (Inline-Strings, kein sharedStrings). `numFmts count="0"` in styles.xml ist die Zusage „kein eigenes Format registriert" — OpenSpout schreibt das leere Element immer, `not->toContain('<numFmts')` schlägt also fehl.

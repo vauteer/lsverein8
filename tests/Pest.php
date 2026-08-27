@@ -77,3 +77,59 @@ function settleTrackedTables(): void
         DB::table($table)->update(['updated_at' => now()->subWeek()]);
     }
 }
+
+/**
+ * The parts of a generated .xlsx that a test needs to look at: the worksheet
+ * and the styles. An xlsx is a zip, and the export hands it out as a string.
+ *
+ * @return array{0: string, 1: string} sheet1.xml, styles.xml
+ */
+function xlsxParts(string $contents): array
+{
+    $path = tempnam(sys_get_temp_dir(), 'test-xlsx-');
+    file_put_contents($path, $contents);
+
+    $zip = new ZipArchive;
+    expect($zip->open($path))->toBeTrue();
+
+    $parts = [
+        (string) $zip->getFromName('xl/worksheets/sheet1.xml'),
+        (string) $zip->getFromName('xl/styles.xml'),
+    ];
+
+    $zip->close();
+    @unlink($path);
+
+    return $parts;
+}
+
+/**
+ * A worksheet as a plain grid of A..G strings, missing cells read as ''.
+ *
+ * Inline strings only — the export writes no sharedStrings table.
+ *
+ * @return list<list<string>>
+ */
+function xlsxRows(string $sheet): array
+{
+    $xml = new SimpleXMLElement($sheet);
+    $rows = [];
+
+    foreach ($xml->sheetData->row as $row) {
+        $cells = array_fill_keys(range('A', 'G'), '');
+
+        foreach ($row->c as $cell) {
+            $reference = rtrim((string) $cell['r'], '0123456789');
+
+            // Inline string (<is><t>) or a raw value (<v>) for numbers and
+            // date serials.
+            $cells[$reference] = isset($cell->is)
+                ? (string) $cell->is->t
+                : (string) $cell->v;
+        }
+
+        $rows[] = array_values($cells);
+    }
+
+    return $rows;
+}

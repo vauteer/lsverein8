@@ -7,6 +7,7 @@ use App\Models\Member;
 use App\Models\Role;
 use App\Models\Section;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 
 /**
  * currentClubId() resolves to 1 on the CLI, so every request is read as though
@@ -168,4 +169,200 @@ test('a read-only account may export what it may already read', function () {
     $this->actingAs(exportUser(ClubRole::Basic))
         ->get(route('members.export', ['format' => 'csv']))
         ->assertOk();
+});
+
+/**
+ * The BLSV member report. Only a club that reports to the association is
+ * offered it, and only for the current membership — see
+ * MemberExport::isAvailableFor().
+ */
+function reportingClub(): void
+{
+    Club::query()->whereKey(1)->update(['blsv_member' => true]);
+}
+
+test('the blsv formats are only offered to a club that reports to the association', function () {
+    $this->actingAs(exportUser())
+        ->get(route('members.index'))
+        ->assertInertia(fn ($page) => $page->has('exportFormats', 4));
+
+    reportingClub();
+
+    $this->get(route('members.index'))
+        ->assertInertia(fn ($page) => $page
+            ->has('exportFormats', 6)
+            ->where('exportFormats.4.id', 'blsv-xlsx')
+            ->where('exportFormats.5.id', 'blsv')
+        );
+});
+
+test('the blsv formats are only offered for the members selection', function () {
+    reportingClub();
+
+    $this->actingAs(exportUser())
+        ->get(route('members.index', ['filter' => 'former']))
+        ->assertInertia(fn ($page) => $page->has('exportFormats', 4));
+});
+
+test('a hand-typed blsv url is a 404 wherever the menu would hide it', function () {
+    $this->actingAs(exportUser());
+
+    // Not a reporting club.
+    $this->get(route('members.export', ['format' => 'blsv']))->assertNotFound();
+
+    reportingClub();
+
+    // A reporting club, but a selection the report cannot describe.
+    $this->get(route('members.export', ['format' => 'blsv', 'filter' => 'former']))->assertNotFound();
+    $this->get(route('members.export', ['format' => 'blsv']))->assertOk();
+});
+
+test('the blsv file has the columns of BE{year}_Gesamt, one line per section', function () {
+    reportingClub();
+
+    $fussball = Section::factory()->create(['club_id' => 1, 'name' => 'Fussball', 'blsv_id' => 9]);
+    $tennis = Section::factory()->create(['club_id' => 1, 'name' => 'Tennis', 'blsv_id' => 32]);
+
+    $member = exportedMember([
+        'surname' => 'Grün', 'first_name' => 'Jörg',
+        'gender' => 'm', 'birthday' => '1962-07-01',
+    ]);
+    // Two sections, and the higher number is attached first: the file is
+    // written in BLSV order regardless.
+    $member->sections()->attach($tennis->id, ['from' => '2016-01-01']);
+    $member->sections()->attach($fussball->id, ['from' => '2016-01-01']);
+    // The same section a second time with an earlier period — must not be
+    // reported twice.
+    $member->sections()->attach($fussball->id, ['from' => '2010-01-01', 'to' => '2012-12-31']);
+
+    $response = $this->actingAs(exportUser())
+        ->get(route('members.export', ['format' => 'blsv']));
+
+    $response->assertOk()
+        ->assertHeader('content-type', 'text/comma-separated-values; charset=UTF-8')
+        ->assertDownload('BE'.now()->format('Y').'_Nachmeldung_'.now()->format('dm').'.csv');
+
+    $csv = mb_convert_encoding($response->getContent(), 'UTF-8', 'ISO-8859-1');
+
+    expect($csv)->toBe(
+        "Titel;Name;Vorname;Namenszusatz;Geschlecht;Geburtsdatum;Spartenkennzeichen\r\n".
+        ";Grün;Jörg;;m;\"01.07.62\";9\r\n".
+        ";Grün;Jörg;;m;\"01.07.62\";32\r\n"
+    );
+
+    // Latin-1 like every other BLSV file.
+    expect(mb_check_encoding($response->getContent(), 'UTF-8'))->toBeFalse();
+});
+
+test('a member in no numbered section produces no line', function () {
+    reportingClub();
+
+    $unnumbered = Section::factory()->create(['club_id' => 1, 'name' => 'Wandern', 'blsv_id' => null]);
+    $numbered = Section::factory()->create(['club_id' => 1, 'name' => 'Fussball', 'blsv_id' => 9]);
+
+    exportedMember(['surname' => 'Ohne'])->sections()->attach($unnumbered->id, ['from' => '2016-01-01']);
+    exportedMember(['surname' => 'Gemeldet'])->sections()->attach($numbered->id, ['from' => '2016-01-01']);
+
+    $csv = mb_convert_encoding(
+        $this->actingAs(exportUser())->get(route('members.export', ['format' => 'blsv']))->getContent(),
+        'UTF-8', 'ISO-8859-1'
+    );
+
+    expect($csv)->toContain('Gemeldet')->not->toContain('Ohne');
+});
+
+test('a section the member has already left is not reported', function () {
+    reportingClub();
+
+    $section = Section::factory()->create(['club_id' => 1, 'name' => 'Fussball', 'blsv_id' => 9]);
+    $member = exportedMember(['surname' => 'Meier']);
+    $member->sections()->attach($section->id, ['from' => '2010-01-01', 'to' => '2012-12-31']);
+
+    $csv = mb_convert_encoding(
+        $this->actingAs(exportUser())->get(route('members.export', ['format' => 'blsv']))->getContent(),
+        'UTF-8', 'ISO-8859-1'
+    );
+
+    // Header only.
+    expect(trim($csv))->toBe('Titel;Name;Vorname;Namenszusatz;Geschlecht;Geburtsdatum;Spartenkennzeichen');
+});
+
+test('the excel file is laid out like the blsv template', function () {
+    reportingClub();
+
+    $fussball = Section::factory()->create(['club_id' => 1, 'name' => 'Fussball', 'blsv_id' => 9]);
+    $tennis = Section::factory()->create(['club_id' => 1, 'name' => 'Tennis', 'blsv_id' => 32]);
+
+    $member = exportedMember([
+        'surname' => 'Grün', 'first_name' => 'Jörg',
+        'gender' => 'm', 'birthday' => '1993-11-20',
+    ]);
+    $member->sections()->attach($tennis->id, ['from' => '2016-01-01']);
+    $member->sections()->attach($fussball->id, ['from' => '2016-01-01']);
+
+    $response = $this->actingAs(exportUser())
+        ->get(route('members.export', ['format' => 'blsv-xlsx']));
+
+    $response->assertOk()
+        // A binary type, so Laravel appends no charset.
+        ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        ->assertDownload('BE'.now()->format('Y').'_Nachmeldung_'.now()->format('dm').'.xlsx');
+
+    [$sheet, $styles] = xlsxParts($response->getContent());
+
+    // Header in the BLSV's column order, and the two columns that are not
+    // text: a date serial (20.11.1993 is 34293, the value the template
+    // carries for that birthday) and a bare number for the section.
+    expect(xlsxRows($sheet))->toBe([
+        ['Titel', 'Name', 'Vorname', 'Namenszusatz', 'Geschlecht', 'Geburtsdatum', 'Spartenkennzeichen'],
+        ['', 'Grün', 'Jörg', '', 'm', '34293', '9'],
+        ['', 'Grün', 'Jörg', '', 'm', '34293', '32'],
+    ]);
+
+    // The built-in short date format: numFmtId 14 with no custom format
+    // registered alongside it, exactly what the template carries. German
+    // Excel renders that as TT.MM.JJJJ.
+    expect($styles)->toContain('numFmtId="14"')
+        ->toContain('<numFmts count="0">');
+
+    // Titel and Namenszusatz are absent cells, not empty strings: the
+    // template writes no <c> for them at all.
+    expect($sheet)->not->toContain('<c r="A2"')
+        ->and($sheet)->not->toContain('<c r="D2"');
+});
+
+test('the excel file and the blsv csv describe the club identically', function () {
+    reportingClub();
+
+    $section = Section::factory()->create(['club_id' => 1, 'name' => 'Fussball', 'blsv_id' => 9]);
+    $other = Section::factory()->create(['club_id' => 1, 'name' => 'Tennis', 'blsv_id' => 32]);
+
+    // 'f' is the stored value; the BLSV column says 'w' — see Gender::blsvValue().
+    foreach ([['Meier', 'Anna', 'f'], ['Huber', 'Bert', 'm'], ['Groß', 'Cäcilia', 'f']] as [$surname, $first, $gender]) {
+        $member = exportedMember(['surname' => $surname, 'first_name' => $first, 'gender' => $gender]);
+        $member->sections()->attach($section->id, ['from' => '2016-01-01']);
+    }
+    // One of them in a second section, so the row counts are not simply the
+    // member count on both sides.
+    Member::query()->where('surname', 'Meier')->firstOrFail()
+        ->sections()->attach($other->id, ['from' => '2016-01-01']);
+
+    $this->actingAs(exportUser());
+
+    $csv = mb_convert_encoding(
+        $this->get(route('members.export', ['format' => 'blsv']))->getContent(),
+        'UTF-8', 'ISO-8859-1'
+    );
+    [$sheet] = xlsxParts($this->get(route('members.export', ['format' => 'blsv-xlsx']))->getContent());
+
+    // Same rows, same order — only the container and the two typed columns
+    // differ, so the CSV is rebuilt from the sheet and compared verbatim.
+    $rebuilt = collect(xlsxRows($sheet))
+        ->map(fn (array $row, int $i): string => $i === 0
+            ? implode(';', $row)
+            : ';'.$row[1].';'.$row[2].';;'.$row[4].';"'
+                .Carbon::create(1899, 12, 30)->addDays((int) $row[5])->format('d.m.y').'";'.$row[6])
+        ->implode("\r\n")."\r\n";
+
+    expect($rebuilt)->toBe($csv);
 });

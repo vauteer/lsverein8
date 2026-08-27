@@ -64,8 +64,10 @@ class MemberController extends Controller
             'yearApplies' => ! str_starts_with($selection['filter'], 'subscription_'),
             'canCreate' => $request->user()->can('create', Member::class),
             // Every format exports this same selection, so the menu needs no
-            // state of its own beyond the list's own query string.
-            'exportFormats' => MemberExport::options(),
+            // state of its own beyond the list's own query string. Which
+            // formats are offered depends on the selection, though: see
+            // MemberExport::isAvailableFor().
+            'exportFormats' => MemberExport::optionsFor($selection['filter']),
         ]);
     }
 

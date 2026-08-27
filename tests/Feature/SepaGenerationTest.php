@@ -107,7 +107,7 @@ it('builds the blsv statistic with csv files and a pdf', function () {
 
     expect($sectionCsv)->toContain($member->surname)
         ->and($sectionCsv)->toContain(';m;')
-        ->and($totalCsv)->toContain('Spartennummer')
+        ->and($totalCsv)->toContain('Spartenkennzeichen')
         ->and($pdf)->toStartWith('%PDF-');
 });
 
