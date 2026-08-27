@@ -51,7 +51,10 @@ const subscriptionId = ref(NO_SUBSCRIPTION);
 // Cleared whenever a fresh warning arrives, so a second, different duplicate
 // cannot be waved through by a tick the user set for the first one.
 const confirmDuplicate = ref(false);
-watch(() => props.duplicate, () => (confirmDuplicate.value = false));
+watch(
+    () => props.duplicate,
+    () => (confirmDuplicate.value = false),
+);
 
 defineOptions({
     layout: {
@@ -178,7 +181,9 @@ defineOptions({
                 data-test="duplicate-warning"
             >
                 <p class="flex items-start gap-2 text-sm">
-                    <TriangleAlert class="mt-0.5 size-4 shrink-0 text-destructive" />
+                    <TriangleAlert
+                        class="mt-0.5 size-4 shrink-0 text-destructive"
+                    />
                     <span>{{ errors.confirm_duplicate }}</span>
                 </p>
                 <div>

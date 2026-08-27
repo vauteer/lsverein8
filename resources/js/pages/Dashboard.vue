@@ -60,13 +60,19 @@ defineOptions({
             :description="$t('The club as it stands today')"
         />
 
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <!-- Six columns so the row can be split 3 + 2 below xl: the three
+        membership counts belong together and their labels are short enough to
+        share a row, while Ø-Alter and Ehrungen take half each. One tile per
+        row pushed the charts below the fold on a phone. -->
+        <div class="grid grid-cols-6 gap-4 xl:grid-cols-5">
             <StatTile
+                class="col-span-2 xl:col-span-1"
                 :label="$t('Members')"
                 :value="String(summary.members)"
                 filter="members"
             />
             <StatTile
+                class="col-span-2 xl:col-span-1"
                 :label="$t('Arrivals')"
                 :value="String(summary.joined)"
                 :hint="year"
@@ -74,6 +80,7 @@ defineOptions({
                 :year="props.year"
             />
             <StatTile
+                class="col-span-2 xl:col-span-1"
                 :label="$t('Departures')"
                 :value="String(summary.left)"
                 :hint="year"
@@ -81,11 +88,13 @@ defineOptions({
                 :year="props.year"
             />
             <StatTile
+                class="col-span-3 xl:col-span-1"
                 :label="$t('Average age')"
                 :value="averageAge"
                 :hint="$t('Years')"
             />
             <StatTile
+                class="col-span-3 xl:col-span-1"
                 :label="$t('Honours')"
                 :value="String(summary.due_honours)"
                 :hint="year"

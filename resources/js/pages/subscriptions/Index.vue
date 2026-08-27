@@ -127,7 +127,10 @@ defineOptions({
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>{{ $t('Name') }}</TableHead>
+                        <!-- w-full: the name column absorbs what is left, so
+                        the other columns shrink to their content and the last
+                        one stays on screen on a phone. -->
+                        <TableHead class="w-full">{{ $t('Name') }}</TableHead>
                         <TableHead class="text-right">
                             {{ $t('Amount') }}
                         </TableHead>
@@ -147,18 +150,22 @@ defineOptions({
                         v-for="subscription in subscriptions.data"
                         :key="subscription.id"
                     >
-                        <TableCell class="font-medium">
+                        <!-- whitespace-normal: table cells are nowrap by
+                        default, so a long name pushed the table wider than the
+                        viewport and the last column off it. -->
+                        <TableCell class="font-medium whitespace-normal">
                             {{ subscription.name }}
+                            <!-- Both the note and the transfer text are held
+                            back on a phone: three stacked lines per row made
+                            the list hard to scan, and neither is what one
+                            comes to this screen for. From md up the note
+                            returns here and the transfer text gets its own
+                            column. -->
                             <div
                                 v-if="subscription.memo"
-                                class="text-xs font-normal text-muted-foreground"
+                                class="hidden text-xs font-normal text-muted-foreground md:block"
                             >
                                 {{ subscription.memo }}
-                            </div>
-                            <div
-                                class="text-xs font-normal text-muted-foreground md:hidden"
-                            >
-                                {{ subscription.transfer_text }}
                             </div>
                         </TableCell>
                         <TableCell

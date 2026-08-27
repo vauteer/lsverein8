@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import {
     Award,
     Banknote,
@@ -18,7 +18,7 @@ import {
     Users,
 } from '@lucide/vue';
 import { wTrans } from 'laravel-vue-i18n';
-import { computed } from 'vue';
+import { computed, onUnmounted } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import ClubSwitcher from '@/components/ClubSwitcher.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -31,6 +31,7 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
 import { about, blsv, dashboard, telescope } from '@/routes';
 import { index as backups } from '@/routes/backups';
@@ -47,6 +48,18 @@ import { index as users } from '@/routes/users';
 import type { NavItem } from '@/types';
 
 const page = usePage();
+
+const { isMobile, setOpenMobile } = useSidebar();
+
+// Closes the mobile sidebar sheet after any navigation, so picking a menu
+// item doesn't leave it covering the page it just opened. Same fix as
+// lscraft5. On the router rather than on each entry's click, so it also
+// covers the club switcher, the user menu and the logo.
+const removeNavigateListener = router.on('navigate', () =>
+    setOpenMobile(false),
+);
+
+onUnmounted(removeNavigateListener);
 
 const mainNavItems = computed<NavItem[]>(() => [
     {
@@ -156,7 +169,14 @@ const mainNavItems = computed<NavItem[]>(() => [
         : []),
     // Root accounts only: storage/logs spans every club in the installation.
     // The log viewer is a Blade page, hence external.
-    ...(page.props.auth.canViewLogs
+    //
+    // Left out on a phone, along with Telescope below: both are wide tables of
+    // stack traces and query bindings that are unreadable at that width, and
+    // nobody debugs from a phone. Driven by the sidebar's own isMobile rather
+    // than a `md:hidden` class so the cut lands on exactly the width where the
+    // sidebar becomes a drawer — Tailwind's md and useMediaQuery disagree by
+    // a pixel.
+    ...(page.props.auth.canViewLogs && !isMobile.value
         ? [
               {
                   title: wTrans('Logs').value,
@@ -169,7 +189,7 @@ const mainNavItems = computed<NavItem[]>(() => [
     // Root accounts only, for the same reason: an entry carries the request
     // payload and query bindings of every club at once. Telescope ships its
     // own Blade/Vue app, so this one is external too.
-    ...(page.props.auth.canViewTelescope
+    ...(page.props.auth.canViewTelescope && !isMobile.value
         ? [
               {
                   title: wTrans('Telescope').value,

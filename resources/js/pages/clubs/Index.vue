@@ -98,14 +98,20 @@ defineOptions({
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>{{ $t('Name') }}</TableHead>
+                        <!-- w-full: the name column absorbs what is left, so
+                        the other columns shrink to their content and Aktionen
+                        stays on screen on a phone. -->
+                        <TableHead class="w-full">{{ $t('Name') }}</TableHead>
                         <TableHead class="hidden md:table-cell">
                             {{ $t('City') }}
                         </TableHead>
                         <TableHead class="text-right">
                             {{ $t('Members') }}
                         </TableHead>
-                        <TableHead class="text-right">
+                        <!-- Desktop only, like the city: on a phone the whole
+                        header width went to two count columns and left the
+                        name with almost nothing. -->
+                        <TableHead class="hidden text-right md:table-cell">
                             {{ $t('Users') }}
                         </TableHead>
                         <TableHead class="text-right">
@@ -115,8 +121,11 @@ defineOptions({
                 </TableHeader>
                 <TableBody>
                     <TableRow v-for="club in clubs.data" :key="club.id">
-                        <TableCell class="font-medium">
-                            <span class="flex items-center gap-2">
+                        <!-- whitespace-normal: table cells are nowrap by
+                        default, so a long club name pushed the table wider
+                        than the viewport. -->
+                        <TableCell class="font-medium whitespace-normal">
+                            <span class="flex items-start gap-2">
                                 <Avatar class="size-6 rounded-md">
                                     <AvatarImage
                                         v-if="club.logo_url"
@@ -130,11 +139,13 @@ defineOptions({
                                         {{ club.name.charAt(0) }}
                                     </AvatarFallback>
                                 </Avatar>
-                                {{ club.name }}
+                                <span class="min-w-0 break-words">
+                                    {{ club.name }}
+                                </span>
                                 <Tooltip v-if="club.current">
                                     <TooltipTrigger as-child>
                                         <Check
-                                            class="size-3.5 shrink-0 text-muted-foreground"
+                                            class="mt-1 size-3.5 shrink-0 text-muted-foreground"
                                             :aria-label="$t('Current club')"
                                         />
                                     </TooltipTrigger>
@@ -143,11 +154,6 @@ defineOptions({
                                     </TooltipContent>
                                 </Tooltip>
                             </span>
-                            <div
-                                class="text-xs font-normal text-muted-foreground md:hidden"
-                            >
-                                {{ club.city }}
-                            </div>
                         </TableCell>
                         <TableCell
                             class="hidden text-muted-foreground md:table-cell"
@@ -180,13 +186,23 @@ defineOptions({
                                 {{ club.members_count }}
                             </span>
                         </TableCell>
-                        <TableCell class="text-right tabular-nums">
+                        <TableCell
+                            class="hidden text-right tabular-nums md:table-cell"
+                        >
                             {{ club.users_count }}
                         </TableCell>
                         <TableCell>
                             <div class="flex justify-end gap-1">
+                                <!-- Desktop only. It cannot go altogether:
+                                ClubPolicy::switchTo() lets root into any club,
+                                but the sidebar picker only lists the user's
+                                own memberships, so for a club root does not
+                                belong to this row is the only way in — which
+                                the BLSV statistic and the member count above
+                                both rely on. Switching clubs is desk work. -->
                                 <Form
                                     v-if="club.switchable"
+                                    class="hidden md:block"
                                     v-bind="
                                         ClubSwitchController.store.form(club.id)
                                     "

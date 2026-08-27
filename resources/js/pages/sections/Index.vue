@@ -109,7 +109,10 @@ defineOptions({
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>{{ $t('Name') }}</TableHead>
+                        <!-- w-full: the name column absorbs what is left, so
+                        the other columns shrink to their content and the last
+                        one stays on screen on a phone. -->
+                        <TableHead class="w-full">{{ $t('Name') }}</TableHead>
                         <TableHead v-if="blsv" class="hidden md:table-cell">
                             {{ $t('BLSV section') }}
                         </TableHead>
@@ -126,13 +129,20 @@ defineOptions({
                         v-for="section in sections.data"
                         :key="section.id"
                     >
-                        <TableCell class="font-medium">
-                            <span class="flex items-center gap-1.5">
-                                {{ section.name }}
+                        <!-- whitespace-normal: table cells are nowrap by
+                        default, so a long name pushed the table wider than the
+                        viewport and the last column off it. Wrapping rather
+                        than truncating — these are told apart by their full
+                        name. -->
+                        <TableCell class="font-medium whitespace-normal">
+                            <span class="flex items-start gap-1.5">
+                                <span class="min-w-0 break-words">
+                                    {{ section.name }}
+                                </span>
                                 <Tooltip v-if="section.shared">
                                     <TooltipTrigger as-child>
                                         <Globe
-                                            class="size-3.5 shrink-0 text-muted-foreground"
+                                            class="mt-1 size-3.5 shrink-0 text-muted-foreground"
                                             :aria-label="$t('Shared section')"
                                         />
                                     </TooltipTrigger>

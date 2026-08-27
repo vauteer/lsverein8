@@ -108,7 +108,10 @@ defineOptions({
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>{{ $t('Name') }}</TableHead>
+                        <!-- w-full: the name column absorbs what is left, so
+                        the other columns shrink to their content and the last
+                        one stays on screen on a phone. -->
+                        <TableHead class="w-full">{{ $t('Name') }}</TableHead>
                         <TableHead class="text-right">
                             {{ $t('Current') }}
                         </TableHead>
@@ -122,7 +125,10 @@ defineOptions({
                 </TableHeader>
                 <TableBody>
                     <TableRow v-for="item in items.data" :key="item.id">
-                        <TableCell class="font-medium">
+                        <!-- whitespace-normal: table cells are nowrap by
+                        default, so a long name pushed the table wider than the
+                        viewport and the last column off it. -->
+                        <TableCell class="font-medium whitespace-normal">
                             {{ item.name }}
                         </TableCell>
                         <TableCell class="text-right tabular-nums">

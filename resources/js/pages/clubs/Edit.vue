@@ -35,7 +35,6 @@ const props = defineProps<{
 // looking for a component. Same reason as the SEPA and member exports.
 const exportHref = ClubExportController.url(props.club.id);
 
-
 const confirmingDeletion = ref(false);
 
 defineOptions({

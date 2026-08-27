@@ -67,10 +67,7 @@ defineOptions({
                 builds the files and then lists them. It is behind a button
                 because opening it rebuilds every one of them. -->
                 <Button variant="outline" as-child>
-                    <Link
-                        :href="statisticHref"
-                        data-test="blsv-statistic-link"
-                    >
+                    <Link :href="statisticHref" data-test="blsv-statistic-link">
                         <ChartColumn class="size-4" />
                         {{ $t('Build yearly report') }}
                     </Link>

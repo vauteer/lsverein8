@@ -49,7 +49,9 @@ defineOptions({
                 class="flex items-start gap-3 rounded-xl border border-sidebar-border/70 p-4 hover:bg-muted dark:border-sidebar-border"
                 data-test="blsv-download-link"
             >
-                <Download class="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <Download
+                    class="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                />
                 <span class="flex flex-col gap-0.5">
                     <span class="text-sm font-medium">{{ download.name }}</span>
                     <span class="text-xs text-muted-foreground">

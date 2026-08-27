@@ -92,7 +92,7 @@ defineOptions({
                     <Button
                         v-if="resignable"
                         type="button"
-                        variant="outline"
+                        variant="destructive"
                         data-test="resign-member-button"
                         @click="confirmingResignation = true"
                     >
@@ -167,6 +167,7 @@ defineOptions({
                             </Button>
                         </DialogClose>
                         <Button
+                            variant="destructive"
                             :disabled="processing"
                             data-test="confirm-resign-member-button"
                         >
