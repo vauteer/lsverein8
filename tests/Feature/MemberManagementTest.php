@@ -1006,3 +1006,51 @@ test('the duplicates selection is empty when the club has none', function () {
         ->get(route('members.index', ['filter' => 'possible_duplicates']))
         ->assertInertia(fn ($page) => $page->has('members.data', 0));
 });
+
+test('the selection without an active section finds who the guard would now refuse', function () {
+    $section = Section::factory()->create(['club_id' => 1]);
+
+    $covered = joinedMember(['surname' => 'MitSparte']);
+    $covered->sections()->attach($section->id, ['from' => '2016-01-01']);
+
+    // In the club, but their only spell in a section is over.
+    $lapsed = joinedMember(['surname' => 'Abgelaufen']);
+    $lapsed->sections()->attach($section->id, ['from' => '2010-01-01', 'to' => '2012-12-31']);
+
+    // In the club and never in a section at all.
+    $never = joinedMember(['surname' => 'Niemals']);
+
+    // Left the club, so having no running section is correct for them.
+    $former = joinedMember(['surname' => 'Ehemalig'], from: '2000-01-01');
+    $former->memberships()->updateExistingPivot(1, ['to' => '2005-01-01']);
+
+    $names = collect(
+        $this->actingAs(memberUser())
+            ->get(route('members.index', ['filter' => 'no_section']))
+            ->viewData('page')['props']['members']['data']
+    )->pluck('surname')->sort()->values()->all();
+
+    expect($names)->toBe(['Abgelaufen', 'Niemals'])
+        ->and($covered->fresh())->not->toBeNull()
+        ->and($former->fresh())->not->toBeNull();
+});
+
+test('the section selection is read against the chosen year', function () {
+    $section = Section::factory()->create(['club_id' => 1]);
+
+    $member = joinedMember(['surname' => 'Ausgetreten'], from: '2010-01-01');
+    // In a section until three years ago, so they count as uncovered now but
+    // not when the list is read against an earlier year.
+    $member->sections()->attach($section->id, [
+        'from' => '2010-01-01',
+        'to' => now()->subYears(3)->format('Y-m-d'),
+    ]);
+
+    $this->actingAs(memberUser());
+
+    $this->get(route('members.index', ['filter' => 'no_section']))
+        ->assertInertia(fn ($page) => $page->has('members.data', 1));
+
+    $this->get(route('members.index', ['filter' => 'no_section', 'year' => now()->year - 5]))
+        ->assertInertia(fn ($page) => $page->has('members.data', 0));
+});

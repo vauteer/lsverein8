@@ -441,6 +441,36 @@ class Member extends Model
     }
 
     /**
+     * Nobody whose sections are all over — or who never had one — as of the
+     * key date.
+     *
+     * The mirror of the rule MemberSectionController enforces: in a BLSV club
+     * somebody still in the club has to be in a section, or they are missing
+     * from the yearly Meldung, which is built section by section. The guard
+     * stops new cases; this finds any that predate it or came in through the
+     * membership side, which the guard deliberately leaves open.
+     *
+     * Any section counts, not only one carrying a `blsv_id` — the same reading
+     * the guard uses. Pair it with `members()`: a former member is supposed to
+     * have no running section.
+     *
+     * @param  Builder<Member>  $query
+     */
+    #[Scope]
+    protected function noSection(Builder $query, ?CarbonInterface $keyDate = null): void
+    {
+        $keyDate ??= self::getKeyDate();
+
+        $query->whereNotIn('id', DB::table('member_section')
+            ->where('member_section.from', '<=', $keyDate)
+            ->where(function ($query) use ($keyDate) {
+                $query->whereNull('member_section.to')->orWhere('member_section.to', '>=', $keyDate);
+            })
+            ->pluck('member_id')
+        );
+    }
+
+    /**
      * @param  Builder<Member>  $query
      * @param  list<int>|int  $sections
      */

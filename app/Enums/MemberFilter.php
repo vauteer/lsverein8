@@ -31,6 +31,7 @@ enum MemberFilter: string
     case HasRole = 'has_role';
     case HadRole = 'had_role';
     case NoSubscription = 'no_subscription';
+    case NoSection = 'no_section';
     case PossibleDuplicates = 'possible_duplicates';
 
     public function label(): string
@@ -50,6 +51,7 @@ enum MemberFilter: string
             self::HasRole => __('Holds a role'),
             self::HadRole => __('Ever held a role'),
             self::NoSubscription => __('Without a subscription'),
+            self::NoSection => __('Without an active section'),
             self::PossibleDuplicates => __('Possible duplicates'),
         };
     }
@@ -90,6 +92,9 @@ enum MemberFilter: string
             self::HasRole => $query->members()->hasRole(),
             self::HadRole => $query->everRole(),
             self::NoSubscription => $query->members()->noSubscription(),
+            // members(), unlike the duplicates below: somebody who has left
+            // is supposed to have no running section.
+            self::NoSection => $query->members()->noSection(),
             // No members() here: both halves of a pair have to show up, and
             // one of them has usually left.
             self::PossibleDuplicates => $query->possibleDuplicates(),
