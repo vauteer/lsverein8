@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Enums\LandingPage;
 use App\Enums\Locale;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
@@ -27,6 +28,10 @@ class ProfileController extends Controller
             'hasProfileImage' => $request->user()->profile_image !== null,
             'locale' => $request->user()->locale?->value,
             'locales' => Locale::options(),
+            // landingPage(), not the raw attribute: the column is NOT NULL but
+            // the model can still hand back null.
+            'landingPage' => $request->user()->landingPage()->value,
+            'landingPages' => LandingPage::options(),
         ]);
     }
 
@@ -36,7 +41,7 @@ class ProfileController extends Controller
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
         $user = $request->user();
-        $user->fill($request->safe()->only(['name', 'email', 'locale']));
+        $user->fill($request->safe()->only(['name', 'email', 'locale', 'landing_page']));
 
         if ($request->boolean('remove_profile_image')) {
             $user->profile_image = null;

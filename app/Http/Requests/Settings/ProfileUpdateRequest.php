@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Settings;
 
 use App\Concerns\ProfileValidationRules;
+use App\Enums\LandingPage;
 use App\Enums\Locale;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -23,6 +24,9 @@ class ProfileUpdateRequest extends FormRequest
             ...$this->profileRules($this->user()->id),
             // Null means "follow the club", as in the user CRUD.
             'locale' => ['nullable', Rule::enum(Locale::class)],
+            // Required, unlike locale: there is no club-level landing page to
+            // fall back on, so an empty value would mean nothing.
+            'landing_page' => ['required', Rule::enum(LandingPage::class)],
             'profile_image' => ['nullable', 'image', 'max:2048'],
             'remove_profile_image' => ['nullable', 'boolean'],
         ];

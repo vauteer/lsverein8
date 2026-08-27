@@ -26,6 +26,9 @@ const props = defineProps<{
     /** Null when this account follows its club's language. */
     locale: string | null;
     locales: SelectOption[];
+    /** Which screen this account lands on after signing in. */
+    landingPage: string;
+    landingPages: SelectOption[];
 }>();
 
 defineOptions({
@@ -202,6 +205,31 @@ function removePhoto() {
                     :value="locale === INHERIT ? '' : locale"
                 />
                 <InputError class="mt-2" :message="errors.locale" />
+            </div>
+
+            <div class="grid gap-2">
+                <Label for="landing_page">{{ $t('Start page') }}</Label>
+                <!-- No sentinel and nothing to inherit, so the plain
+                name/default-value pair is enough; reka-ui emits the hidden
+                input the Form serialises. Same as the role picker. -->
+                <Select name="landing_page" :default-value="landingPage">
+                    <SelectTrigger id="landing_page" class="w-full">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem
+                            v-for="option in landingPages"
+                            :key="option.id"
+                            :value="String(option.id)"
+                        >
+                            {{ option.name }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+                <p class="text-sm text-muted-foreground">
+                    {{ $t('The screen you land on after signing in.') }}
+                </p>
+                <InputError class="mt-2" :message="errors.landing_page" />
             </div>
 
             <div class="flex items-center gap-4">

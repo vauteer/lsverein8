@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ActionType;
 use App\Enums\ClubRole;
+use App\Enums\LandingPage;
 use App\Enums\Locale;
 use Carbon\CarbonInterface;
 use Database\Factories\UserFactory;
@@ -32,6 +33,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $profile_image
  * @property-read string $avatar
  * @property Locale|null $locale
+ * @property LandingPage|null $landing_page the column is NOT NULL; see landingPage()
  * @property int|null $club_id
  * @property int|null $created_by
  * @property string|null $remember_token
@@ -46,6 +48,7 @@ use Illuminate\Support\Facades\Storage;
     'admin',
     'profile_image',
     'locale',
+    'landing_page',
     'club_id',
     'created_by',
 ])]
@@ -72,7 +75,21 @@ class User extends Authenticatable
             'password' => 'hashed',
             'admin' => 'boolean',
             'locale' => Locale::class,
+            'landing_page' => LandingPage::class,
         ];
+    }
+
+    /**
+     * The screen this user starts on after signing in.
+     *
+     * `users.landing_page` is NOT NULL, but the attribute can still be null on
+     * a model that was created without it — `create()` does not read a column
+     * default back into the instance. Same trap as `users.admin`; here the
+     * fallback carries the meaning rather than a cast.
+     */
+    public function landingPage(): LandingPage
+    {
+        return $this->landing_page ?? LandingPage::Dashboard;
     }
 
     /**

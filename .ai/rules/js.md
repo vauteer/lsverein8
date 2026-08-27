@@ -13,7 +13,7 @@ Traps:
 - Because of that DOM read, vite.config.ts sets `inertia({ ssr: false })`. Turning SSR back on breaks the boot.
 - The Vue plugin is registered via Inertia v3's `withApp(app)` callback; there is no `setup()` in this app.
 - `SetLocale` middleware (bootstrap/app.php, before HandleInertiaRequests) applies `users.locale`, falling back to config('app.locale'). Selectable languages come from `User::availableLocales()`.
-- `resources/js/pages/Welcome.vue` is the only screen still carrying untranslated starter-kit English; translate it if it ever stops being the throwaway landing page.
+- Es gibt **keine öffentliche Seite mehr**. `Welcome.vue` ist am 2026-08-27 gelöscht worden, samt des `case name === 'Welcome': return null` in app.ts, das sie als einzige Seite ohne Layout rendern ließ. `/` ist jetzt `HomeController`: ein Gast geht direkt auf den Login, ein angemeldeter Benutzer auf seine eingestellte Startseite (siehe die `LandingPage`-Regel — der Umweg über `/dashboard` würde die Einstellung aushebeln). Damit ist auch das letzte unübersetzte Starter-Kit-Englisch weg; jede verbliebene Seite läuft durch `$t()`/`trans()`.
 
 ## The whole app is translated; PHP lang files exist alongside de.json
 Every auth page, the settings pages, the user menu and the CRUD screens go through `$t()`/`trans()`. Two things that are easy to miss:

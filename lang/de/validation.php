@@ -33,6 +33,7 @@ return [
     'attributes' => [
         'current_password' => 'Das aktuelle Passwort',
         'email' => 'Die E-Mail-Adresse',
+        'landing_page' => 'Die Startseite',
         'name' => 'Der Name',
         'password' => 'Das Passwort',
         'password_confirmation' => 'Die Passwortbestätigung',

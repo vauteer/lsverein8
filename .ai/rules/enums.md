@@ -2,6 +2,7 @@
 paths:
   - 'app/Enums/**'
   - app/Enums/AgeBracket.php
+  - app/Enums/LandingPage.php
 ---
 
 # Enums
@@ -64,3 +65,17 @@ Der Backing-Wert ist der URL-Teil der Auswahl (`?filter=age_18-26`, gebaut von `
 `MemberFilter::Children/Youths/Adults` bleiben daneben bestehen: das sind die drei groben Gruppen, in denen ein Verein sich sonst liest.
 
 **Im UI wird der BLSV bei den Altersgruppen nicht genannt** (2026-08-27): die Grenzen stammen von dort, aber nur ein Teil der Vereine ist Mitglied — die Feuerwehr hat `blsv_member = 0` und der Name sagt ihr nichts. Die Dashboard-Karte heißt deshalb schlicht „Altersstruktur / Wie alt die aktuellen Mitglieder sind". Der Verbandsbezug gehört in den Code (siehe oben), nicht auf den Bildschirm.
+
+## Startseite pro Benutzer: warum `/` nicht über eine geschützte Seite umleitet
+`users.landing_page` (NOT NULL, default `dashboard`, gecastet auf `App\Enums\LandingPage`) sagt, wo ein Benutzer nach dem Anmelden landet — Dashboard oder Mitgliederliste, einstellbar unter Einstellungen → Profil, neben der Sprache.
+
+**Drei Teile, und der dritte ist der, den man kaputtmacht:**
+1. `App\Http\Responses\LoginResponse` ersetzt Fortifys eigene (gebunden in `FortifyServiceProvider::configureResponses()`, in **boot()**, weil Fortify seine in register() bindet und die Reihenfolge nicht garantiert ist). Sie macht `redirect()->intended($user->landingPage()->url())`. `config('fortify.home')` bleibt stehen, ist aber für den Login nicht mehr maßgeblich.
+2. `intended()` schlägt die Einstellung bewusst — wer einem Link auf ein Mitglied gefolgt ist und sich anmelden musste, will dieses Mitglied.
+3. **Deshalb schickt `HomeController` (`/`) einen Gast direkt auf den Login und nicht auf `/dashboard`.** Der Umweg über eine geschützte Seite würde funktionieren, hinterlässt aber `/dashboard` als intended URL — und die gewinnt dann gegen die Einstellung, für jeden, der bei `/` anfängt, also für fast alle. Ein früherer Stand (`Route::redirect('/', '/dashboard')`, 2026-08-27, bevor es die Einstellung gab) tat genau das. Nicht zurückbauen.
+
+`User::landingPage()` statt des rohen Attributs benutzen: die Spalte ist NOT NULL, aber ein per `create()` ohne Wert angelegtes Model liest den Default nicht zurück — dieselbe Falle wie bei `users.admin`. `UserFactory` setzt den Wert deshalb ausdrücklich.
+
+In den Enum gehören nur Bildschirme, die **jeder** Account öffnen darf, sonst landet jemand direkt nach dem Login auf einem 403. Dashboard (nur `auth`) und Mitgliederliste (`MemberPolicy::viewAny()` = true) erfüllen das; etwa die Lastschriften (admin-only) nicht.
+
+`landing_page` ist in `ProfileUpdateRequest` `required` (nicht `nullable` wie `locale`): es gibt keine Vereinseinstellung zum Erben, ein leerer Wert hieße also nichts. Folge fürs Testen: **jede** `profile.update`-Nutzlast muss das Feld mitschicken, sonst schlägt die Validierung fehl.

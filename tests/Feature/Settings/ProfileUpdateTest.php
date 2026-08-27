@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\LandingPage;
 use App\Enums\Locale;
 use App\Models\Club;
 use App\Models\User;
@@ -24,6 +25,7 @@ test('profile information can be updated', function () {
         ->patch(route('profile.update'), [
             'name' => 'Test User',
             'email' => 'test@example.com',
+            'landing_page' => LandingPage::Dashboard->value,
         ]);
 
     $response
@@ -78,6 +80,7 @@ test('a profile photo can be uploaded', function () {
         ->patch(route('profile.update'), [
             'name' => $user->name,
             'email' => $user->email,
+            'landing_page' => LandingPage::Dashboard->value,
             'profile_image' => UploadedFile::fake()->image('avatar.jpg'),
         ])
         ->assertSessionHasNoErrors()
@@ -98,6 +101,7 @@ test('replacing the photo deletes the file it replaced', function () {
         ->patch(route('profile.update'), [
             'name' => $user->name,
             'email' => $user->email,
+            'landing_page' => LandingPage::Dashboard->value,
             'profile_image' => UploadedFile::fake()->image('avatar.jpg'),
         ])
         ->assertSessionHasNoErrors();
@@ -118,6 +122,7 @@ test('the photo can be removed again', function () {
         ->patch(route('profile.update'), [
             'name' => $user->name,
             'email' => $user->email,
+            'landing_page' => LandingPage::Dashboard->value,
             'remove_profile_image' => '1',
         ])
         ->assertSessionHasNoErrors();
@@ -134,6 +139,7 @@ test('removing wins over a file sent in the same request', function () {
         ->patch(route('profile.update'), [
             'name' => $user->name,
             'email' => $user->email,
+            'landing_page' => LandingPage::Dashboard->value,
             'remove_profile_image' => '1',
             'profile_image' => UploadedFile::fake()->image('avatar.jpg'),
         ])
@@ -150,6 +156,7 @@ test('the profile photo must be an image and stay under 2 MB', function () {
         ->patch(route('profile.update'), [
             'name' => $user->name,
             'email' => $user->email,
+            'landing_page' => LandingPage::Dashboard->value,
             'profile_image' => UploadedFile::fake()->create('document.pdf', 100),
         ])
         ->assertSessionHasErrors('profile_image');
@@ -158,6 +165,7 @@ test('the profile photo must be an image and stay under 2 MB', function () {
         ->patch(route('profile.update'), [
             'name' => $user->name,
             'email' => $user->email,
+            'landing_page' => LandingPage::Dashboard->value,
             'profile_image' => UploadedFile::fake()->image('huge.jpg')->size(3000),
         ])
         ->assertSessionHasErrors('profile_image');
@@ -174,6 +182,7 @@ test('an update without a photo leaves the existing one alone', function () {
         ->patch(route('profile.update'), [
             'name' => 'Neuer Name',
             'email' => $user->email,
+            'landing_page' => LandingPage::Dashboard->value,
         ])
         ->assertSessionHasNoErrors();
 
@@ -206,7 +215,11 @@ test('the orphan sweep leaves the directory .gitignore alone', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->patch(route('profile.update'), ['name' => 'Neuer Name', 'email' => $user->email])
+        ->patch(route('profile.update'), [
+            'name' => 'Neuer Name',
+            'email' => $user->email,
+            'landing_page' => LandingPage::Dashboard->value,
+        ])
         ->assertSessionHasNoErrors();
 
     Storage::disk('public')->assertExists(User::profileStoragePath('.gitignore'));
@@ -238,6 +251,7 @@ test('a user sets and clears their own language', function () {
         ->patch(route('profile.update'), [
             'name' => $user->name,
             'email' => $user->email,
+            'landing_page' => LandingPage::Dashboard->value,
             'locale' => 'en',
         ])
         ->assertSessionHasNoErrors();
@@ -250,6 +264,7 @@ test('a user sets and clears their own language', function () {
     $this->patch(route('profile.update'), [
         'name' => $user->name,
         'email' => $user->email,
+        'landing_page' => LandingPage::Dashboard->value,
         'locale' => '',
     ])->assertSessionHasNoErrors();
 
@@ -264,7 +279,41 @@ test('the profile rejects a language that does not exist', function () {
         ->patch(route('profile.update'), [
             'name' => $user->name,
             'email' => $user->email,
+            'landing_page' => LandingPage::Dashboard->value,
             'locale' => 'fr',
         ])
         ->assertSessionHasErrors('locale');
+});
+
+test('a user chooses the screen they land on', function () {
+    $user = User::factory()->create(['landing_page' => LandingPage::Dashboard]);
+
+    $this->actingAs($user)
+        ->get(route('profile.edit'))
+        ->assertInertia(fn ($page) => $page
+            ->where('landingPage', 'dashboard')
+            ->has('landingPages', 2)
+        );
+
+    $this->patch(route('profile.update'), [
+        'name' => $user->name,
+        'email' => $user->email,
+        'landing_page' => LandingPage::Members->value,
+    ])->assertSessionHasNoErrors();
+
+    expect($user->refresh()->landingPage())->toBe(LandingPage::Members);
+});
+
+test('the profile rejects a start page that does not exist', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'landing_page' => 'sections',
+        ])
+        ->assertSessionHasErrors('landing_page');
+
+    expect($user->refresh()->landingPage())->toBe(LandingPage::Dashboard);
 });

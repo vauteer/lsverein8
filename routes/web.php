@@ -9,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DebitController;
 use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\MemberController;
@@ -34,7 +35,10 @@ use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'Welcome')->name('home');
+// There is no public page: a guest goes to the login, a signed-in user to the
+// screen they chose in their settings. See HomeController for why the guest is
+// not simply bounced off a protected page instead.
+Route::get('/', HomeController::class)->name('home');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');

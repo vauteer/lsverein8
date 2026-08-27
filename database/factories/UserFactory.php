@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\LandingPage;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -28,6 +29,9 @@ class UserFactory extends Factory
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'password' => static::$password ??= Hash::make('password'),
+            // Spelled out rather than left to the column default, which
+            // create() would not read back into the instance.
+            'landing_page' => LandingPage::Dashboard,
             'remember_token' => Str::random(10),
         ];
     }
