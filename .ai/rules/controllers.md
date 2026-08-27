@@ -2,6 +2,7 @@
 paths:
   - app/Http/Controllers/MemberExportController.php
   - app/Http/Controllers/BlsvStatisticController.php
+  - app/Http/Controllers/DashboardController.php
 ---
 
 # Controllers
@@ -32,3 +33,21 @@ Ein GET, der schreibt, ist Absicht (wie lsverein7): gespeichert wird nur nach st
 Reihenfolge der Downloads: Alters-Statistik (PDF), Alle Sparten (CSV), dann die Sparten in BLSV-Nummernfolge. lsverein7 lieferte durch ein `array_reverse()` die Sparten absteigend — das war ein Nebeneffekt, nicht gewollt. Leere Sparten bekommen gar keine Datei.
 
 Einstieg ist die Vereinsseite (`clubs/Edit.vue`, Abschnitt neben dem Vereinsexport), sichtbar über die Prop `blsvStatistic`. Im Template ist der Wayfinder-Helper deshalb als `blsvStatisticRoute` importiert — Prop und Helper hießen sonst gleich.
+
+## Dashboard: jede Zahl ist die Auswahl, auf die sie verlinkt — und keine MySQL-only-Scopes
+`GET dashboard` (DashboardController, nur `auth`) zeigt Kennzahlen, Altersstruktur, Vereinszugehörigkeit, 10-Jahres-Entwicklung, Abteilungen und (nur Admin) Beiträge.
+
+**Funktionen sind bewusst nicht dabei** (am 2026-08-27 wieder entfernt): der Sportverein pflegt 11, die Feuerwehr 29, davon die meisten mit ein bis zwei Trägern — als Balkendiagramm ist das eine Liste, keine Aussage. Wer sie sehen will, geht auf `/roles`, wo die Zahl ohnehin steht.
+
+**Die Kachel heißt „Ehrungen", nicht „Fällige Ehrungen".** Die Zahl ist weiter der `due_honours`-Wert und verlinkt auch dorthin, aber eine Ehrung, die dieses Jahr ansteht, kann längst verliehen sein — „fällig" behauptet mehr, als die Zahl weiß.
+
+**Tragende Eigenschaft, gleiche wie bei `members_count`:** jede angezeigte Zahl wird von genau der Auswahl erzeugt, auf die sie verlinkt — Abteilungen/Beiträge über `AssignedMemberCount`, die Altersgruppen über `AgeBracket::apply()` (= `members()->ageRange()`), die Jahreszahlen über dieselben `club_member`-Bedingungen wie `joined`/`retired`. Eine Zahl, die das nicht halten kann, wird **nicht** als Link gerendert (Vereinszugehörigkeit hat keine Auswahl und ist deshalb reiner Text). Am 2026-08-27 an Produktionsdaten geprüft: alle sieben Altersgruppen stimmen exakt mit ihrer Auswahl überein.
+
+**Kein MySQL-only-Scope auf diesem Bildschirm.** `dueHonor`, `joined`, `retired`, `dead`, `milestoneBirthdays` nutzen `YEAR`/`LEAST`/`FIND_IN_SET` und würden die ganze Seite auf der SQLite-Testverbindung unausführbar machen. Deshalb:
+- Ein-/Austritte über `whereBetween('from'|'to', [1.1., 31.12.])` statt `YEAR(...)` — gleiche Menge, portabel.
+- Fällige Ehrungen über `Member::membershipYears()` in PHP statt über den `dueHonor`-Scope. Beide Wege liefern in Produktion dieselbe Zahl (23, geprüft); sie können nur bei jemandem auseinanderlaufen, der im selben Jahr wieder eingetreten ist und ältere Mitgliedschaften hat — `membershipYears()` gibt dann 0 zurück, das SQL summiert. Das ist eine bestehende Abweichung der App, nicht des Dashboards.
+- `honor_years` einmal im Controller auflösen, nicht `Member::honorThisYear()` pro Zeile: das ruft `currentClub()` und damit ein `Club::find()` je Mitglied.
+
+Die Mitglieder werden **einmal** geladen (`members()->with('memberships')`) und in PHP in Alters- und Zugehörigkeitsbänder sortiert — wie `Club::getBLSVStatistic()`. Eine Abfrage je Gruppe wäre eine Abfrage je Gruppe **und** Geschlecht.
+
+Die Beiträge-Karte ist admin-only (`hasAdminRights()`), gleiche Begründung wie bei `MemberResource` und `MemberFilter::NoSubscription`.

@@ -464,3 +464,58 @@ export type Paginated<T> = {
         total: number;
     };
 };
+
+/** The headline numbers of the dashboard; `average_age` is null in an empty club. */
+export type DashboardSummary = {
+    members: number;
+    former: number;
+    joined: number;
+    left: number;
+    average_age: number | null;
+    due_honours: number;
+};
+
+/** One of the seven BLSV age groups, split by gender. */
+export type DashboardAgeBracket = {
+    /** The member selection this bracket links to, e.g. `age_18-26`. */
+    filter: string;
+    label: string;
+    male: number;
+    female: number;
+    /** Neither male nor female — see the Gender enum; normally zero. */
+    other: number;
+    total: number;
+};
+
+/**
+ * One bar of a distribution card. `filter` is the member selection the bar
+ * links to; a bar without one is a distribution the member list cannot show,
+ * and is rendered as plain text rather than as a link that lies.
+ */
+export type DashboardBarRow = {
+    label: string;
+    count: number;
+    filter?: string;
+};
+
+/** One band of "how long have they been in", e.g. `20–29`. Not a selection. */
+export type DashboardYearsBand = {
+    label: string;
+    count: number;
+};
+
+/** One year of the development chart, all three numbers of that year. */
+export type DashboardDevelopmentPoint = {
+    year: number;
+    members: number;
+    joined: number;
+    left: number;
+};
+
+/**
+ * One row of a distribution card — a section, a role, a subscription. The
+ * count is produced by the very selection `filter` names.
+ */
+export type DashboardDistributionRow = DashboardBarRow & {
+    filter: string;
+};

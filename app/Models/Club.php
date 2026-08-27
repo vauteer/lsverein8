@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\AssignedMemberCount;
+use App\Enums\AgeBracket;
 use App\Enums\ClubDisplay;
 use App\Enums\Locale;
 use App\Models\Scopes\ClubScope;
@@ -251,17 +252,17 @@ class Club extends Model
         ];
     }
 
+    /**
+     * Which of the seven rows of the age statistic a member belongs in.
+     *
+     * The boundaries live on `App\Enums\AgeBracket` so that this report, the
+     * dashboard's age chart and the member selection behind that chart cannot
+     * draw different lines. They are the association's — changing one changes
+     * what the club submits.
+     */
     private static function getStatIndex(int $age): int
     {
-        return match (true) {
-            $age < 6 => 0,
-            $age < 14 => 1,
-            $age < 18 => 2,
-            $age < 27 => 3,
-            $age < 41 => 4,
-            $age < 61 => 5,
-            default => 6
-        };
+        return AgeBracket::of($age)->index();
     }
 
     /**

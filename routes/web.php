@@ -5,6 +5,7 @@ use App\Http\Controllers\BlsvStatisticController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubExportController;
 use App\Http\Controllers\ClubSwitchController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DebitController;
 use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\EventController;
@@ -36,7 +37,7 @@ use Illuminate\Support\Facades\Route;
 Route::inertia('/', 'Welcome')->name('home');
 
 Route::middleware(['auth'])->group(function () {
-    Route::inertia('dashboard', 'Dashboard')->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     // Reachable by the impersonated session too, which is never root.
     Route::delete('impersonate', [ImpersonationController::class, 'destroy'])->name('impersonate.destroy');

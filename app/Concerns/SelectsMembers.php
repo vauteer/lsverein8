@@ -2,6 +2,7 @@
 
 namespace App\Concerns;
 
+use App\Enums\AgeBracket;
 use App\Enums\MemberFilter;
 use App\Enums\MemberSort;
 use App\Enums\PaymentMethod;
@@ -88,7 +89,7 @@ trait SelectsMembers
             return;
         }
 
-        if (preg_match('/^(section|role|ever_role|event|item|ever_item|subscription|payment)_(.+)$/', $filter, $match) !== 1) {
+        if (preg_match('/^(section|role|ever_role|event|item|ever_item|subscription|payment|age)_(.+)$/', $filter, $match) !== 1) {
             MemberFilter::Members->apply($query);
 
             return;
@@ -106,7 +107,24 @@ trait SelectsMembers
             'ever_item' => $query->everItem($id),
             'subscription' => $query->members()->hasSubscription($id),
             'payment' => $this->applyPaymentFilter($key, $query),
+            'age' => $this->applyAgeFilter($key, $query),
         };
+    }
+
+    /**
+     * @param  Builder<Member>  $query
+     */
+    private function applyAgeFilter(string $key, Builder $query): void
+    {
+        $bracket = AgeBracket::tryFrom($key);
+
+        if ($bracket === null) {
+            MemberFilter::Members->apply($query);
+
+            return;
+        }
+
+        $bracket->apply($query);
     }
 
     /**
@@ -193,6 +211,11 @@ trait SelectsMembers
         foreach (PaymentMethod::cases() as $method) {
             $options[] = ['id' => "payment_{$method->value}", 'name' => __('Pays by: :name', ['name' => $method->label()])];
         }
+
+        // The seven BLSV age groups, so a bar of the dashboard's age chart
+        // has a selection to link to. MemberFilter's Children/Youths/Adults
+        // stay: they are the three coarse groups a club is usually read in.
+        $options = [...$options, ...AgeBracket::options()];
 
         return $options;
     }

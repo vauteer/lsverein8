@@ -1,6 +1,7 @@
 ---
 paths:
   - 'app/Enums/**'
+  - app/Enums/AgeBracket.php
 ---
 
 # Enums
@@ -52,3 +53,14 @@ Das ist jetzt `Gender::blsvValue()`: gleiches Ergebnis, aber an **einer** Stelle
 **`Divers` ist deshalb geparkt, nicht aktiv.** `Gender::selectable()` gibt nur `Frau` und `Mann` zurück; `options()` baut darauf auf (Picker) und `MemberValidationRules` nutzt dieselbe Liste über `Rule::enum(Gender::class)->only(Gender::selectable())`. Bewusst **beides**: nur aus dem Picker nehmen würde einen von Hand geschickten Wert weiter durchlassen.
 
 **Offen:** ob der BLSV einen dritten Wert annimmt (`d`? `x`? eigene Zeile?), ist ungeklärt. Vor dem nächsten Statistiklauf beim Verband nachfragen. Zum Einschalten danach: `selectable()` auf `self::cases()` und `blsvValue()` klären — sonst nichts. Der Test „the diverse gender is parked" wird dann rot und zeigt, was anzupassen ist.
+
+## AgeBracket: die BLSV-Altersgrenzen stehen an genau einer Stelle
+`App\Enums\AgeBracket` hält die sieben Altersgruppen (0-5, 6-13, 14-17, 18-26, 27-40, 41-60, 61+). **Die Grenzen gehören dem BLSV, nicht uns** — `Club::getStatIndex()` delegiert hierher und `BlsvPdf` druckt genau diese sieben Zeilen, eine verschobene Grenze ändert also, was der Verein an den Verband meldet. Vorher stand die Staffelung als `match (true)` in `Club::getStatIndex()`; sie liegt hier, damit Jahresmeldung, Dashboard-Chart und die Mitglieder-Auswahl dahinter nicht drei verschiedene Linien ziehen können.
+
+`minAge()`/`maxAge()`, **nicht** `from()`/`to()`: `BackedEnum::from()` ist belegt, phpstan bricht sonst mit `enum.methodRedeclaration`.
+
+Der Backing-Wert ist der URL-Teil der Auswahl (`?filter=age_18-26`, gebaut von `filter()`) und liegt damit in Lesezeichen — stabil halten. `apply()` ist die einzige Stelle, an der eine Gruppe zu SQL wird (`members()->ageRange()`), aufgerufen aus `SelectsMembers::applyAgeFilter()`; `AgeBracket::options()` hängt die sieben Einträge an `dynamicFilters()`.
+
+`MemberFilter::Children/Youths/Adults` bleiben daneben bestehen: das sind die drei groben Gruppen, in denen ein Verein sich sonst liest.
+
+**Im UI wird der BLSV bei den Altersgruppen nicht genannt** (2026-08-27): die Grenzen stammen von dort, aber nur ein Teil der Vereine ist Mitglied — die Feuerwehr hat `blsv_member = 0` und der Name sagt ihr nichts. Die Dashboard-Karte heißt deshalb schlicht „Altersstruktur / Wie alt die aktuellen Mitglieder sind". Der Verbandsbezug gehört in den Code (siehe oben), nicht auf den Bildschirm.
