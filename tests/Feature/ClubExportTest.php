@@ -89,7 +89,10 @@ test('the export carries the club slice and nothing of another club', function (
     furnishedMember($this->club, 'Eigen');
     furnishedMember($other, 'Fremd');
 
-    $mine = clubExportUser();
+    // Both accounts get a fixed name. The faker default bit here: a name
+    // carrying an apostrophe ("Mr. Carmelo O'Kon") is escaped as O''Kon in the
+    // SQL, so an assertion on the raw name failed about one run in a hundred.
+    $mine = clubExportUser(attributes: ['name' => 'Eigenbenutzer']);
     clubExportUser(club: $other, attributes: ['name' => 'Fremdbenutzer']);
 
     $sql = $this->actingAs($mine)
@@ -100,7 +103,7 @@ test('the export carries the club slice and nothing of another club', function (
         ->toContain('Sparte Eigen')
         ->toContain('Beitrag Eigen')
         ->toContain('Lastschrift Eigen')
-        ->toContain($mine->name)
+        ->toContain('Eigenbenutzer')
         // Nothing of the other club, its members, or the accounts that reach it.
         ->not->toContain('Fremd');
 });
