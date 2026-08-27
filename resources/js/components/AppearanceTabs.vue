@@ -13,9 +13,14 @@ const tabs = [
 </script>
 
 <template>
-    <div
-        class="inline-flex gap-1 rounded-lg bg-neutral-100 p-1 dark:bg-neutral-800"
-    >
+    <!-- Theme tokens rather than fixed neutrals: this control was the last
+    place in the app hardcoding colours, which is why it kept the starter
+    kit's grey after the palette changed. bg-muted track, bg-background pill —
+    the shadcn Tabs convention, so it follows any future palette on its own.
+    In dark that makes the active pill darker than the track rather than
+    lighter, because --muted is the lightest surface token there; the shadow
+    and the foreground text carry it. -->
+    <div class="inline-flex gap-1 rounded-lg bg-muted p-1">
         <button
             v-for="{ value, Icon, label } in tabs"
             :key="value"
@@ -23,8 +28,8 @@ const tabs = [
             :class="[
                 'flex items-center rounded-md px-3.5 py-1.5 transition-colors',
                 appearance === value
-                    ? 'bg-white shadow-xs dark:bg-neutral-700 dark:text-neutral-100'
-                    : 'text-neutral-500 hover:bg-neutral-200/60 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-700/60',
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
             ]"
         >
             <component :is="Icon" class="-ml-1 h-4 w-4" />
