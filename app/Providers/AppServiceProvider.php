@@ -50,6 +50,13 @@ class AppServiceProvider extends ServiceProvider
         // it wholesale, so this is root-only for the same reason.
         Gate::define('manageBackups', fn (User $user): bool => (bool) $user->admin);
 
+        // A Telescope entry carries the request payload, the query bindings and
+        // the model attributes of whoever was on the site — every club at once,
+        // same as the log viewer, hence root-only. TelescopeServiceProvider
+        // drops the package's "anyone in a local environment" bypass so this
+        // gate is the only way in.
+        Gate::define('viewTelescope', fn (User $user): bool => (bool) $user->admin);
+
         // storage/downloads holds the SEPA file and the BLSV statistic, which
         // carry the members' names, IBANs and mandate dates. DownloadController
         // resolves a name against the caller's own club, so this only has to

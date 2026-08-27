@@ -11,6 +11,7 @@ import {
     Shapes,
     Euro,
     Package,
+    Telescope,
     UserCog,
     Users,
 } from '@lucide/vue';
@@ -29,7 +30,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
+import { dashboard, telescope } from '@/routes';
 import { index as backups } from '@/routes/backups';
 import { edit as editClub, index as clubs } from '@/routes/clubs';
 import { index as debits } from '@/routes/debits';
@@ -145,6 +146,19 @@ const mainNavItems = computed<NavItem[]>(() => [
                   title: wTrans('Logs').value,
                   href: logViewer().url,
                   icon: FileText,
+                  external: true,
+              },
+          ]
+        : []),
+    // Root accounts only, for the same reason: an entry carries the request
+    // payload and query bindings of every club at once. Telescope ships its
+    // own Blade/Vue app, so this one is external too.
+    ...(page.props.auth.canViewTelescope
+        ? [
+              {
+                  title: wTrans('Telescope').value,
+                  href: telescope().url,
+                  icon: Telescope,
                   external: true,
               },
           ]

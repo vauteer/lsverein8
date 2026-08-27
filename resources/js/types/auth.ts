@@ -12,6 +12,7 @@ export type Auth = {
     user: User;
     canManageUsers: boolean;
     canViewLogs: boolean;
+    canViewTelescope: boolean;
     canManageBackups: boolean;
     canManageDebits: boolean;
     canManageClubs: boolean;

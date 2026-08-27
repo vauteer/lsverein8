@@ -57,6 +57,7 @@ class HandleInertiaRequests extends Middleware
                 // Resolved through the gate rather than reading users.admin
                 // again, so the sidebar entry and the route cannot disagree.
                 'canViewLogs' => (bool) $request->user()?->can('viewLogViewer'),
+                'canViewTelescope' => (bool) $request->user()?->can('viewTelescope'),
                 'canManageBackups' => (bool) $request->user()?->can('manageBackups'),
                 // Admin-only screen, so the sidebar entry is resolved
                 // through the policy rather than repeating its check.

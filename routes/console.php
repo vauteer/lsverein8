@@ -10,3 +10,9 @@ Artisan::command('inspire', function () {
 
 Schedule::command('app:backup')
     ->dailyAt('23:15');
+
+// Telescope writes a row per request and never cleans up after itself. Pruned
+// before the backup runs so the nightly dump is not taken while the largest
+// table in the database is at its fullest.
+Schedule::command('telescope:prune --hours=48')
+    ->dailyAt('23:00');

@@ -20,6 +20,14 @@ return [
     | application data worth restoring. Their structure is still dumped so a
     | restore recreates them empty instead of leaving them missing entirely.
     |
+    | The three `telescope_*` tables are debug telemetry, not club data: they
+    | are the largest tables in the database within days of being switched on
+    | (one row per request, plus a tag row per entry), `telescope:prune` throws
+    | them away on a schedule anyway, and a `content` column holds the request
+    | payloads and query bindings verbatim — member names, emails and IBANs
+    | included. Backing them up would inflate every dump with data that is
+    | worthless to restore and sensitive to keep.
+    |
     | `tracings` is NOT excluded: the login and action history is club data.
     */
     'exclude_tables' => [
@@ -30,5 +38,8 @@ return [
         'failed_jobs',
         'sessions',
         'password_reset_tokens',
+        'telescope_entries',
+        'telescope_entries_tags',
+        'telescope_monitoring',
     ],
 ];
