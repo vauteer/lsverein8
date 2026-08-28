@@ -574,6 +574,60 @@ test('the forms offer the bank details of members who have some', function () {
         ->assertInertia(fn ($page) => $page->has('accountSources', 2));
 });
 
+test('the create form preselects neither a section nor a subscription', function () {
+    // A preselected first entry is a choice nobody made. It costs money on the
+    // subscription — the club would collect whatever happens to sort first —
+    // and joining is the one moment both are recorded, so both are asked.
+    Subscription::factory()->create(['club_id' => 1, 'name' => 'Beitragsfrei', 'amount' => 0]);
+    $section = Section::factory()->create(['club_id' => 1]);
+    $entry = ['entry_date' => '2024-03-01'];
+
+    $this->actingAs(memberUser());
+
+    $this->post(route('members.store'), memberPayload([
+        ...$entry,
+        'section_id' => $section->id,
+        'subscription_id' => '',
+    ]))->assertSessionHasErrors('subscription_id');
+
+    $this->post(route('members.store'), memberPayload([
+        ...$entry,
+        'section_id' => '',
+        'subscription_id' => entrySubscription(),
+    ]))->assertSessionHasErrors('section_id');
+
+    expect(Member::query()->where('surname', 'Meier')->exists())->toBeFalse();
+});
+
+test('the subscription pickers name the amount', function () {
+    // Two of the club's fees are 88 €, and three are 0 €; the name alone does
+    // not say what picking one costs. Same format as the outstanding payments
+    // list and the collection dialog, through Subscription::__toString().
+    Subscription::factory()->create(['club_id' => 1, 'name' => 'Familie', 'amount' => 88]);
+    Subscription::factory()->create(['club_id' => 1, 'name' => 'Familienmitglied', 'amount' => 0]);
+    Section::factory()->create(['club_id' => 1]);
+
+    $this->actingAs(memberUser());
+
+    // By name: in a picker you look the fee up by what it is called. The
+    // subscription list itself goes by amount — that is deliberate and stays.
+    $expected = [
+        'Familie (88,00 €)',
+        'Familienmitglied (0,00 €)',
+    ];
+
+    $this->get(route('members.create'))
+        ->assertInertia(fn ($page) => $page
+            ->where('subscriptions', fn ($options) => collect($options)->pluck('name')->all() === $expected)
+        );
+
+    // The member page feeds both the subscription dialog and the rejoining one.
+    $this->get(route('members.show', joinedMember()))
+        ->assertInertia(fn ($page) => $page
+            ->where('options.subscriptions', fn ($options) => collect($options)->pluck('name')->all() === $expected)
+        );
+});
+
 test('a former member is taken back in with a section and a subscription', function () {
     $section = Section::factory()->create(['club_id' => 1]);
     $subscription = Subscription::factory()->create(['club_id' => 1]);

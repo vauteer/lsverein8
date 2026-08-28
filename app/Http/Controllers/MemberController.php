@@ -77,7 +77,7 @@ class MemberController extends Controller
         return Inertia::render('members/Create', [
             ...$this->formOptions(),
             'sections' => $this->options(Section::query()->orderBy('name')),
-            'subscriptions' => $this->options(Subscription::query()->orderBy('name')),
+            'subscriptions' => $this->subscriptionOptions(),
             'accountSources' => $this->accountSources(),
             'today' => now()->format('Y-m-d'),
             'backQuery' => $this->backQuery($request),
@@ -244,9 +244,7 @@ class MemberController extends Controller
                 'sections' => $this->options(Section::query()->orderBy('name')),
                 'roles' => $this->options(Role::query()->orderBy('name')),
                 'events' => $this->options(Event::query()->orderBy('name')),
-                'subscriptions' => $showsFinances
-                    ? $this->options(Subscription::query()->orderBy('amount')->orderBy('name'))
-                    : [],
+                'subscriptions' => $showsFinances ? $this->subscriptionOptions() : [],
                 'items' => $usesItems ? $this->options(Item::query()->orderBy('name')) : [],
             ] : null,
             'today' => now()->format('Y-m-d'),
@@ -548,6 +546,35 @@ class MemberController extends Controller
                 'from' => $model->pivot->from->format('Y-m-d'),
                 'to' => $model->pivot->to?->format('Y-m-d'),
                 'memo' => $model->pivot->memo,
+            ])
+            ->all());
+    }
+
+    /**
+     * The club's subscriptions, labelled with what they cost.
+     *
+     * Through `__toString()`, so the picker reads exactly like the outstanding
+     * payments list and the collection dialog — "Erwachsen (40,00 €)". The
+     * amount is what tells two of them apart: "Familie" and "Familie
+     * ermäßigt" are both 88 €, and "Familienmitglied" is the 0 € one that
+     * bills nobody. Picking blind was easy to get wrong.
+     *
+     * Sorted by name, unlike the subscription list itself, which goes by
+     * amount then name (that ordering comes from lsverein7 and `pageOf()`
+     * mirrors it — do not align the two). In a picker you look the fee up by
+     * what it is called; the amount is there to confirm the choice, not to
+     * order it.
+     *
+     * @return list<array{id: int, name: string}>
+     */
+    private function subscriptionOptions(): array
+    {
+        return array_values(Subscription::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'amount'])
+            ->map(fn (Subscription $subscription): array => [
+                'id' => $subscription->id,
+                'name' => (string) $subscription,
             ])
             ->all());
     }

@@ -43,14 +43,13 @@ const props = defineProps<{
 const { backQuery } = props;
 const cancelHref = index({ query: backQuery });
 
-const sectionId = ref(
-    props.sections.length > 0 ? String(props.sections[0].id) : '',
-);
-// A subscription is required, so this preselects rather than offering "none":
-// a current member always holds one, and paying nothing is a 0 € subscription.
-const subscriptionId = ref(
-    props.subscriptions.length > 0 ? String(props.subscriptions[0].id) : '',
-);
+// Unset like the subscription below it: a preselected first entry is a choice
+// nobody made, and joining is the one moment both are recorded.
+const sectionId = ref('');
+// Same reasoning, and here it costs money: a preselected first entry would
+// record a new member as paying whatever happens to sort first, and a wrong
+// fee is only visible later in what the club fails to collect.
+const subscriptionId = ref('');
 
 // Cleared whenever a fresh warning arrives, so a second, different duplicate
 // cannot be waved through by a tick the user set for the first one.
@@ -150,7 +149,9 @@ defineOptions({
                         </Label>
                         <Select v-model="subscriptionId">
                             <SelectTrigger id="subscription_id" class="w-full">
-                                <SelectValue />
+                                <SelectValue
+                                    :placeholder="$t('Pick a subscription')"
+                                />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem
