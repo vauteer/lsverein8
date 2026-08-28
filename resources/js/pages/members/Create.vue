@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { create, index } from '@/routes/members';
 import type {
+    AccountSource,
     BreadcrumbItem,
     DuplicateMember,
     MemberListFilters,
@@ -28,6 +29,7 @@ import type {
 
 const props = defineProps<{
     genders: SelectOption[];
+    accountSources: AccountSource[];
     sections: SelectOption[];
     subscriptions: SelectOption[];
     today: string;
@@ -92,7 +94,11 @@ defineOptions({
             class="space-y-6"
             v-slot="{ errors, processing }"
         >
-            <MemberFormFields :genders="genders" :errors="errors" />
+            <MemberFormFields
+                :genders="genders"
+                :account-sources="accountSources"
+                :errors="errors"
+            />
 
             <div
                 class="grid gap-6 rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border"

@@ -506,6 +506,55 @@ test('the bank details are all or nothing', function () {
         ->and($member->payment_method)->toBe(PaymentMethod::Account);
 });
 
+test('the forms offer the bank details of members who have some', function () {
+    $account = [
+        'bank' => 'Sparkasse',
+        'account_owner' => 'Hans Vater',
+        'iban' => 'DE89 3704 0044 0532 0130 00',
+        'bic' => 'COBADEFFXXX',
+    ];
+
+    $withAccount = joinedMember([...$account, 'surname' => 'Vater', 'first_name' => 'Hans']);
+    $withoutAccount = joinedMember(['surname' => 'Ohne']);
+    $editing = joinedMember([...$account, 'surname' => 'Kind']);
+    // The surname travels so the form can narrow the list down to it. The
+    // filtering itself is client side: the create form has no surname until
+    // it is typed, and on the edit form it can still be corrected.
+
+    // Somebody who has left keeps their bank details but is not offered: the
+    // list is long enough with the people actually in the club.
+    $departed = joinedMember([...$account, 'surname' => 'Weg'], '2010-01-01');
+    $departed->memberships()->updateExistingPivot(1, ['to' => '2020-12-31']);
+
+    $this->actingAs(memberUser());
+
+    // All four fields travel with the option: they are copied together, and
+    // half an account is exactly what the all-or-nothing rule forbids.
+    $this->get(route('members.edit', $editing))
+        ->assertInertia(fn ($page) => $page
+            ->has('accountSources', 1)
+            ->where('accountSources.0.id', $withAccount->id)
+            ->where('accountSources.0.surname', 'Vater')
+            ->where('accountSources.0.iban', $withAccount->iban)
+            ->where('accountSources.0.bic', $withAccount->bic)
+            ->where('accountSources.0.bank', $withAccount->bank)
+            ->where('accountSources.0.account_owner', $withAccount->account_owner)
+            // Name plus IBAN, like the debit picker — two households can share
+            // a surname, so the name alone does not identify the account.
+            ->where('accountSources.0.name', 'Vater Hans ('.normalizeIban($withAccount->iban).')')
+        );
+
+    // The member being edited is not offered their own account, and somebody
+    // without bank details has nothing to copy.
+    expect(collect($this->get(route('members.edit', $editing))
+        ->viewData('page')['props']['accountSources'])->pluck('id')->all())
+        ->not->toContain($editing->id, $withoutAccount->id, $departed->id);
+
+    // The create form offers everybody, there is nobody to exclude yet.
+    $this->get(route('members.create'))
+        ->assertInertia(fn ($page) => $page->has('accountSources', 2));
+});
+
 test('an action carries the list selection back with it', function () {
     // The list state lives in the URL, so every way out of the member forms
     // has to hand it on: save, resign and delete alike, not just Cancel.

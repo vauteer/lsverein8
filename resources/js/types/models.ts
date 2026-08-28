@@ -236,6 +236,17 @@ export type MemberResource = {
  * The member fields sent to the create/edit forms — bank details included,
  * which is why only an admin reaches those pages.
  */
+/** A member whose bank details can be copied into a member form. */
+export type AccountSource = {
+    id: number;
+    surname: string;
+    name: string;
+    bank: string | null;
+    account_owner: string | null;
+    iban: string | null;
+    bic: string | null;
+};
+
 export type MemberFormData = {
     id: number;
     member_id: number;

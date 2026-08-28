@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { index } from '@/routes/members';
 import type {
+    AccountSource,
     BreadcrumbItem,
     MemberFormData,
     MemberListFilters,
@@ -29,6 +30,7 @@ import type {
 const props = defineProps<{
     member: MemberFormData;
     genders: SelectOption[];
+    accountSources: AccountSource[];
     /** Only somebody with an open membership can be resigned. */
     resignable: boolean;
     /** Floor for the resignation date: the day after the latest open start. */
@@ -90,6 +92,7 @@ defineOptions({
             <MemberFormFields
                 :member="member"
                 :genders="genders"
+                :account-sources="accountSources"
                 :errors="errors"
             />
 

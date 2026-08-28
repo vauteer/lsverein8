@@ -77,6 +77,7 @@ class MemberController extends Controller
             ...$this->formOptions(),
             'sections' => $this->options(Section::query()->orderBy('name')),
             'subscriptions' => $this->options(Subscription::query()->orderBy('name')),
+            'accountSources' => $this->accountSources(),
             'today' => now()->format('Y-m-d'),
             'backQuery' => $this->backQuery($request),
             // Set only when store() bounced the form because somebody of that
@@ -283,6 +284,7 @@ class MemberController extends Controller
             // enforces is visible before the form is sent.
             'earliestResignation' => $member->lastOpenStart()?->addDay()->format('Y-m-d'),
             'deletable' => $request->user()->can('delete', $member),
+            'accountSources' => $this->accountSources($member),
             'today' => now()->format('Y-m-d'),
             'backQuery' => $this->backQuery($request),
         ]);
@@ -384,6 +386,58 @@ class MemberController extends Controller
         return [
             'genders' => Gender::options(),
         ];
+    }
+
+    /**
+     * Members whose bank details can be copied into the form.
+     *
+     * A family shares one account, so the same four fields get typed again
+     * for every child. The label is name plus IBAN, exactly as
+     * DebitController::memberOptions() writes it — the treasurer picks by
+     * account, and two households can carry the same surname.
+     *
+     * Current members only, unlike the debit picker: a list that also carried
+     * everybody who ever left, plus the dead, ran to 375 entries in club 1 and
+     * was unusable. It is 218 this way, and the form narrows that to the
+     * matching surname — a median of one, seven at the most.
+     *
+     * The surname filter is deliberately not applied here. The create form has
+     * no surname until it is typed, and on the edit form the field can still
+     * be corrected; the list has to follow either way, which only the client
+     * can do.
+     *
+     * All four fields travel with the option rather than being fetched on
+     * demand. They are already reachable from this page, which is admin-only
+     * (MemberPolicy::update), and the debit form has shipped the club's IBANs
+     * the same way since it was ported.
+     *
+     * @return list<array{id: int, surname: string, name: string, bank: string|null, account_owner: string|null, iban: string|null, bic: string|null}>
+     */
+    private function accountSources(?Member $except = null): array
+    {
+        // array_values, not Collection::all(): an Eloquent collection is keyed
+        // by position but typed as a map, and only array_values() is a list.
+        // Same shape as DebitController::memberOptions(), which hydrates the
+        // club's account holders the same way.
+        return array_values(Member::query()
+            ->members()
+            ->hasAccount()
+            ->when($except, fn (Builder $query, Member $member) => $query->whereKeyNot($member->id))
+            ->orderBy('surname')
+            ->orderBy('first_name')
+            ->get(['id', 'surname', 'first_name', 'bank', 'account_owner', 'iban', 'bic'])
+            ->map(fn (Member $member): array => [
+                'id' => $member->id,
+                // Matched against the surname in the form, so the picker can
+                // narrow itself down as that field is typed or corrected.
+                'surname' => $member->surname,
+                'name' => "{$member->surname} {$member->first_name} (".normalizeIban($member->iban).')',
+                'bank' => $member->bank,
+                'account_owner' => $member->account_owner,
+                'iban' => $member->iban,
+                'bic' => $member->bic,
+            ])
+            ->all());
     }
 
     /**
