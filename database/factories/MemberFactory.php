@@ -30,7 +30,6 @@ class MemberFactory extends Factory
             'city' => fake()->city(),
             'email' => fake()->safeEmail(),
             'phone' => fake()->phoneNumber(),
-            'payment_method' => 'r',
         ];
     }
 
@@ -55,11 +54,15 @@ class MemberFactory extends Factory
 
     /**
      * Pays by direct debit, so the SEPA generator picks the member up.
+     *
+     * The IBAN is what makes that true — `Member::payment_method` is derived
+     * from it, there is no column to set since 2026-08-28. Without this state
+     * a member has no bank details and is billed by hand.
      */
     public function payingByAccount(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'payment_method' => 'k',
+            'bank' => fake()->company(),
             'account_owner' => fake()->name(),
             'iban' => 'DE89370400440532013000',
             'bic' => 'COBADEFFXXX',

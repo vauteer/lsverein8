@@ -29,7 +29,6 @@ import type {
 const props = defineProps<{
     member: MemberFormData;
     genders: SelectOption[];
-    paymentMethods: SelectOption[];
     /** Only somebody with an open membership can be resigned. */
     resignable: boolean;
     /** Floor for the resignation date: the day after the latest open start. */
@@ -83,7 +82,6 @@ defineOptions({
             <MemberFormFields
                 :member="member"
                 :genders="genders"
-                :payment-methods="paymentMethods"
                 :errors="errors"
             />
 

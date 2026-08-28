@@ -70,7 +70,6 @@ function memberPayload(array $overrides = []): array
         'city' => 'Nördlingen',
         'email' => 'anna@example.test',
         'phone' => '0900 12345',
-        'payment_method' => PaymentMethod::Invoice->value,
         'memo' => null,
         ...$overrides,
     ];
@@ -312,8 +311,10 @@ test('a subscription selection switches the year picker off', function () {
 });
 
 test('the payment selection takes the enum value, not a raw letter', function () {
-    joinedMember(['surname' => 'Zahler', 'payment_method' => 'k']);
-    joinedMember(['surname' => 'Rechnung', 'payment_method' => 'r']);
+    // The selection reads the bank details; there is no column since 2026-08-28.
+    $paying = Member::factory()->ofClub(1)->payingByAccount()->create(['surname' => 'Zahler']);
+    $paying->memberships()->attach(1, ['from' => '2016-01-01', 'to' => null]);
+    joinedMember(['surname' => 'Rechnung']);
 
     $this->actingAs(memberUser());
 
@@ -359,7 +360,9 @@ test('only an admin reaches the create form and stores a member', function () {
             ->component('members/Create')
             ->has('sections', 1)
             ->has('genders', 2)
-            ->has('paymentMethods', 3)
+            // No payment picker: the bank details decide, so there is nothing
+            // to choose. Two cases remain in the enum, for the list selection.
+            ->missing('paymentMethods')
         );
 
     $this->post(route('members.store'), memberPayload([
@@ -374,6 +377,7 @@ test('only an admin reaches the create form and stores a member', function () {
         // Never taken from the request, always the current club.
         ->and($member->club_id)->toBe(1)
         ->and($member->gender)->toBe(Gender::Frau)
+        // No bank details were sent, so the club bills this one by hand.
         ->and($member->payment_method)->toBe(PaymentMethod::Invoice)
         // The membership, the first section and the subscription all start
         // from the one entry date.
@@ -458,20 +462,28 @@ test('an installation-wide section is accepted for a new member', function () {
         ->assertSessionHasNoErrors();
 });
 
-test('the bank details are only required of somebody paying by direct debit', function () {
+test('the bank details are all or nothing', function () {
     $section = Section::factory()->create(['club_id' => 1]);
     $entry = ['entry_date' => '2024-03-01', 'section_id' => $section->id];
 
     $this->actingAs(memberUser());
 
+    // None at all is fine — that member is billed by hand.
+    $this->post(route('members.store'), memberPayload([...$entry, 'surname' => 'Ohne']))
+        ->assertSessionHasNoErrors();
+
+    // One field alone drags the other three in with it. Nothing keys off a
+    // payment method any more; a half-filled set would reach the bank as a
+    // payment without a debtor.
     $this->post(route('members.store'), memberPayload([
         ...$entry,
-        'payment_method' => PaymentMethod::Account->value,
-    ]))->assertSessionHasErrors(['bank', 'account_owner', 'iban', 'bic']);
+        'surname' => 'Halb',
+        'iban' => 'DE89370400440532013000',
+    ]))->assertSessionHasErrors(['bank', 'account_owner', 'bic']);
 
     $this->post(route('members.store'), memberPayload([
         ...$entry,
-        'payment_method' => PaymentMethod::Account->value,
+        'surname' => 'Falsch',
         'bank' => 'Sparkasse',
         'account_owner' => 'Anna Meier',
         'iban' => 'DE89 3704 0044 0532 0130 01',
@@ -480,7 +492,6 @@ test('the bank details are only required of somebody paying by direct debit', fu
 
     $this->post(route('members.store'), memberPayload([
         ...$entry,
-        'payment_method' => PaymentMethod::Account->value,
         'bank' => 'Sparkasse',
         'account_owner' => 'Anna Meier',
         // Unspaced on the way in, stored grouped in fours.
@@ -488,8 +499,11 @@ test('the bank details are only required of somebody paying by direct debit', fu
         'bic' => 'COBADEFFXXX',
     ]))->assertSessionHasNoErrors();
 
-    expect(Member::query()->where('surname', 'Meier')->firstOrFail()->iban)
-        ->toBe('DE89 3704 0044 0532 0130 00');
+    $member = Member::query()->where('surname', 'Meier')->firstOrFail();
+
+    expect($member->iban)->toBe('DE89 3704 0044 0532 0130 00')
+        // And that alone is what makes them a direct debit payer.
+        ->and($member->payment_method)->toBe(PaymentMethod::Account);
 });
 
 test('the dates have to make sense', function () {

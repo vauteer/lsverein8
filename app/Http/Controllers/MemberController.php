@@ -7,7 +7,6 @@ use App\Enums\Gender;
 use App\Enums\MemberExport;
 use App\Enums\MemberFilter;
 use App\Enums\MemberSort;
-use App\Enums\PaymentMethod;
 use App\Http\Requests\MemberResignRequest;
 use App\Http\Requests\MemberStoreRequest;
 use App\Http\Requests\MemberUpdateRequest;
@@ -270,7 +269,6 @@ class MemberController extends Controller
                 'city' => $member->city,
                 'email' => $member->email,
                 'phone' => $member->phone,
-                'payment_method' => $member->payment_method->value,
                 'bank' => $member->bank,
                 'account_owner' => $member->account_owner,
                 'iban' => $member->iban,
@@ -375,13 +373,16 @@ class MemberController extends Controller
     /**
      * The choices both member forms need.
      *
-     * @return array{genders: list<array{id: string, name: string}>, paymentMethods: list<array{id: string, name: string}>}
+     * No payment methods any more: the form has no picker since 2026-08-28,
+     * the bank details decide. `PaymentMethod::options()` is still used, but
+     * only by the member list's selection.
+     *
+     * @return array{genders: list<array{id: string, name: string}>}
      */
     private function formOptions(): array
     {
         return [
             'genders' => Gender::options(),
-            'paymentMethods' => PaymentMethod::options(),
         ];
     }
 

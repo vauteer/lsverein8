@@ -90,7 +90,7 @@ Bei UI-Texten mit Zähler aufpassen: `$t()` pluralisiert nicht. ":count Beiträg
 
 Fallstrick für Tests: `storage/downloads` ist bewusst nicht gefakt (siehe Regel unter `tests/**`). Eine Fixture-Datei für einen „anderen Verein" deshalb nie unter einer echten Club-Id ablegen — SubscriptionManagementTest nutzt 999, damit sie nichts überschreibt, was Verein 2 wirklich erzeugt hat.
 
-Erledigt am 2026-08-26 mit dem Mitglieder-CRUD: `Member::availablePaymentMethods()` ist weg, `members.payment_method` ist auf `App\Enums\PaymentMethod` gecastet, und die Außenstände-Tabelle bekommt `->label()`. Siehe die Enum-Regel.
+Erledigt am 2026-08-26 mit dem Mitglieder-CRUD: `Member::availablePaymentMethods()` ist weg und die Außenstände-Tabelle bekommt `->label()`. Die Spalte `members.payment_method` ist am 2026-08-28 gelöscht worden; `Member::payment_method` leitet sich seitdem aus den Bankdaten ab. Siehe die Enum-Regel.
 
 ## Item-CRUD: Inventar ist pro Verein abschaltbar, und items.club_id ist NOT NULL
 Zwei Dinge, in denen das Inventar von Abteilungen/Ehrungen/Funktionen abweicht — beide an der echten Datenbank geprüft (2026-08-26):

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,19 +15,10 @@ import type { MemberFormData, SelectOption } from '@/types';
 const props = defineProps<{
     member?: MemberFormData | null;
     genders: SelectOption[];
-    paymentMethods: SelectOption[];
     errors: Record<string, string>;
 }>();
 
 const gender = ref(String(props.member?.gender ?? props.genders[0].id));
-const paymentMethod = ref(
-    String(props.member?.payment_method ?? props.paymentMethods[0].id),
-);
-
-// 'k' is PaymentMethod::Account — the only method the club collects by SEPA,
-// and the only one the bank block is required for. The fields stay in the DOM
-// when hidden would lose what was already typed, so they are only collapsed.
-const collectsByAccount = computed(() => paymentMethod.value === 'k');
 </script>
 
 <template>
@@ -168,34 +159,13 @@ const collectsByAccount = computed(() => paymentMethod.value === 'k');
             </div>
         </div>
 
-        <div class="grid gap-2">
-            <Label for="payment_method">{{ $t('Payment method') }}</Label>
-            <Select v-model="paymentMethod">
-                <SelectTrigger id="payment_method" class="w-full sm:max-w-xs">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem
-                        v-for="option in paymentMethods"
-                        :key="option.id"
-                        :value="String(option.id)"
-                    >
-                        {{ option.name }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
-            <input type="hidden" name="payment_method" :value="paymentMethod" />
-            <InputError :message="errors.payment_method" />
-        </div>
-
         <div
-            v-show="collectsByAccount"
             class="grid gap-6 rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border"
         >
             <p class="text-sm text-muted-foreground">
                 {{
                     $t(
-                        'Needed to collect from this member by direct debit. The account owner may differ from the member.',
+                        'Bank details make the member a direct debit payer. Leave them empty and the fees are billed by hand. Fill in all four or none; the account owner may differ from the member.',
                     )
                 }}
             </p>

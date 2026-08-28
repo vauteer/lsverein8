@@ -34,7 +34,7 @@ use Illuminate\Support\Facades\DB;
  * @property string $city
  * @property string|null $email
  * @property string|null $phone
- * @property PaymentMethod $payment_method
+ * @property-read PaymentMethod $payment_method derived from `iban`, not a column
  * @property string|null $bank
  * @property string|null $account_owner
  * @property string|null $iban
@@ -57,7 +57,6 @@ use Illuminate\Support\Facades\DB;
     'city',
     'email',
     'phone',
-    'payment_method',
     'bank',
     'account_owner',
     'iban',
@@ -89,7 +88,6 @@ class Member extends Model
             'birthday' => 'date',
             'death_day' => 'date',
             'gender' => Gender::class,
-            'payment_method' => PaymentMethod::class,
         ];
     }
 
@@ -113,6 +111,31 @@ class Member extends Model
 
                 return (int) $this->birthday->diffInYears($keyDate);
             },
+        );
+    }
+
+    /**
+     * How the club gets this member's money — derived from the bank details,
+     * not stored.
+     *
+     * `members.payment_method` was dropped on 2026-08-28. It carried a third
+     * state for members who owe nothing, which is a 0 € subscription now; what
+     * remained split exactly along the IBAN, and the column had already
+     * drifted out of step with it in eight rows.
+     *
+     * Mirrors the `hasAccount()` scope, which is what the member list's
+     * `payment_k` / `payment_r` selection and DebitController's picker use.
+     * Keep the two together: this decides whether `Subscription::debit()`
+     * writes a SEPA line or an outstanding payment.
+     *
+     * @return Attribute<PaymentMethod, never>
+     */
+    protected function paymentMethod(): Attribute
+    {
+        return new Attribute(
+            get: fn (): PaymentMethod => filled($this->iban)
+                ? PaymentMethod::Account
+                : PaymentMethod::Invoice,
         );
     }
 
@@ -574,16 +597,32 @@ class Member extends Model
     }
 
     /**
+     * Restrict to the members the given methods resolve to.
+     *
+     * There is no column behind this any more — Account means an IBAN is on
+     * file, Invoice means none is, exactly as the `payment_method` accessor
+     * reads it. Both methods together therefore restrict nothing.
+     *
      * @param  Builder<Member>  $query
      * @param  list<PaymentMethod>|PaymentMethod  $methods
      */
     #[Scope]
     protected function paymentMethods(Builder $query, array|PaymentMethod $methods): void
     {
-        $query->whereIn('payment_method', array_map(
+        $methods = array_unique(array_map(
             fn (PaymentMethod $method): string => $method->value,
             Arr::wrap($methods)
         ));
+
+        if (count($methods) !== 1) {
+            return;
+        }
+
+        in_array(PaymentMethod::Account->value, $methods, true)
+            ? $query->hasAccount()
+            : $query->where(fn (Builder $query) => $query
+                ->whereNull('iban')
+                ->orWhere('iban', ''));
     }
 
     /**

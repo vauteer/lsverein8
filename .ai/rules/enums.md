@@ -3,6 +3,7 @@ paths:
   - 'app/Enums/**'
   - app/Enums/AgeBracket.php
   - app/Enums/LandingPage.php
+  - app/Enums/PaymentMethod.php
 ---
 
 # Enums
@@ -36,7 +37,7 @@ Im Benutzerformular trägt die Auswahl „(Vereinssprache)" den Sentinel `'inher
 ## PaymentMethod, MemberFilter und MemberSort ersetzen lsverein7s Magic Values
 Drei Enums, alle nach dem Muster von ClubDisplay/Locale (`label()` über `__()`, `options()` als `{id, name}` fürs Frontend):
 
-**`PaymentMethod`** (`k`/`r`/`n`) löst `Member::availablePaymentMethods()` ab — die hartkodierten deutschen Labels, die über die Außenstände-Tabelle unübersetzt durchschlugen. `members.payment_method` ist jetzt darauf gecastet. Zwei Stellen hängen daran: `Subscription::debit()` fragt `$member->payment_method->isCollectable()` statt `=== 'k'` und nimmt `->label()` statt eines Array-Lookups, und der `paymentMethods`-Scope nimmt **Enum-Fälle, kein rohes `'k'`** (ModelLayerTest pinnt das). Schreiben mit dem Backing-Wert geht weiter, `Member::factory()->create(['payment_method' => 'k'])` bleibt gültig.
+**`PaymentMethod`** löst `Member::availablePaymentMethods()` ab — die hartkodierten deutschen Labels, die über die Außenstände-Tabelle unübersetzt durchschlugen. `Subscription::debit()` fragt `$member->payment_method->isCollectable()` statt `=== 'k'` und nimmt `->label()` statt eines Array-Lookups; der `paymentMethods`-Scope nimmt **Enum-Fälle, kein rohes `'k'`** (ModelLayerTest pinnt das). **Der Rest dieses Absatzes ist überholt:** die Spalte `members.payment_method` gibt es seit 2026-08-28 nicht mehr, der Wert wird aus den Bankdaten abgeleitet und `Member::factory()->create(['payment_method' => 'k'])` ist wirkungslos. Siehe den eigenen Abschnitt weiter unten.
 
 **`MemberFilter`** ersetzt lsverein7s Integer 0..13 in URL und Controller-`match`. Ein Lesezeichen sagt jetzt `?filter=due_honours` statt `?filter=10`. `NoSubscription` ist admin-only (`isVisibleTo()`), `optionsFor()` filtert danach.
 
@@ -81,3 +82,14 @@ Der Backing-Wert ist der URL-Teil der Auswahl (`?filter=age_18-26`, gebaut von `
 In den Enum gehören nur Bildschirme, die **jeder** Account öffnen darf, sonst landet jemand direkt nach dem Login auf einem 403. Dashboard (nur `auth`) und Mitgliederliste (`MemberPolicy::viewAny()` = true) erfüllen das; etwa die Lastschriften (admin-only) nicht.
 
 `landing_page` ist in `ProfileUpdateRequest` `required` (nicht `nullable` wie `locale`): es gibt keine Vereinseinstellung zum Erben, ein leerer Wert hieße also nichts. Folge fürs Testen: **jede** `profile.update`-Nutzlast muss das Feld mitschicken, sonst schlägt die Validierung fehl.
+
+## PaymentMethod ist abgeleitet, nicht gespeichert — und hat keinen dritten Fall
+Seit 2026-08-28 ist `members.payment_method` gelöscht (Migration `2026_08_28_101622`). `Member::payment_method` ist ein Accessor: IBAN hinterlegt → `Account`, sonst `Invoice`. Er spiegelt den `hasAccount()`-Scope — beide zusammen halten, nicht einzeln ändern.
+
+**Der dritte Fall `NonPayer` ('n') ist ersatzlos weg.** Er hieß „Nichtzahler" und meinte jemanden, dessen Beitrag eine Familie schon mitbezahlt. Das ist jetzt ein 0-€-Beitrag („Familienmitglied", „Beitragsfrei") — der nennt den Grund, statt nur die Zahlung zu verneinen. Wer nicht zahlen soll, bekommt einen 0-€-Beitrag; **keinen Schalter „trotz Bankdaten nicht einziehen"** wieder einführen, das wäre die Spalte durch die Hintertür.
+
+Die Backing-Werte 'k'/'r' bleiben: sie sind der URL-Teil der Auswahl `?filter=payment_k` und liegen in Lesezeichen.
+
+Vor dem Löschen an Produktion geprüft: alte Regel (`payment_method = 'k'`) und neue (IBAN vorhanden) wählen für alle aktuellen Mitglieder beider Vereine dieselben Mitglied/Beitrag-Paare — 231 Posten / 10.780 € (Verein 1), 131 / 2.111 € (Verein 2). Von 47 abweichenden Zeilen hatte **keine** einen zahlenden Beitrag. Die Spalte widersprach sich ohnehin schon (4× `k` ohne IBAN, 4× `n` mit).
+
+Folgen im Code: `PaymentMethod::options()` speist nur noch die Listen-Auswahl, **nicht** das Mitgliederformular (kein Picker mehr). Die Bankdaten sind dort `required_with` untereinander — alle vier oder keins, weil `generateSepa()` Kontoinhaber, IBAN und BIC zusammen in die XML schreibt. `MemberFactory::payingByAccount()` setzt die Bankdaten, nie eine Zahlungsart.

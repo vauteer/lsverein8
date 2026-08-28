@@ -7,7 +7,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Backup.php, app/ClubExport.php, app/AssignedMemberCount.php | .ai/rules/app.md |
 | config/log-viewer.php, config/telescope.php | .ai/rules/config.md |
 | app/Http/Controllers/MemberExportController.php, app/Http/Controllers/BlsvStatisticController.php, app/Http/Controllers/DashboardController.php, app/Http/Controllers/MemberController.php | .ai/rules/controllers.md |
-| app/Enums/**, app/Enums/AgeBracket.php, app/Enums/LandingPage.php | .ai/rules/enums.md |
+| app/Enums/**, app/Enums/AgeBracket.php, app/Enums/LandingPage.php, app/Enums/PaymentMethod.php | .ai/rules/enums.md |
 | app/Http/** | .ai/rules/http.md |
 | resources/js/** | .ai/rules/js.md |
 | app/Http/Controllers/Members/** | .ai/rules/members.md |

@@ -394,8 +394,8 @@ test('an admin collects the fees and gets the files plus the outstanding list', 
 
     $paying = debitableMember($subscription, 'Zahlerin');
 
+    // No bank details, so the club has to bill this one by hand.
     $invoiced = Member::factory()->ofClub(1)->create([
-        'payment_method' => 'r',
         'surname' => 'Rechnungsempfaengerin',
     ]);
     $invoiced->memberships()->attach(1, ['from' => '2016-01-01', 'to' => null]);

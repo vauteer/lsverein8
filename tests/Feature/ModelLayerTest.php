@@ -18,6 +18,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * currentClubId() resolves to 1 on the CLI, so every scoped model is read as
@@ -312,15 +313,36 @@ it('still lets the framework write the remember token', function () {
 });
 
 it('exposes attribute scopes without the scope prefix', function () {
-    $member = Member::factory()->ofClub($this->club)->create(['payment_method' => 'k']);
-    Member::factory()->ofClub($this->club)->create(['payment_method' => 'r']);
+    $member = Member::factory()->ofClub($this->club)->payingByAccount()->create();
+    Member::factory()->ofClub($this->club)->create();
 
-    // The scope takes PaymentMethod cases, not the raw 'k' the column stores —
-    // that is the point of the cast. Writing the backing value still works.
+    // The scope takes PaymentMethod cases, never a raw 'k'. There is no column
+    // behind it since 2026-08-28 — the bank details are what it reads.
     expect(Member::paymentMethods(PaymentMethod::Account)->pluck('id')->all())->toBe([$member->id])
         // resolved through __callStatic and on an existing builder
         ->and(Member::query()->paymentMethods(PaymentMethod::Account)->count())->toBe(1)
         ->and($member->payment_method)->toBe(PaymentMethod::Account);
+});
+
+it('derives the payment method from the bank details, with no column behind it', function () {
+    $paying = Member::factory()->ofClub($this->club)->payingByAccount()->create();
+    $billed = Member::factory()->ofClub($this->club)->create();
+
+    expect($paying->payment_method)->toBe(PaymentMethod::Account)
+        ->and($billed->payment_method)->toBe(PaymentMethod::Invoice)
+        // An empty string counts as no account, the same way hasAccount() reads
+        // it — production carried both null and '' in that column.
+        ->and($billed->fill(['iban' => ''])->payment_method)->toBe(PaymentMethod::Invoice)
+        ->and(Schema::hasColumn('members', 'payment_method'))->toBeFalse();
+
+    // Both cases together restrict nothing rather than colliding.
+    expect(Member::query()->paymentMethods(PaymentMethod::cases())->count())->toBe(2)
+        ->and(Member::query()->paymentMethods(PaymentMethod::Invoice)->pluck('id')->all())
+        ->toBe([$billed->id]);
+
+    // Writing it is impossible: not fillable, and there is nothing to write to.
+    $billed->fill(['payment_method' => 'k']);
+    expect($billed->getAttributes())->not->toHaveKey('payment_method');
 });
 
 it('keeps the scope methods off the public surface', function () {

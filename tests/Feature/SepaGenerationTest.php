@@ -49,8 +49,8 @@ it('splits subscription debits from outstanding payments', function () {
     // explicit surnames: faker's pool is small enough that two members can collide
     $paying = memberWithDebit($this->club);
     $paying->update(['surname' => 'Zahlerin']);
+    // No bank details, so the club has to bill this one by hand.
     $invoiced = Member::factory()->ofClub($this->club)->create([
-        'payment_method' => 'r',
         'surname' => 'Rechnungsempfaenger',
     ]);
     $invoiced->memberships()->attach($this->club->id, ['from' => '2016-01-01', 'to' => null]);

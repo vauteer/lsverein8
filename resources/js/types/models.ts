@@ -249,7 +249,6 @@ export type MemberFormData = {
     city: string;
     email: string | null;
     phone: string | null;
-    payment_method: string;
     bank: string | null;
     account_owner: string | null;
     iban: string | null;

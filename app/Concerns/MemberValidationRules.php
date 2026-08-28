@@ -3,7 +3,6 @@
 namespace App\Concerns;
 
 use App\Enums\Gender;
-use App\Enums\PaymentMethod;
 use App\Models\Section;
 use App\Models\Subscription;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -37,22 +36,29 @@ trait MemberValidationRules
             'city' => ['required', 'string', 'max:191'],
             'email' => ['nullable', 'email', 'max:191'],
             'phone' => ['nullable', 'string', 'max:191'],
-            'payment_method' => ['required', Rule::enum(PaymentMethod::class)],
-            // The bank details are only required of somebody the club actually
-            // collects from; `k` is PaymentMethod::Account.
-            'bank' => ['nullable', 'string', 'max:191', 'required_if:payment_method,k'],
+            // The bank details are all-or-nothing. There is no payment method
+            // to key them off any more (the column went on 2026-08-28); an
+            // IBAN on file IS the statement "collect from this member", and
+            // `Subscription::generateSepa()` writes account owner, IBAN and
+            // BIC into the XML together. A half-filled set would reach the
+            // bank as a payment without a debtor.
+            //
+            // `bank` rides along for completeness: it is not in the XML, but a
+            // record carrying three of the four fields is a record somebody
+            // abandoned halfway.
+            'bank' => ['nullable', 'string', 'max:191', 'required_with:account_owner,iban,bic'],
             'account_owner' => [
                 'nullable',
                 'string',
                 'max:191',
-                'required_if:payment_method,k',
+                'required_with:bank,iban,bic',
                 // Goes into the SEPA XML as the debtor's name, so it is held
                 // to the plain SEPA set — no placeholders here, unlike a
                 // transfer text.
                 'regex:'.SEPA_REGEX,
             ],
-            'iban' => ['nullable', 'string', 'required_if:payment_method,k', $this->ibanRule()],
-            'bic' => ['nullable', 'string', 'required_if:payment_method,k', 'regex:'.BIC_REGEX],
+            'iban' => ['nullable', 'string', 'required_with:bank,account_owner,bic', $this->ibanRule()],
+            'bic' => ['nullable', 'string', 'required_with:bank,account_owner,iban', 'regex:'.BIC_REGEX],
             'memo' => ['nullable', 'string', 'max:191'],
         ];
     }
@@ -157,7 +163,6 @@ trait MemberValidationRules
             'city' => __('City'),
             'email' => __('Email'),
             'phone' => __('Phone'),
-            'payment_method' => __('Payment method'),
             'bank' => __('Bank'),
             'account_owner' => __('Account owner'),
             'iban' => __('IBAN'),

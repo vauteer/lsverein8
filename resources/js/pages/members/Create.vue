@@ -28,7 +28,6 @@ import type {
 
 const props = defineProps<{
     genders: SelectOption[];
-    paymentMethods: SelectOption[];
     sections: SelectOption[];
     subscriptions: SelectOption[];
     today: string;
@@ -90,11 +89,7 @@ defineOptions({
             class="space-y-6"
             v-slot="{ errors, processing }"
         >
-            <MemberFormFields
-                :genders="genders"
-                :payment-methods="paymentMethods"
-                :errors="errors"
-            />
+            <MemberFormFields :genders="genders" :errors="errors" />
 
             <div
                 class="grid gap-6 rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border"
