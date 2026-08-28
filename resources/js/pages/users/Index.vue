@@ -86,10 +86,10 @@ defineOptions({
                 :title="$t('Users')"
                 :description="$t('Manage the users of this club')"
             />
-            <Button variant="outline" as-child class="hidden md:inline-flex">
-                <Link :href="create()">
+            <Button variant="outline" as-child>
+                <Link :href="create()" :aria-label="$t('New user')">
                     <Plus class="size-4" />
-                    {{ $t('New user') }}
+                    <span class="max-md:hidden">{{ $t('New user') }}</span>
                 </Link>
             </Button>
         </div>

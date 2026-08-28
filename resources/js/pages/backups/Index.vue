@@ -64,6 +64,7 @@ const backupToDelete = ref<BackupResource | null>(null);
                 v-bind="BackupController.store.form()"
                 :options="{ preserveScroll: true }"
                 v-slot="{ processing }"
+                class="shrink-0"
             >
                 <Button
                     variant="outline"

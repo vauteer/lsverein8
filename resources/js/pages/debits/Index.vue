@@ -82,20 +82,23 @@ defineOptions({
                     $t('One-off amounts waiting to be collected from a member')
                 "
             />
-            <div class="hidden items-center gap-2 md:flex">
+            <div class="flex shrink-0 items-center gap-2">
                 <Button
                     v-if="canCollect && hasDebits"
                     variant="outline"
                     data-test="open-collect-debits-button"
+                    :aria-label="$t('Collect debits')"
                     @click="collectionOpen = true"
                 >
                     <Banknote class="size-4" />
-                    {{ $t('Collect debits') }}
+                    <span class="max-md:hidden">{{
+                        $t('Collect debits')
+                    }}</span>
                 </Button>
                 <Button variant="outline" v-if="canCreate" as-child>
-                    <Link :href="create()">
+                    <Link :href="create()" :aria-label="$t('New debit')">
                         <Plus class="size-4" />
-                        {{ $t('New debit') }}
+                        <span class="max-md:hidden">{{ $t('New debit') }}</span>
                     </Link>
                 </Button>
             </div>

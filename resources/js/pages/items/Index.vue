@@ -76,15 +76,10 @@ defineOptions({
                     $t('Equipment and gear that is issued to a member')
                 "
             />
-            <Button
-                variant="outline"
-                v-if="canCreate"
-                as-child
-                class="hidden md:inline-flex"
-            >
-                <Link :href="create()">
+            <Button variant="outline" v-if="canCreate" as-child>
+                <Link :href="create()" :aria-label="$t('New item')">
                     <Plus class="size-4" />
-                    {{ $t('New item') }}
+                    <span class="max-md:hidden">{{ $t('New item') }}</span>
                 </Link>
             </Button>
         </div>

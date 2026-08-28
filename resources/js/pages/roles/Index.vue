@@ -78,15 +78,10 @@ defineOptions({
                     )
                 "
             />
-            <Button
-                variant="outline"
-                v-if="canCreate"
-                as-child
-                class="hidden md:inline-flex"
-            >
-                <Link :href="create()">
+            <Button variant="outline" v-if="canCreate" as-child>
+                <Link :href="create()" :aria-label="$t('New role')">
                     <Plus class="size-4" />
-                    {{ $t('New role') }}
+                    <span class="max-md:hidden">{{ $t('New role') }}</span>
                 </Link>
             </Button>
         </div>

@@ -138,17 +138,20 @@ defineOptions({
                     })
                 "
             />
-            <div class="hidden items-center gap-2 md:flex">
+            <div class="flex shrink-0 items-center gap-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger as-child>
                         <Button
                             variant="outline"
                             :disabled="members.meta.total === 0"
                             data-test="open-export-menu-button"
+                            :aria-label="$t('Export')"
                         >
                             <Download class="size-4" />
-                            {{ $t('Export') }}
-                            <ChevronDown class="size-4" />
+                            <span class="max-md:hidden">{{
+                                $t('Export')
+                            }}</span>
+                            <ChevronDown class="size-4 max-md:hidden" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" class="w-64">
@@ -172,9 +175,14 @@ defineOptions({
                     </DropdownMenuContent>
                 </DropdownMenu>
                 <Button variant="outline" v-if="canCreate" as-child>
-                    <Link :href="create({ query: rowQuery })">
+                    <Link
+                        :href="create({ query: rowQuery })"
+                        :aria-label="$t('New member')"
+                    >
                         <Plus class="size-4" />
-                        {{ $t('New member') }}
+                        <span class="max-md:hidden">{{
+                            $t('New member')
+                        }}</span>
                     </Link>
                 </Button>
             </div>

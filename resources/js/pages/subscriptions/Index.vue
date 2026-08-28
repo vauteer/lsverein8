@@ -89,20 +89,23 @@ defineOptions({
                     $t('Membership fees that can be charged to a member')
                 "
             />
-            <div class="hidden items-center gap-2 md:flex">
+            <div class="flex shrink-0 items-center gap-2">
                 <Button
                     v-if="canDebit"
                     variant="outline"
                     data-test="open-collect-fees-button"
+                    :aria-label="$t('Collect fees')"
                     @click="collectionOpen = true"
                 >
                     <Banknote class="size-4" />
-                    {{ $t('Collect fees') }}
+                    <span class="max-md:hidden">{{ $t('Collect fees') }}</span>
                 </Button>
                 <Button variant="outline" v-if="canCreate" as-child>
-                    <Link :href="create()">
+                    <Link :href="create()" :aria-label="$t('New subscription')">
                         <Plus class="size-4" />
-                        {{ $t('New subscription') }}
+                        <span class="max-md:hidden">{{
+                            $t('New subscription')
+                        }}</span>
                     </Link>
                 </Button>
             </div>

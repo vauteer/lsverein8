@@ -66,15 +66,10 @@ defineOptions({
                 :title="$t('Clubs')"
                 :description="$t('Every club in this installation')"
             />
-            <Button
-                variant="outline"
-                v-if="canCreate"
-                as-child
-                class="hidden md:inline-flex"
-            >
-                <Link :href="create()">
+            <Button variant="outline" v-if="canCreate" as-child>
+                <Link :href="create()" :aria-label="$t('New club')">
                     <Plus class="size-4" />
-                    {{ $t('New club') }}
+                    <span class="max-md:hidden">{{ $t('New club') }}</span>
                 </Link>
             </Button>
         </div>

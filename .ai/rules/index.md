@@ -14,7 +14,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | database/migrations/** | .ai/rules/migrations.md |
 | app/Models/**, app/Models/User.php, app/Models/Member.php | .ai/rules/models.md |
 | resources/js/pages/members/** | .ai/rules/pages-members.md |
-| resources/js/pages/About.vue | .ai/rules/pages.md |
+| resources/js/pages/About.vue, resources/js/pages/*/Index.vue | .ai/rules/pages.md |
 | app/Pdf/** | .ai/rules/pdf.md |
 | app/Http/Controllers/Settings/** | .ai/rules/settings.md |
 | tests/** | .ai/rules/tests.md |
