@@ -38,7 +38,11 @@ const props = defineProps<{
     backQuery: Partial<MemberListFilters> & { page?: number };
 }>();
 
-const cancelHref = index({ query: props.backQuery });
+// Every way out of this page carries the list selection: Cancel, Save,
+// Resign and Delete. It used to be Cancel alone, so saving dropped the
+// filter — and with it the state the next member page would have inherited.
+const { backQuery } = props;
+const cancelHref = index({ query: backQuery });
 
 const confirmingDeletion = ref(false);
 const confirmingResignation = ref(false);
@@ -75,7 +79,11 @@ defineOptions({
         />
 
         <Form
-            v-bind="MemberController.update.form(props.member.id)"
+            v-bind="
+                MemberController.update.form(props.member.id, {
+                    query: backQuery,
+                })
+            "
             class="space-y-6"
             v-slot="{ errors, processing }"
         >
@@ -130,7 +138,11 @@ defineOptions({
                 Inertia reuses the page component when the same one comes back,
                 so a dialog left open here would still be open afterwards. -->
                 <Form
-                    v-bind="MemberController.resign.form(member.id)"
+                    v-bind="
+                        MemberController.resign.form(member.id, {
+                            query: backQuery,
+                        })
+                    "
                     v-slot="{ errors, processing }"
                     @success="confirmingResignation = false"
                 >
@@ -182,7 +194,11 @@ defineOptions({
         >
             <DialogContent>
                 <Form
-                    v-bind="MemberController.destroy.form(member.id)"
+                    v-bind="
+                        MemberController.destroy.form(member.id, {
+                            query: backQuery,
+                        })
+                    "
                     v-slot="{ processing }"
                 >
                     <DialogHeader class="space-y-3">

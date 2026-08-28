@@ -506,6 +506,41 @@ test('the bank details are all or nothing', function () {
         ->and($member->payment_method)->toBe(PaymentMethod::Account);
 });
 
+test('an action carries the list selection back with it', function () {
+    // The list state lives in the URL, so every way out of the member forms
+    // has to hand it on: save, resign and delete alike, not just Cancel.
+    // Losing it once is not a one-off — the list then has no selection to
+    // pass to the next member, so everything after it is unfiltered too.
+    $member = joinedMember();
+    // Order matches backQuery(), which is what builds the redirect.
+    $selection = ['page' => 3, 'search' => 'mei', 'filter' => 'payment_k', 'sort' => 'surname'];
+
+    $this->actingAs(memberUser());
+
+    $this->put(route('members.update', [$member, ...$selection]), memberPayload())
+        ->assertRedirect(route('members.index', $selection));
+
+    // Resigning keeps you on the member (you may still want to tidy their
+    // sections), so it hands the selection to the member page instead.
+    $this->put(route('members.resign', [$member, ...$selection]), ['date' => now()->format('Y-m-d')])
+        ->assertRedirect(route('members.show', [$member, ...$selection]));
+
+    // Both forms hand the same state to the page they render.
+    foreach (['members.show', 'members.edit'] as $route) {
+        $this->get(route($route, [$member, ...$selection]))
+            ->assertInertia(fn ($page) => $page->where('backQuery', $selection));
+    }
+});
+
+test('a deleted member returns to the list selection too', function () {
+    $member = Member::factory()->ofClub(1)->create();
+    $selection = ['page' => 2, 'filter' => 'payment_k'];
+
+    $this->actingAs(memberUser())
+        ->delete(route('members.destroy', [$member, ...$selection]))
+        ->assertRedirect(route('members.index', $selection));
+});
+
 test('the dates have to make sense', function () {
     $section = Section::factory()->create(['club_id' => 1]);
     $entry = ['entry_date' => '2024-03-01', 'section_id' => $section->id];

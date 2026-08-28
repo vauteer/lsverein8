@@ -36,7 +36,10 @@ const props = defineProps<{
     duplicate: DuplicateMember | null;
 }>();
 
-const cancelHref = index({ query: props.backQuery });
+// Same as the edit form: storing hands the list selection on, so the new
+// member's page opens with the selection you came from.
+const { backQuery } = props;
+const cancelHref = index({ query: backQuery });
 
 const sectionId = ref(
     props.sections.length > 0 ? String(props.sections[0].id) : '',
@@ -85,7 +88,7 @@ defineOptions({
         />
 
         <Form
-            v-bind="MemberController.store.form()"
+            v-bind="MemberController.store.form({ query: backQuery })"
             class="space-y-6"
             v-slot="{ errors, processing }"
         >
