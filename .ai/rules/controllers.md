@@ -118,3 +118,17 @@ Am 2026-08-27 gebaut, gegen einen echten Vorfall: ein Benutzer hat Lena Matt mit
 **`MemberFilter::PossibleDuplicates` / `Member::possibleDuplicates()`** listet **beide** Hälften eines Paars, aktiv oder nicht — deshalb kein `members()` davor und kein Stichtag: die teure Hälfte ist die ausgetretene. Bewusst als gruppierte Abfrage plus OR-Kette geschrieben, nicht als korrelierte Subquery, damit sie anders als `dueHonor`/`joined` auch auf der SQLite-Testverbindung läuft. An Produktionsdaten geprüft: findet in Verein 1 genau die 6 Zeilen der drei Gruppen.
 
 Nicht abgedeckt: `MembershipController` erlaubt für `from` weiter jedes Datum. Dort entsteht die Verwirrung aber nicht — die Aktion antwortet mit `back()` auf die Mitgliederseite, die Zeile ist also sofort sichtbar.
+
+## Wiedereintritt ist die Umkehrung von resign() — und schließt die Invarianten-Lücke
+`PUT members/{member}/rejoin` (MemberController::rejoin, `MemberRejoinRequest`, Policy `rejoin` = `update`), seit 2026-08-28. Der Knopf steht auf der **Mitgliederseite** neben „Bearbeiten", nicht im Bearbeitungsformular wie „Mitgliedschaft beenden": ein Wiedereintritt schreibt in drei Relationen, und die werden dort gepflegt.
+
+**Er verlangt Datum, Sparte und Beitrag zusammen.** Genau das ist der Zweck: ein aktuelles Mitglied muss in einer Sparte sein (BLSV) und einen Beitrag halten. Beide Regeln waren bisher nur beim Anlegen und beim Entfernen dicht — `MembershipController` konnte eine Mitgliedschaft wieder öffnen und damit jemanden erzeugen, den der Rest der App für ungültig hält. Diese Lücke stand vorher ausdrücklich als „bewusst offen" in den Sparten- und Beitragsregeln; sie ist damit geschlossen. **`MembershipController` bleibt unangetastet** — dort zu sperren würde die natürliche Eingabereihenfolge brechen, der Wiedereintritt ist stattdessen der bequemere Weg.
+
+Festlegungen:
+- **Ein zweiter Zeitraum, kein wiedergeöffneter.** `Member::membershipYears()` summiert die Zeiträume; die Jahre außerhalb des Vereins dürfen nicht mitzählen.
+- `Member::lastMembershipEnd()` ist die Untergrenze (null, solange ein Zeitraum offen ist). Das Datum muss **strikt danach** liegen, sonst überlappen zwei Zeiträume und ein Jahr zählt doppelt. Die Seite teilt `earliestRejoining` = dieser Tag + 1, damit Picker-Grenze und Regel dasselbe Datum sagen.
+- **`rejoinable` = `modifiable && alive() && ! isMember()`.** Verstorbene bekommen den Knopf nicht: `isMember()` ist bei ihnen ohnehin false, `alive()` muss also ausdrücklich dazu.
+- Der Beitrag wird nur angehängt, wenn das Mitglied ihn nicht schon hält — `member_subscription` trägt keine Daten, die Zeile stünde sonst doppelt. Bei Sparten ist ein zweiter Zeitraum dagegen richtig und gewollt.
+- `MemberValidationRules::joiningRules()` hält Sparte und Beitrag an **einer** Stelle; `entryRules()` (Anlegen) und `MemberRejoinRequest` teilen sie. Wer eine dritte Bedingung fürs Beitreten einführt, gehört dorthin.
+
+Getestet in `MemberManagementTest`: „a former member is taken back in…", „rejoining is refused where it would overlap or make no sense", „a dead member is never offered a rejoining", „rejoining does not duplicate a subscription the member still holds".

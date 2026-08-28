@@ -265,6 +265,36 @@ test('a subscription carries nothing but a memo', function () {
 
     expect($row->memo)->toBe('Ermaessigt');
 
+    // A second one, so removing the first is not removing the last — that is
+    // refused while the membership is open, and has its own test below.
+    $this->member->subscriptions()->attach(
+        Subscription::factory()->create(['club_id' => 1])->id
+    );
+
+    $this->delete(route('members.subscriptions.destroy', [$this->member, $row->id]))
+        ->assertRedirect();
+
+    expect($this->member->subscriptions()->count())->toBe(1);
+});
+
+test('a current member cannot be left without a subscription', function () {
+    $subscription = Subscription::factory()->create(['club_id' => 1]);
+    $this->member->subscriptions()->attach($subscription->id);
+    $row = $this->member->subscriptions()->first()->pivot;
+
+    $this->actingAs(relationUser());
+
+    // The confirmation dialog has no field to hang a message on, so this is a
+    // toast rather than a validation error — same split as the last section.
+    $this->delete(route('members.subscriptions.destroy', [$this->member, $row->id]))
+        ->assertRedirect();
+
+    expect($this->member->subscriptions()->count())->toBe(1);
+
+    // Once the membership is over the leftover row has to be removable again,
+    // otherwise a departed member could never be tidied up.
+    $this->member->memberships()->updateExistingPivot(1, ['to' => now()->subDay()->format('Y-m-d')]);
+
     $this->delete(route('members.subscriptions.destroy', [$this->member, $row->id]))
         ->assertRedirect();
 

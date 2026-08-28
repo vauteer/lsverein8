@@ -98,6 +98,22 @@ trait MemberValidationRules
             // today's date in, which falsifies the membership years. The bound
             // is there to catch a mistyped year, nothing more.
             'entry_date' => ['required', 'date', 'before_or_equal:'.now()->addMonths(3)->toDateString()],
+            ...$this->joiningRules(),
+        ];
+    }
+
+    /**
+     * The section and subscription a membership cannot be without.
+     *
+     * Shared by joining (`entryRules()`) and rejoining (MemberRejoinRequest):
+     * both open a membership, and both invariants have to hold from that
+     * moment, not from whenever somebody gets round to filling them in.
+     *
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
+    protected function joiningRules(): array
+    {
+        return [
             // Scoped by hand: `exists` runs a plain query and does not pick up
             // the model's ClubScope, so without the where() a new member could
             // be filed under another club's section.
@@ -109,8 +125,13 @@ trait MemberValidationRules
                         ->where('club_id', currentClubId())
                         ->orWhereNull('club_id')),
             ],
+            // Required, like section_id: a current member has to hold a
+            // subscription so that the club's billing is the sum over them and
+            // nobody is invisible in it. Paying nothing is a 0 € subscription,
+            // which names the reason. MemberSubscriptionController guards the
+            // other end.
             'subscription_id' => [
-                'nullable',
+                'required',
                 'integer',
                 Rule::exists(Subscription::class, 'id')
                     ->where(fn ($query) => $query->where('club_id', currentClubId())),

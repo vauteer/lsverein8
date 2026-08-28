@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Form, Head, Link } from '@inertiajs/vue3';
 import { trans } from 'laravel-vue-i18n';
 import { computed, ref } from 'vue';
+import MemberController from '@/actions/App/Http/Controllers/MemberController';
 import MemberEventController from '@/actions/App/Http/Controllers/Members/MemberEventController';
 import MemberItemController from '@/actions/App/Http/Controllers/Members/MemberItemController';
 import MemberRoleController from '@/actions/App/Http/Controllers/Members/MemberRoleController';
@@ -14,8 +15,24 @@ import MemberRelationDialog from '@/components/members/MemberRelationDialog.vue'
 import MemberRelationSection from '@/components/members/MemberRelationSection.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { edit, index } from '@/routes/members';
 import type {
     BreadcrumbItem,
@@ -36,11 +53,22 @@ const props = defineProps<{
     /** clubs.use_items: no inventory section where the club keeps none. */
     usesItems: boolean;
     options: MemberRelationOptions | null;
+    /** Only a former member who is alive can be taken back in. */
+    rejoinable: boolean;
+    /** The day after the last membership ended; null while one is open. */
+    earliestRejoining: string | null;
     today: string;
     backQuery: Partial<MemberListFilters> & { page?: number };
 }>();
 
 const backHref = index({ query: props.backQuery });
+
+// Rejoining asks for a section and a subscription along with the date: a
+// current member has to have both, and reopening the membership on its own
+// would produce somebody the rest of the app considers invalid.
+const rejoining = ref(false);
+const rejoinSection = ref('');
+const rejoinSubscription = ref('');
 
 // What the section component renders. The raw row stays available for the
 // dialog, keyed by the pivot id.
@@ -145,11 +173,24 @@ defineOptions({
                     })
                 "
             />
-            <Button v-if="modifiable" as-child class="hidden sm:inline-flex">
-                <Link :href="edit(member.id, { query: backQuery })">
-                    {{ $t('Edit') }}
-                </Link>
-            </Button>
+            <div class="flex gap-2">
+                <Button
+                    v-if="rejoinable"
+                    variant="secondary"
+                    @click="rejoining = true"
+                >
+                    {{ $t('Resume membership') }}
+                </Button>
+                <Button
+                    v-if="modifiable"
+                    as-child
+                    class="hidden sm:inline-flex"
+                >
+                    <Link :href="edit(member.id, { query: backQuery })">
+                        {{ $t('Edit') }}
+                    </Link>
+                </Button>
+            </div>
         </div>
 
         <div class="flex flex-wrap gap-2">
@@ -551,5 +592,127 @@ defineOptions({
                 </template>
             </MemberRelationDialog>
         </template>
+
+        <Dialog :open="rejoining" @update:open="(open) => (rejoining = open)">
+            <DialogContent>
+                <!-- Closing on success is not redundant with the redirect:
+                Inertia reuses the page component when the same one comes back,
+                so a dialog left open here would still be open afterwards. -->
+                <Form
+                    v-bind="
+                        MemberController.rejoin.form(member.id, {
+                            query: backQuery,
+                        })
+                    "
+                    v-slot="{ errors, processing }"
+                    @success="rejoining = false"
+                >
+                    <DialogHeader class="space-y-3">
+                        <DialogTitle>{{ $t('Resume membership') }}</DialogTitle>
+                        <DialogDescription>
+                            {{
+                                $t(
+                                    'Opens a second membership period for :name, so the years spent away are not counted back in. The section and subscription start on the same date.',
+                                    { name: member.full_name },
+                                )
+                            }}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div class="mt-6 grid gap-4">
+                        <div class="grid gap-2">
+                            <Label for="rejoin_date">
+                                {{ $t('Rejoined on') }}
+                            </Label>
+                            <Input
+                                id="rejoin_date"
+                                name="date"
+                                type="date"
+                                :default-value="today"
+                                :min="earliestRejoining ?? undefined"
+                                required
+                                class="w-full sm:w-44"
+                            />
+                            <InputError :message="errors.date" />
+                        </div>
+
+                        <div class="grid gap-2">
+                            <Label for="rejoin_section">
+                                {{ $t('Section') }}
+                            </Label>
+                            <Select v-model="rejoinSection">
+                                <SelectTrigger
+                                    id="rejoin_section"
+                                    class="w-full"
+                                >
+                                    <SelectValue
+                                        :placeholder="$t('Pick a section')"
+                                    />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="section in options?.sections ??
+                                        []"
+                                        :key="section.id"
+                                        :value="String(section.id)"
+                                    >
+                                        {{ section.name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <input
+                                type="hidden"
+                                name="section_id"
+                                :value="rejoinSection"
+                            />
+                            <InputError :message="errors.section_id" />
+                        </div>
+
+                        <div class="grid gap-2">
+                            <Label for="rejoin_subscription">
+                                {{ $t('Subscription') }}
+                            </Label>
+                            <Select v-model="rejoinSubscription">
+                                <SelectTrigger
+                                    id="rejoin_subscription"
+                                    class="w-full"
+                                >
+                                    <SelectValue
+                                        :placeholder="$t('Pick a subscription')"
+                                    />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="subscription in options?.subscriptions ??
+                                        []"
+                                        :key="subscription.id"
+                                        :value="String(subscription.id)"
+                                    >
+                                        {{ subscription.name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <input
+                                type="hidden"
+                                name="subscription_id"
+                                :value="rejoinSubscription"
+                            />
+                            <InputError :message="errors.subscription_id" />
+                        </div>
+                    </div>
+
+                    <DialogFooter class="mt-6 gap-2">
+                        <DialogClose as-child>
+                            <Button variant="secondary" type="button">
+                                {{ $t('Cancel') }}
+                            </Button>
+                        </DialogClose>
+                        <Button type="submit" :disabled="processing">
+                            {{ $t('Resume membership') }}
+                        </Button>
+                    </DialogFooter>
+                </Form>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>

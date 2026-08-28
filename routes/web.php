@@ -88,6 +88,8 @@ Route::middleware(['auth'])->group(function () {
         ->name('members.update')->can('update', 'member');
     Route::put('members/{member}/resign', [MemberController::class, 'resign'])
         ->name('members.resign')->can('resign', 'member');
+    Route::put('members/{member}/rejoin', [MemberController::class, 'rejoin'])
+        ->name('members.rejoin')->can('rejoin', 'member');
     Route::delete('members/{member}', [MemberController::class, 'destroy'])
         ->name('members.destroy')->can('delete', 'member');
 

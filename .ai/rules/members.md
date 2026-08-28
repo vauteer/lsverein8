@@ -1,6 +1,7 @@
 ---
 paths:
   - 'app/Http/Controllers/Members/**'
+  - app/Http/Controllers/Members/MemberSubscriptionController.php
 ---
 
 # Members
@@ -45,3 +46,20 @@ Zwei verschiedene Rückmeldungen, mit Absicht: `update` wirft eine `ValidationEx
 **Bewusst offen gelassen:** die Gegenrichtung. `MembershipController` kann eine Mitgliedschaft (wieder) öffnen, ohne dass eine Sparte existiert — etwa beim Wiedereintritt. Dort zu sperren würde die natürliche Eingabereihenfolge (erst Mitgliedschaft, dann Sparte) blockieren. Wer die Invariante lückenlos will, braucht dafür eine andere Lösung als eine Sperre, etwa einen Hinweis auf der Mitgliederseite.
 
 Der Anlege-Weg ist dicht: `entryRules()` verlangt `section_id`.
+
+## Ein aktuelles Mitglied hält mindestens einen Beitrag
+Seit 2026-08-28: wessen Mitgliedschaft offen ist, muss mindestens einen Beitrag haben. Damit ist das, was der Verein abrechnet, die Summe über die Beiträge — vorher war ein Mitglied ohne Beitrag in keiner Summe sichtbar, weder als Einnahme noch als Lücke.
+
+**Möglich wurde das erst durch die 0-€-Beiträge** („Familienmitglied", „Beitragsfrei"). Wer nichts zahlt, bekommt einen davon; der nennt den Grund, statt ein leeres Feld zu lassen. Vor der Bereinigung hatten 37 aktuelle Mitglieder gar keinen Beitrag.
+
+Zwei Enden, gespiegelt nach dem Sparten-Muster (`MemberSectionController::isLastActiveSection()`):
+- `MemberValidationRules::entryRules()`: `subscription_id` ist **required** (war `nullable`), `members/Create.vue` hat kein „(kein)" mehr und wählt den ersten Beitrag vor.
+- `MemberSubscriptionController::isLastSubscription()` sperrt `destroy` der letzten Zeile, solange die Mitgliedschaft offen ist. **Toast, keine ValidationException** — der Löschdialog hat kein Feld für eine Meldung. Nach `resign()` ist die Zeile wieder löschbar, sonst ließe sich ein Ausgetretener nie aufräumen.
+
+Einfacher als bei Sparten: `member_subscription` trägt keine Daten, es gibt also kein „Schließen" — nur `destroy` kann den letzten wegnehmen.
+
+**Neue Vereine bekommen automatisch einen Beitrag „Beitragsfrei" (0 €)** in `ClubController::store()`. Ohne das käme ein frischer Verein nicht an sein erstes Mitglied: `subscriptions.club_id` ist NOT NULL, es gibt also keine installationsweiten Zeilen zum Ausweichen, anders als bei Sparten. Der Admin benennt ihn um oder ersetzt ihn.
+
+**Bewusst offen, wie bei den Sparten:** die Gegenrichtung. `MembershipController` kann eine Mitgliedschaft wieder öffnen, ohne dass ein Beitrag existiert — 39 der 180 Ehemaligen haben keinen, und beim Wiedereintritt zuerst den Beitrag zu verlangen bräche die natürliche Eingabereihenfolge. `MemberFilter::NoSubscription` (admin-only) bleibt deshalb als Kontrollliste nützlich: sie sollte leer sein, und wenn nicht, zeigt sie genau diese Lücke. An Produktion geprüft (2026-08-28): 400 aktuelle Mitglieder, 0 Verstöße.
+
+Testfalle: **jede** `members.store`-Nutzlast braucht jetzt `subscription_id`, sonst schlägt die Validierung fehl — in `MemberManagementTest` liefert der Helfer `entrySubscription()` einen.

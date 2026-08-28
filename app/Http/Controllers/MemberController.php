@@ -7,6 +7,7 @@ use App\Enums\Gender;
 use App\Enums\MemberExport;
 use App\Enums\MemberFilter;
 use App\Enums\MemberSort;
+use App\Http\Requests\MemberRejoinRequest;
 use App\Http\Requests\MemberResignRequest;
 use App\Http\Requests\MemberStoreRequest;
 use App\Http\Requests\MemberUpdateRequest;
@@ -249,6 +250,12 @@ class MemberController extends Controller
                 'items' => $usesItems ? $this->options(Item::query()->orderBy('name')) : [],
             ] : null,
             'today' => now()->format('Y-m-d'),
+            // Only somebody who has left can come back: a current member has
+            // nothing to resume, and the dead are not offered it at all.
+            'rejoinable' => $modifiable && $member->alive() && ! $member->isMember(),
+            // The floor the dialog shows, so the limit MemberRejoinRequest
+            // enforces is visible before the form is sent.
+            'earliestRejoining' => $member->lastMembershipEnd()?->addDay()->format('Y-m-d'),
             'backQuery' => $this->backQuery($request),
         ]);
     }
@@ -325,6 +332,38 @@ class MemberController extends Controller
         // selection is current members — which reads as though something went
         // wrong. The member page shows the closed ranges instead, which is
         // exactly what just happened.
+        return to_route('members.show', [$member, ...$this->backQuery($request)]);
+    }
+
+    /**
+     * Take a former member back in, the mirror of resign().
+     *
+     * A section and a subscription are given with the date rather than added
+     * afterwards, so the member never exists in a state the rest of the app
+     * forbids: a BLSV club's member has to be in a section, and every current
+     * member has to hold a subscription. Reopening the row through
+     * MembershipController alone would produce exactly that gap, which is why
+     * this way in exists.
+     */
+    public function rejoin(MemberRejoinRequest $request, Member $member): RedirectResponse
+    {
+        $validated = $request->validated();
+        $date = $validated['date'];
+
+        // A second period rather than reopening the old one: membershipYears()
+        // sums them, and the years actually spent outside the club must not be
+        // counted back in.
+        $member->memberships()->attach(currentClubId(), ['from' => $date, 'to' => null]);
+        $member->sections()->attach($validated['section_id'], ['from' => $date, 'to' => null]);
+
+        // member_subscription carries no dates, so a member who still held
+        // this one from before would end up with the row twice.
+        if (! $member->subscriptions()->where('subscriptions.id', $validated['subscription_id'])->exists()) {
+            $member->subscriptions()->attach($validated['subscription_id']);
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Membership resumed.')]);
+
         return to_route('members.show', [$member, ...$this->backQuery($request)]);
     }
 

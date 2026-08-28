@@ -9,6 +9,7 @@ use App\Http\Requests\ClubStoreRequest;
 use App\Http\Requests\ClubUpdateRequest;
 use App\Http\Resources\ClubResource;
 use App\Models\Club;
+use App\Models\Subscription;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -58,6 +59,17 @@ class ClubController extends Controller
         // Without this the creator could not reach the new club at all: it has
         // no users, so nobody but a root account could ever switch into it.
         $request->user()->clubs()->attach($club->id, ['role' => ClubRole::Admin->value]);
+
+        // And without a subscription the club could not take its first member:
+        // one is required, and subscriptions have no installation-wide rows to
+        // fall back on the way sections do (`subscriptions.club_id` is NOT
+        // NULL). A 0 € one is the safe default — it bills nobody anything, and
+        // the admin renames or replaces it once the real fees are known.
+        Subscription::create([
+            'club_id' => $club->id,
+            'name' => __('Exempt'),
+            'amount' => 0,
+        ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Club created.')]);
 

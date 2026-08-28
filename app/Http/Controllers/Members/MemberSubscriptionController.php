@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Members;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Members\MemberSubscriptionRequest;
+use App\Models\ClubMember;
 use App\Models\Member;
 use App\Models\MemberSubscription;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Date;
 use Inertia\Inertia;
 
 /**
@@ -38,11 +40,60 @@ class MemberSubscriptionController extends Controller
 
     public function destroy(Member $member, int $row): RedirectResponse
     {
-        $this->rowOf($member, $row)->delete();
+        $pivot = $this->rowOf($member, $row);
+
+        if ($this->isLastSubscription($member, $pivot)) {
+            // A toast, not a validation error: deleting a row goes through a
+            // confirmation dialog with no field to hang a message on. Same
+            // split as the last-section rule.
+            Inertia::flash('toast', ['type' => 'error', 'message' => $this->lastSubscriptionMessage()]);
+
+            return back();
+        }
+
+        $pivot->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Subscription removed.')]);
 
         return back();
+    }
+
+    /**
+     * Whether this row is the only subscription a current member holds.
+     *
+     * Every current member has to hold one, so that what the club bills is the
+     * sum over its subscriptions and nobody is invisible in it. Paying nothing
+     * is a 0 € subscription — "Familienmitglied" for somebody a family
+     * contribution covers, "Beitragsfrei" for an exemption — which names the
+     * reason instead of leaving a blank.
+     *
+     * `member_subscription` carries no dates (unlike sections), so there is no
+     * "closing" a row: holding one is the whole state, and only `destroy` can
+     * take the last one away.
+     *
+     * Only while the membership is open. After `resign()` the leftover rows
+     * have to stay removable, exactly as with sections.
+     */
+    private function isLastSubscription(Member $member, MemberSubscription $row): bool
+    {
+        $stillAMember = ClubMember::query()
+            ->where('member_id', $member->id)
+            ->where(fn ($query) => $query->whereNull('to')->orWhere('to', '>=', Date::now()->startOfDay()))
+            ->exists();
+
+        if (! $stillAMember) {
+            return false;
+        }
+
+        return ! MemberSubscription::query()
+            ->where('member_id', $member->id)
+            ->whereKeyNot($row->id)
+            ->exists();
+    }
+
+    private function lastSubscriptionMessage(): string
+    {
+        return __('A current member has to hold at least one subscription. Add the new one first, or end the membership instead.');
     }
 
     /**

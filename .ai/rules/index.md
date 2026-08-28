@@ -10,7 +10,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Enums/**, app/Enums/AgeBracket.php, app/Enums/LandingPage.php, app/Enums/PaymentMethod.php | .ai/rules/enums.md |
 | app/Http/** | .ai/rules/http.md |
 | resources/js/** | .ai/rules/js.md |
-| app/Http/Controllers/Members/** | .ai/rules/members.md |
+| app/Http/Controllers/Members/**, app/Http/Controllers/Members/MemberSubscriptionController.php | .ai/rules/members.md |
 | database/migrations/** | .ai/rules/migrations.md |
 | app/Models/**, app/Models/User.php, app/Models/Member.php | .ai/rules/models.md |
 | resources/js/pages/members/** | .ai/rules/pages-members.md |

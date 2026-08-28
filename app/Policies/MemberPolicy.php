@@ -41,6 +41,14 @@ class MemberPolicy
     }
 
     /**
+     * Taking somebody back in is an update too, the mirror of resign().
+     */
+    public function rejoin(User $user, Member $member): bool
+    {
+        return $this->update($user, $member);
+    }
+
+    /**
      * Deleting is for a row that should never have existed, and only while
      * nothing hangs off it. Every table carrying a `member_id` is
      * ON DELETE CASCADE, so the database would silently take a member's whole

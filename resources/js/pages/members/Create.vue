@@ -46,11 +46,11 @@ const cancelHref = index({ query: backQuery });
 const sectionId = ref(
     props.sections.length > 0 ? String(props.sections[0].id) : '',
 );
-// reka-ui cannot hold an empty value, so "no subscription" travels as a
-// sentinel that the hidden input turns back into '' — same pattern as the
-// club language in UserFormFields.
-const NO_SUBSCRIPTION = 'none';
-const subscriptionId = ref(NO_SUBSCRIPTION);
+// A subscription is required, so this preselects rather than offering "none":
+// a current member always holds one, and paying nothing is a 0 € subscription.
+const subscriptionId = ref(
+    props.subscriptions.length > 0 ? String(props.subscriptions[0].id) : '',
+);
 
 // Cleared whenever a fresh warning arrives, so a second, different duplicate
 // cannot be waved through by a tick the user set for the first one.
@@ -153,9 +153,6 @@ defineOptions({
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem :value="NO_SUBSCRIPTION">
-                                    {{ $t('(none)') }}
-                                </SelectItem>
                                 <SelectItem
                                     v-for="subscription in subscriptions"
                                     :key="subscription.id"
@@ -168,11 +165,7 @@ defineOptions({
                         <input
                             type="hidden"
                             name="subscription_id"
-                            :value="
-                                subscriptionId === NO_SUBSCRIPTION
-                                    ? ''
-                                    : subscriptionId
-                            "
+                            :value="subscriptionId"
                         />
                         <InputError :message="errors.subscription_id" />
                     </div>

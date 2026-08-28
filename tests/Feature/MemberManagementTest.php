@@ -53,6 +53,17 @@ function joinedMember(array $attributes = [], string $from = '2016-01-01'): Memb
 }
 
 /**
+ * The subscription every create payload needs since a current member has to
+ * hold one. Reused across a test rather than created per call, so a listing
+ * assertion does not trip over a pile of fixtures.
+ */
+function entrySubscription(): int
+{
+    return (Subscription::query()->where('club_id', 1)->first()
+        ?? Subscription::factory()->create(['club_id' => 1]))->id;
+}
+
+/**
  * A valid payload; individual tests override the field they are exercising.
  *
  * @return array<string, mixed>
@@ -398,6 +409,7 @@ test('the diverse gender is parked: neither offered nor accepted', function () {
         ->post(route('members.store'), memberPayload([
             'entry_date' => '2024-03-01',
             'section_id' => $section->id,
+            'subscription_id' => entrySubscription(),
             'gender' => Gender::Divers->value,
         ]))
         ->assertSessionHasErrors('gender');
@@ -420,6 +432,7 @@ test('the member number is handed out by the server, never taken from the form',
         ->post(route('members.store'), memberPayload([
             'entry_date' => '2024-03-01',
             'section_id' => $section->id,
+            'subscription_id' => entrySubscription(),
             'member_id' => 999,
         ]))
         ->assertRedirect();
@@ -439,6 +452,7 @@ test('a new member cannot be filed under another club section or subscription', 
     $this->post(route('members.store'), memberPayload([
         'entry_date' => '2024-03-01',
         'section_id' => $foreignSection->id,
+        'subscription_id' => entrySubscription(),
     ]))->assertSessionHasErrors('section_id');
 
     $this->post(route('members.store'), memberPayload([
@@ -458,13 +472,18 @@ test('an installation-wide section is accepted for a new member', function () {
         ->post(route('members.store'), memberPayload([
             'entry_date' => '2024-03-01',
             'section_id' => $shared->id,
+            'subscription_id' => entrySubscription(),
         ]))
         ->assertSessionHasNoErrors();
 });
 
 test('the bank details are all or nothing', function () {
     $section = Section::factory()->create(['club_id' => 1]);
-    $entry = ['entry_date' => '2024-03-01', 'section_id' => $section->id];
+    $entry = [
+        'entry_date' => '2024-03-01',
+        'section_id' => $section->id,
+        'subscription_id' => entrySubscription(),
+    ];
 
     $this->actingAs(memberUser());
 
@@ -555,6 +574,111 @@ test('the forms offer the bank details of members who have some', function () {
         ->assertInertia(fn ($page) => $page->has('accountSources', 2));
 });
 
+test('a former member is taken back in with a section and a subscription', function () {
+    $section = Section::factory()->create(['club_id' => 1]);
+    $subscription = Subscription::factory()->create(['club_id' => 1]);
+    $member = joinedMember([], '2010-01-01');
+    $member->memberships()->updateExistingPivot(1, ['to' => '2018-12-31']);
+
+    $this->actingAs(memberUser());
+
+    $this->get(route('members.show', $member))
+        ->assertInertia(fn ($page) => $page
+            ->where('rejoinable', true)
+            // The day after the last one ended, so the picker's floor and the
+            // rule the request enforces are the same date.
+            ->where('earliestRejoining', '2019-01-01')
+        );
+
+    $this->put(route('members.rejoin', $member), [
+        'date' => '2024-03-01',
+        'section_id' => $section->id,
+        'subscription_id' => $subscription->id,
+    ])->assertRedirect(route('members.show', $member));
+
+    $member->refresh();
+
+    // A second period, not a reopened one: the years away must not count.
+    expect($member->memberships)->toHaveCount(2)
+        ->and($member->isMember())->toBeTrue()
+        ->and($member->sections->pluck('id')->all())->toBe([$section->id])
+        ->and($member->subscriptions->pluck('id')->all())->toBe([$subscription->id]);
+
+    $reopened = $member->memberships->firstWhere('pivot.to', null);
+
+    expect($reopened->pivot->from->format('Y-m-d'))->toBe('2024-03-01')
+        ->and($member->sections->first()->pivot->from->format('Y-m-d'))->toBe('2024-03-01');
+});
+
+test('rejoining is refused where it would overlap or make no sense', function () {
+    $section = Section::factory()->create(['club_id' => 1]);
+    $subscription = Subscription::factory()->create(['club_id' => 1]);
+    $valid = fn (array $overrides = []) => [
+        'date' => '2024-03-01',
+        'section_id' => $section->id,
+        'subscription_id' => $subscription->id,
+        ...$overrides,
+    ];
+
+    $this->actingAs(memberUser());
+
+    // Still a member: nothing to resume, and the button is not offered either.
+    $current = joinedMember();
+    $this->get(route('members.show', $current))
+        ->assertInertia(fn ($page) => $page->where('rejoinable', false)
+            ->where('earliestRejoining', null));
+
+    $departed = joinedMember([], '2010-01-01');
+    $departed->memberships()->updateExistingPivot(1, ['to' => '2018-12-31']);
+
+    // The two periods may not overlap or meet: membershipYears() sums them.
+    $this->put(route('members.rejoin', $departed), $valid(['date' => '2018-12-31']))
+        ->assertSessionHasErrors('date');
+
+    // Section and subscription are not optional — that is the whole point of
+    // this way in, as opposed to reopening the membership row on its own.
+    $this->put(route('members.rejoin', $departed), $valid(['section_id' => '']))
+        ->assertSessionHasErrors('section_id');
+    $this->put(route('members.rejoin', $departed), $valid(['subscription_id' => '']))
+        ->assertSessionHasErrors('subscription_id');
+
+    // Another club's subscription cannot be smuggled in: `exists` does not
+    // inherit the ClubScope.
+    $this->put(route('members.rejoin', $departed), $valid([
+        'subscription_id' => Subscription::factory()->create()->id,
+    ]))->assertSessionHasErrors('subscription_id');
+
+    expect($departed->refresh()->memberships)->toHaveCount(1);
+});
+
+test('a dead member is never offered a rejoining', function () {
+    $member = joinedMember(['death_day' => '2020-05-01'], '2010-01-01');
+    $member->memberships()->updateExistingPivot(1, ['to' => '2020-05-01']);
+
+    $this->actingAs(memberUser())
+        ->get(route('members.show', $member))
+        ->assertInertia(fn ($page) => $page->where('rejoinable', false));
+});
+
+test('rejoining does not duplicate a subscription the member still holds', function () {
+    $section = Section::factory()->create(['club_id' => 1]);
+    $subscription = Subscription::factory()->create(['club_id' => 1]);
+    $member = joinedMember([], '2010-01-01');
+    $member->memberships()->updateExistingPivot(1, ['to' => '2018-12-31']);
+    // Left behind from the first period; member_subscription has no dates, so
+    // attaching again would simply be the same row twice.
+    $member->subscriptions()->attach($subscription->id);
+
+    $this->actingAs(memberUser())
+        ->put(route('members.rejoin', $member), [
+            'date' => '2024-03-01',
+            'section_id' => $section->id,
+            'subscription_id' => $subscription->id,
+        ])->assertRedirect();
+
+    expect($member->refresh()->subscriptions)->toHaveCount(1);
+});
+
 test('an action carries the list selection back with it', function () {
     // The list state lives in the URL, so every way out of the member forms
     // has to hand it on: save, resign and delete alike, not just Cancel.
@@ -592,7 +716,11 @@ test('a deleted member returns to the list selection too', function () {
 
 test('the dates have to make sense', function () {
     $section = Section::factory()->create(['club_id' => 1]);
-    $entry = ['entry_date' => '2024-03-01', 'section_id' => $section->id];
+    $entry = [
+        'entry_date' => '2024-03-01',
+        'section_id' => $section->id,
+        'subscription_id' => entrySubscription(),
+    ];
 
     $this->actingAs(memberUser());
 
@@ -616,6 +744,7 @@ test('a date of death is recorded on the edit form and nowhere else', function (
     $this->post(route('members.store'), memberPayload([
         'entry_date' => '2024-03-01',
         'section_id' => $section->id,
+        'subscription_id' => entrySubscription(),
         'death_day' => '2024-01-01',
     ]))->assertSessionHasNoErrors();
 
@@ -669,6 +798,7 @@ test('the entry fields never reach the members table on an update', function () 
         ->put(route('members.update', $member), memberPayload([
             'entry_date' => '1999-01-01',
             'section_id' => $section->id,
+            'subscription_id' => entrySubscription(),
             'club_id' => 999,
         ]))
         ->assertRedirect();
@@ -941,6 +1071,7 @@ test('creating a member lands on their page, not back on the list', function () 
         ->post(route('members.store'), memberPayload([
             'entry_date' => now()->addMonth()->format('Y-m-d'),
             'section_id' => $section->id,
+            'subscription_id' => entrySubscription(),
         ]));
 
     $member = Member::firstOrFail();
@@ -949,6 +1080,7 @@ test('creating a member lands on their page, not back on the list', function () 
         'surname' => 'Zweiter',
         'entry_date' => now()->addMonth()->format('Y-m-d'),
         'section_id' => $section->id,
+        'subscription_id' => entrySubscription(),
     ]))->assertRedirect(route('members.show', Member::query()->where('surname', 'Zweiter')->firstOrFail()));
 
     // Why it matters: the list does not contain them, because they join next
@@ -969,12 +1101,14 @@ test('a joining date may be up to three months ahead but no further', function (
     $this->post(route('members.store'), memberPayload([
         'entry_date' => now()->addMonths(2)->format('Y-m-d'),
         'section_id' => $section->id,
+        'subscription_id' => entrySubscription(),
     ]))->assertSessionHasNoErrors();
 
     $this->post(route('members.store'), memberPayload([
         'surname' => 'Anders',
         'entry_date' => now()->addMonths(4)->format('Y-m-d'),
         'section_id' => $section->id,
+        'subscription_id' => entrySubscription(),
     ]))->assertSessionHasErrors('entry_date');
 
     // The mistyped year this bound exists to catch.
@@ -982,6 +1116,7 @@ test('a joining date may be up to three months ahead but no further', function (
         'surname' => 'Vertippt',
         'entry_date' => now()->addYears(36)->format('Y-m-d'),
         'section_id' => $section->id,
+        'subscription_id' => entrySubscription(),
     ]))->assertSessionHasErrors('entry_date');
 });
 
@@ -997,6 +1132,7 @@ test('a second member of the same name and birthday is refused until confirmed',
         'birthday' => '2013-01-24',
         'entry_date' => now()->format('Y-m-d'),
         'section_id' => $section->id,
+        'subscription_id' => entrySubscription(),
     ]);
 
     $this->post(route('members.store'), $payload)
@@ -1030,6 +1166,7 @@ test('the warning is not raised by a namesake with a different birthday', functi
             'birthday' => '2013-04-08',
             'entry_date' => now()->format('Y-m-d'),
             'section_id' => $section->id,
+            'subscription_id' => entrySubscription(),
         ]))
         ->assertSessionHasNoErrors();
 
@@ -1051,6 +1188,7 @@ test('a member of another club never raises the warning', function () {
             'birthday' => '2013-01-24',
             'entry_date' => now()->format('Y-m-d'),
             'section_id' => $section->id,
+            'subscription_id' => entrySubscription(),
         ]))
         ->assertSessionHasNoErrors();
 });
@@ -1067,6 +1205,7 @@ test('a returning member is told to reopen the membership instead', function () 
             'birthday' => '1997-12-12',
             'entry_date' => now()->format('Y-m-d'),
             'section_id' => $section->id,
+            'subscription_id' => entrySubscription(),
         ]))
         // The expensive case: a new record would drop the fourteen years and
         // with them the honour that is due for them.

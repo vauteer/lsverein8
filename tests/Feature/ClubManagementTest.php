@@ -169,6 +169,15 @@ test('only a root account creates a club, and is attached to it as admin', funct
     // Without the attach nobody but a root account could ever reach it.
     expect($root->clubs()->whereKey($created->id)->exists())->toBeTrue()
         ->and($root->clubRole($created->id))->toBe(ClubRole::Admin->value);
+
+    // And without a subscription it could not take its first member: one is
+    // required, and subscriptions have no installation-wide rows to fall back
+    // on the way sections do. 0 €, so it bills nobody until the admin edits it.
+    $seeded = Subscription::withoutGlobalScopes()->where('club_id', $created->id)->get();
+
+    expect($seeded)->toHaveCount(1)
+        ->and($seeded->first()->name)->toBe('Beitragsfrei')
+        ->and($seeded->first()->amount)->toBe(0.0);
 });
 
 test('the iban is normalized and checksum validated', function () {

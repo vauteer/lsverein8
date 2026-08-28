@@ -191,6 +191,26 @@ class Member extends Model
      * later still — ending on a date before those would write a `to` that
      * precedes its own `from`. Null when nothing is open.
      */
+    /**
+     * When the latest membership ended, or null while one is still open.
+     *
+     * The floor for rejoining: a new period has to start strictly after it, or
+     * two periods overlap and `membershipYears()` counts the same year twice.
+     */
+    public function lastMembershipEnd(): ?CarbonInterface
+    {
+        // An open period means they never left, so there is no floor.
+        if ($this->memberships()->wherePivotNull('to')->exists()) {
+            return null;
+        }
+
+        return $this->memberships()->get()
+            ->map(fn (Club $club): ?CarbonInterface => $club->pivot->to)
+            ->filter()
+            ->sortBy(fn (CarbonInterface $end): string => $end->toDateString())
+            ->last();
+    }
+
     public function lastOpenStart(): ?CarbonInterface
     {
         $starts = $this->memberships()->wherePivotNull('to')->get()
