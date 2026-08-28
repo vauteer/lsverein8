@@ -85,3 +85,14 @@ Größenordnung des alten Fehlers an echten Daten: Fussball 222 → 103, Tennis 
 `isUsed()` ist unberührt und zählt weiter jede Zeile: für „darf gelöscht werden" ist die Historie die richtige Frage.
 
 Testfallen: `insert_roles_defaults` sät sieben Funktionen (u. a. „Kassier"), `insert_events_defaults` sieben Ehrungen — eine Fixture mit so einem Namen kollidiert oder sortiert sich davor. Und eine Fixture, die ein Mitglied nur an den Pivot hängt, ohne `memberships()->attach()`, zählt bei `current()`/`held()` **nicht** mit.
+
+## Backup-Dateinamen tragen UTC im Namen — nicht umrechnen
+Alles wird in UTC gespeichert: Laravel (`app.timezone`), die Datenbank, der Server. Der Zeitstempel im Backup-Dateinamen ist deshalb ebenfalls UTC und trägt seit 2026-08-28 das Suffix `_utc` (`Backup::TIMEZONE_SUFFIX`), weil er sonst auf einem deutschen Server als Ortszeit gelesen wird und zwei Stunden falsch wirkt.
+
+**Beschriften, nicht umrechnen** — bewusst so entschieden, nachdem die Alternative (eine `app.display_timezone` zum Umrechnen an den Rändern) gebaut und wieder verworfen wurde. Sie war schwerer als das Problem und schuf eine Fehlerklasse, die es mit einer Uhr gar nicht gibt: `isDirty()` vergleicht `Backup::latestDate()` gegen `max(updated_at)` aus der Datenbank. Sobald das ein Anzeige-String in einer anderen Zone ist, wirkt das Backup jünger als jede Änderung, `isDirty()` meldet dauerhaft `false` und **der nächtliche Dump läuft nie wieder**, ohne Fehlermeldung. Keine zweite Zone einführen. Auch `clubs.timezone` wurde erwogen und verworfen: ein Backup umfasst alle Vereine (`manageBackups` ist root-only), kein Verein könnte also sagen, welche Zeit im Dateinamen steht.
+
+Nebenbei: UTC-Namen sortieren chronologisch und wiederholen bei der Zeitumstellung keine Stunde — Ortszeit im Dateinamen könnte ein Backup überschreiben.
+
+**Das Suffix ist Pflicht, nicht optional** (Gerald am 2026-08-28: Backups von vorher sind uninteressant). Dateien im alten Namensschema fallen damit aus `all()` heraus — sie erscheinen nicht mehr in der Liste und werden von `deleteOld()` auch nicht mehr gelöscht, bleiben also bis zum Aufräumen von Hand liegen. `dateFromFilename()` schneidet das Suffix mit `Str::chopEnd()` ab.
+
+`routes/console.php` bekommt bewusst **kein** `->timezone()`: `dailyAt('23:15')` ist damit 23:15 UTC = 01:15 deutscher Zeit. Steht als Kommentar dort. `tests/Feature/BackupTest.php` pinnt das Namensschema ("a name without the zone suffix is not a backup") und das `isDirty()`-Verhalten.

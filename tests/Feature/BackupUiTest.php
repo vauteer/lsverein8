@@ -36,7 +36,7 @@ function backupUser(ClubRole $role = ClubRole::Admin, array $attributes = []): U
 
 function createUiBackupFile(CarbonInterface $date, string $content = 'dump'): string
 {
-    $filename = 'backup_ui_test_missing_db_'.$date->format(Backup::DATE_FORMAT).'.sql.gz';
+    $filename = 'backup_ui_test_missing_db_'.$date->format(Backup::DATE_FORMAT).'_utc.sql.gz';
     File::put(Backup::path($filename), $content);
 
     return $filename;
@@ -106,7 +106,7 @@ test('unknown or invalid filenames are rejected with 404', function (string $rou
     $this->{$method}(route($routeName, ['filename' => 'unknown.sql.gz']))->assertNotFound();
     $this->{$method}(route($routeName, ['filename' => '.env']))->assertNotFound();
     $this->{$method}(route($routeName, [
-        'filename' => 'backup_ui_test_missing_db_2020_01_01_00_00_00.sql.gz',
+        'filename' => 'backup_ui_test_missing_db_2020_01_01_00_00_00_utc.sql.gz',
     ]))->assertNotFound();
 })->with([
     ['backups.download', 'get'],

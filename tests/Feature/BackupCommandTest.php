@@ -24,7 +24,7 @@ afterEach(function () {
 
 function createCommandBackupFile(CarbonInterface $date): string
 {
-    $filename = 'backup_command_test_missing_db_'.$date->format(Backup::DATE_FORMAT).'.sql.gz';
+    $filename = 'backup_command_test_missing_db_'.$date->format(Backup::DATE_FORMAT).'_utc.sql.gz';
     File::put(Backup::path($filename), 'dump');
 
     return $filename;

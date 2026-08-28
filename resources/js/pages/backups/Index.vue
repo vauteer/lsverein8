@@ -82,7 +82,10 @@ const backupToDelete = ref<BackupResource | null>(null);
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>{{ $t('Date') }}</TableHead>
+                        <!-- Labelled, not converted: the timestamp is UTC
+                             like everything the application stores, and the
+                             filename says so too. -->
+                        <TableHead>{{ $t('Date (UTC)') }}</TableHead>
                         <TableHead class="hidden md:table-cell">{{
                             $t('Age')
                         }}</TableHead>

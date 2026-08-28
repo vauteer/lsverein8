@@ -8,6 +8,10 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+// Both times below are in the application timezone, which is UTC — the
+// scheduler reads them the same way everything else is stored. 23:15 UTC is
+// therefore 01:15 the next morning in Germany, which is if anything the
+// quieter hour for a dump.
 Schedule::command('app:backup')
     ->dailyAt('23:15');
 

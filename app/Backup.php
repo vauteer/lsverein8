@@ -7,11 +7,27 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Symfony\Component\Process\ExecutableFinder;
 
 class Backup
 {
     public const string DATE_FORMAT = 'Y_m_d_H_i_s';
+
+    /**
+     * Appended after the timestamp, which is UTC like everything else the
+     * application stores.
+     *
+     * The names are read off the server by a person, and an unlabelled stamp
+     * on a German machine reads as local time and is then two hours out. The
+     * suffix says which clock it is instead of converting to another one:
+     * one clock everywhere cannot drift against itself, and UTC names sort
+     * chronologically and never repeat an hour when the clocks go back.
+     *
+     * Required, not optional: dumps written before it existed are of no
+     * interest and simply stop being listed.
+     */
+    private const string TIMEZONE_SUFFIX = '_utc';
 
     /**
      * Tables whose `updated_at` is consulted to decide whether anything has
@@ -166,7 +182,7 @@ class Backup
 
     public static function makeFilename(): string
     {
-        return self::prefix().now()->format(self::DATE_FORMAT).'.sql.gz';
+        return self::prefix().now()->format(self::DATE_FORMAT).self::TIMEZONE_SUFFIX.'.sql.gz';
     }
 
     /**
@@ -348,7 +364,8 @@ class Backup
 
     private static function isBackupFilename(string $filename): bool
     {
-        $pattern = '/^'.preg_quote(self::prefix(), '/').'\d{4}(_\d{2}){5}\.sql\.gz$/';
+        $pattern = '/^'.preg_quote(self::prefix(), '/').'\d{4}(_\d{2}){5}'
+            .preg_quote(self::TIMEZONE_SUFFIX, '/').'\.sql\.gz$/';
 
         return preg_match($pattern, $filename) === 1;
     }
@@ -357,7 +374,9 @@ class Backup
     {
         $encodedDate = substr(basename($filename, '.sql.gz'), strlen(self::prefix()));
 
-        return Carbon::createFromFormat(self::DATE_FORMAT, $encodedDate);
+        return Carbon::createFromFormat(
+            self::DATE_FORMAT, Str::chopEnd($encodedDate, self::TIMEZONE_SUFFIX)
+        );
     }
 
     /**

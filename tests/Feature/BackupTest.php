@@ -29,17 +29,47 @@ afterEach(function () {
 
 function createBackupFile(CarbonInterface $date): string
 {
-    $filename = 'testdb_'.$date->format(Backup::DATE_FORMAT).'.sql.gz';
+    $filename = 'testdb_'.$date->format(Backup::DATE_FORMAT).'_utc.sql.gz';
     File::put(Backup::path($filename), 'dump');
 
     return $filename;
 }
 
-test('the filename is composed of the database prefix and a timestamp', function () {
+test('the filename is composed of the database prefix, a timestamp and its zone', function () {
     Carbon::setTestNow('2026-07-15 09:30:00');
 
+    // The stamp is UTC, like everything stored, and says so — unlabelled it
+    // reads as local time on a German server and is then two hours out.
     expect(Backup::prefix())->toBe('testdb_')
-        ->and(Backup::makeFilename())->toBe('testdb_2026_07_15_09_30_00.sql.gz');
+        ->and(Backup::makeFilename())->toBe('testdb_2026_07_15_09_30_00_utc.sql.gz');
+});
+
+test('a name without the zone suffix is not a backup', function () {
+    // Dumps from before the suffix are of no interest; they drop out of the
+    // listing rather than being carried along.
+    File::put(Backup::path('testdb_2026_07_15_09_30_00.sql.gz'), 'dump');
+    $current = createBackupFile(Carbon::parse('2026-07-15 09:30:00'));
+
+    $backups = Backup::all();
+
+    expect($backups)->toHaveCount(1)
+        ->and($backups[0]['filename'])->toBe($current);
+});
+
+test('a backup taken after the last change leaves the database clean', function () {
+    Club::factory()->create(['id' => 1]);
+    Member::factory()->ofClub(1)->create();
+    settleTrackedTables();
+
+    Carbon::setTestNow(now()->addMinute());
+    File::put(Backup::path(Backup::makeFilename()), 'dump');
+
+    expect(Backup::isDirty())->toBeFalse();
+
+    Carbon::setTestNow(now()->addMinute());
+    Member::factory()->ofClub(1)->create();
+
+    expect(Backup::isDirty())->toBeTrue();
 });
 
 test('path resolves inside the configured backup directory', function () {
