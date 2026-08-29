@@ -11,8 +11,11 @@ namespace App\Enums;
  */
 enum MemberExport: string
 {
-    case Addresses = 'pdf';
-    case Roles = 'roles';
+    // The backing value is the URL segment of members/export/{format}. Both
+    // PDFs say so: `pdf` alone named neither of the two, and `roles` did not
+    // say what it hands out.
+    case Addresses = 'addresses-pdf';
+    case Roles = 'roles-pdf';
     case Csv = 'csv';
     case VCard = 'vcf';
     case BlsvExcel = 'blsv-xlsx';

@@ -45,7 +45,7 @@ test('every format is offered on the index', function () {
         ->get(route('members.index'))
         ->assertInertia(fn ($page) => $page
             ->has('exportFormats', 4)
-            ->where('exportFormats.0.id', 'pdf')
+            ->where('exportFormats.0.id', 'addresses-pdf')
         );
 });
 
