@@ -255,7 +255,7 @@ class Club extends Model
      */
     private static function getStatIndex(int $age): int
     {
-        return AgeBracket::of($age)->index();
+        return AgeBracket::of($age)->blsvRow();
     }
 
     /**

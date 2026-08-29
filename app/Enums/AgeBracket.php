@@ -6,13 +6,21 @@ use App\Models\Member;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * The seven age groups a club is read in.
+ * The seven age groups a club is read in, on the BLSV's boundaries.
  *
- * The boundaries are the BLSV's, not ours: `Club::getBLSVStatistic()` reports
+ * The lines are the association's, not ours: `Club::getBLSVStatistic()` reports
  * exactly these seven rows and `BlsvPdf` prints their German names, so moving
- * a boundary changes what the club submits to the association. They are here
- * rather than in Club so that the dashboard's age chart, the member selection
- * behind it and the yearly report can only ever draw the same lines.
+ * one changes what the club submits. They are here rather than in Club so that
+ * the dashboard's age chart, the member selection behind it and the yearly
+ * report can only ever draw the same lines.
+ *
+ * The class is deliberately *not* named after the association, though the
+ * boundaries are: this is the only age segmentation the app has, and clubs that
+ * are no BLSV member read their dashboard and filter their members by it too
+ * (club 2 has `blsv_member = 0`). A BLSV name would invite a second, "neutral"
+ * set of brackets, which is the one thing this enum exists to prevent. The one
+ * genuinely association-specific part carries the name instead — see
+ * `blsvRow()`, the same split `Gender::blsvValue()` makes.
  *
  * The backing value is what the member list carries in its URL
  * (`?filter=age_18-26`), so it must stay stable — it lives in bookmarks.
@@ -112,12 +120,15 @@ enum AgeBracket: string
     }
 
     /**
-     * Position in the BLSV statistic's seven rows.
+     * Which of the BLSV statistic's seven rows this bracket is.
+     *
+     * The only association-specific thing about the enum, hence the name: the
+     * brackets themselves are what every club is read in, BLSV member or not.
      *
      * The cast is safe rather than lossy: `$this` is by definition one of
      * `self::cases()`, so the search never fails.
      */
-    public function index(): int
+    public function blsvRow(): int
     {
         return (int) array_search($this, self::cases(), true);
     }

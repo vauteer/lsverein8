@@ -63,6 +63,8 @@ Dasselbe Muster steht schon im Dashboard: `AgeStructureCard.vue` blendet den dri
 
 `minAge()`/`maxAge()`, **nicht** `from()`/`to()`: `BackedEnum::from()` ist belegt, phpstan bricht sonst mit `enum.methodRedeclaration`.
 
+**Die Klasse heißt bewusst nicht `BlsvAgeBracket`, obwohl die Grenzen vom Verband stammen** (2026-08-29 so entschieden). Es ist die einzige Alterssegmentierung der App: auch Verein 2 (Feuerwehr, `blsv_member = 0`) liest sein Dashboard und filtert seine Mitglieder damit. Ein Verbandsname im Klassennamen lädt dazu ein, irgendwann eine zweite, „neutrale" Staffel danebenzulegen — genau das, was dieser Enum verhindern soll. Stattdessen trägt der eine wirklich verbandsspezifische Teil den Namen: **`blsvRow()`** (bis 2026-08-29 `index()`) gibt die Zeile in der BLSV-Statistik zurück, aufgerufen nur aus `Club::getStatIndex()`. Gleiche Aufteilung wie bei `Gender`, das allgemein heißt und die Verbandsabbildung in `blsvValue()` hält.
+
 Der Backing-Wert ist der URL-Teil der Auswahl (`?filter=age_18-26`, gebaut von `filter()`) und liegt damit in Lesezeichen — stabil halten. `apply()` ist die einzige Stelle, an der eine Gruppe zu SQL wird (`members()->ageRange()`), aufgerufen aus `SelectsMembers::applyAgeFilter()`; `AgeBracket::options()` hängt die sieben Einträge an `dynamicFilters()`.
 
 `MemberFilter::Children/Youths/Adults` bleiben daneben bestehen: das sind die drei groben Gruppen, in denen ein Verein sich sonst liest.
