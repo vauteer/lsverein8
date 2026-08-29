@@ -26,7 +26,7 @@ export type SharedClub = {
     id: number;
     name: string;
     logo_url: string | null;
-    /** From Club.display: a wordmark logo already contains the name. */
+    /** From Club.identity_display: a wordmark logo already contains the name. */
     show_logo: boolean;
     show_name: boolean;
     /** clubs.use_items: the inventory is opt-in per club. */

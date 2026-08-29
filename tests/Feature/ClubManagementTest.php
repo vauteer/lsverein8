@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\ClubDisplay;
+use App\Enums\ClubIdentityDisplay;
 use App\Enums\ClubRole;
 use App\Models\Club;
 use App\Models\Member;
@@ -41,7 +41,7 @@ function clubPayload(array $overrides = []): array
         'account_owner' => 'FF Musterdorf',
         'iban' => 'DE02120300000000202051',
         'bic' => 'BYLADEM1001',
-        'display' => 1,
+        'identity_display' => 1,
         'locale' => 'de',
         ...$overrides,
     ];
@@ -377,13 +377,13 @@ test('the edit page reports whether a logo is set', function () {
 });
 
 test('the display setting is cast to the enum and drives the two flags', function () {
-    expect($this->club->display)->toBe(ClubDisplay::LogoAndName);
+    expect($this->club->identity_display)->toBe(ClubIdentityDisplay::LogoAndName);
 
     // Tuples, not an enum-keyed array: PHP array keys cannot be enums.
     $cases = [
-        [ClubDisplay::LogoAndName, true, true],
-        [ClubDisplay::LogoOnly, true, false],
-        [ClubDisplay::NameOnly, false, true],
+        [ClubIdentityDisplay::LogoAndName, true, true],
+        [ClubIdentityDisplay::LogoOnly, true, false],
+        [ClubIdentityDisplay::NameOnly, false, true],
     ];
 
     foreach ($cases as [$display, $showsLogo, $showsName]) {
@@ -400,7 +400,7 @@ test('the sidebar receives the display flags for the current club', function () 
             ->where('currentClub.show_logo', true)
             ->where('currentClub.show_name', true));
 
-    $this->club->update(['display' => ClubDisplay::LogoOnly]);
+    $this->club->update(['identity_display' => ClubIdentityDisplay::LogoOnly]);
 
     $this->get(route('dashboard'))
         ->assertInertia(fn ($page) => $page
@@ -408,7 +408,7 @@ test('the sidebar receives the display flags for the current club', function () 
             // A wordmark logo already carries the name.
             ->where('currentClub.show_name', false));
 
-    $this->club->update(['display' => ClubDisplay::NameOnly]);
+    $this->club->update(['identity_display' => ClubIdentityDisplay::NameOnly]);
 
     $this->get(route('dashboard'))
         ->assertInertia(fn ($page) => $page
@@ -420,25 +420,25 @@ test('the display setting can be changed and is validated', function () {
     $this->actingAs(clubManagementUser())
         ->put(route('clubs.update', $this->club), clubPayload([
             'name' => 'TSV Musterstadt',
-            'display' => ClubDisplay::NameOnly->value,
+            'identity_display' => ClubIdentityDisplay::NameOnly->value,
         ]))
         ->assertSessionHasNoErrors();
 
-    expect($this->club->refresh()->display)->toBe(ClubDisplay::NameOnly);
+    expect($this->club->refresh()->identity_display)->toBe(ClubIdentityDisplay::NameOnly);
 
     $this->put(route('clubs.update', $this->club), clubPayload([
         'name' => 'TSV Musterstadt',
-        'display' => 9,
-    ]))->assertSessionHasErrors('display');
+        'identity_display' => 9,
+    ]))->assertSessionHasErrors('identity_display');
 });
 
 test('the form offers the styles with translated labels', function () {
     $this->actingAs(clubManagementUser(attributes: ['admin' => true]))
         ->get(route('clubs.create'))
         ->assertInertia(fn ($page) => $page
-            ->has('displayStyles', 3)
-            ->where('displayStyles.0.id', ClubDisplay::LogoAndName->value)
+            ->has('identityDisplays', 3)
+            ->where('identityDisplays.0.id', ClubIdentityDisplay::LogoAndName->value)
             // Was a hardcoded German string before the enum; it now goes
             // through __() like every other label.
-            ->where('displayStyles.0.name', __('Logo and name')));
+            ->where('identityDisplays.0.name', __('Logo and name')));
 });

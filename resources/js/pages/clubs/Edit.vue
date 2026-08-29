@@ -23,7 +23,7 @@ import type { BreadcrumbItem, ClubFormData, SelectOption } from '@/types';
 
 const props = defineProps<{
     club: ClubFormData;
-    displayStyles: SelectOption[];
+    identityDisplays: SelectOption[];
     languages: SelectOption[];
     deletable: boolean;
     /** False for a club admin, who has no club list to return to. */
@@ -63,7 +63,7 @@ defineOptions({
         >
             <ClubFormFields
                 :club="club"
-                :display-styles="displayStyles"
+                :identity-displays="identityDisplays"
                 :languages="languages"
                 :errors="errors"
             />

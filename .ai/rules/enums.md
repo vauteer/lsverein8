@@ -8,8 +8,8 @@ paths:
 
 # Enums
 
-## ClubDisplay: warum Logo und Name nicht immer beide erscheinen
-`clubs.display` ist auf `App\Enums\ClubDisplay` gecastet (LogoAndName=1, LogoOnly=2, NameOnly=3). Der Grund für die Einstellung ist inhaltlich, nicht kosmetisch: viele Vereinslogos sind Wortmarken, die den Vereinsnamen bereits enthalten — daneben nochmal den Namen zu setzen, druckt ihn doppelt.
+## ClubIdentityDisplay: warum Logo und Name nicht immer beide erscheinen
+`clubs.identity_display` (bis 2026-08-29 `clubs.display`, Migration `2026_08_29_092000`) ist auf `App\Enums\ClubIdentityDisplay` gecastet (LogoAndName=1, LogoOnly=2, NameOnly=3). Der alte Name las sich wie ein Schalter; die Spalte sagt, **welche Bestandteile** der Vereinsidentität erscheinen — das, was `ClubIdentity.vue` rendert. Bewusst nicht `display_style`: gestylt wird nichts, `LogoOnly` ist eine Auswahl, kein Stil. Enum und Prop tragen dasselbe Wort: `App\Enums\ClubIdentityDisplay` (bis 2026-08-29 `ClubDisplay`) und die Inertia-Prop `identityDisplays` (bis dahin `displayStyles`, geerbt von lsverein7s `Club::displayStyles()`). Spalte, Enum, Prop und die lokale Vue-Ref `identityDisplay` sagen damit alle dasselbe — vorher waren es drei Wörter für eine Einstellung. Der Grund für die Einstellung ist inhaltlich, nicht kosmetisch: viele Vereinslogos sind Wortmarken, die den Vereinsnamen bereits enthalten — daneben nochmal den Namen zu setzen, druckt ihn doppelt.
 
 Die Auswertung passiert serverseitig in `HandleInertiaRequests`, das `currentClub.show_logo` und `currentClub.show_name` aus `showsLogo()`/`showsName()` teilt. Im Frontend rendert `ClubIdentity.vue` danach; `ClubSwitcher` nutzt sie in beiden Zweigen (statisch und Dropdown), damit die Bedingung nur an einer Stelle steht. Den rohen Enum-Wert absichtlich nicht ins Frontend geben — sonst liegt die Bedeutung von "2" in einem Vue-Template.
 
@@ -35,7 +35,7 @@ Vorher gab es zwei konkurrierende Listen: `User::availableLocales()` mit `__()`-
 Im Benutzerformular trägt die Auswahl „(Vereinssprache)" den Sentinel `'inherit'`, den ein Hidden-Input zu `''` macht — reka-ui kann keinen leeren Wert halten, gleiches Muster wie `blsv_id` in SectionFormFields.
 
 ## PaymentMethod, MemberFilter und MemberSort ersetzen lsverein7s Magic Values
-Drei Enums, alle nach dem Muster von ClubDisplay/Locale (`label()` über `__()`, `options()` als `{id, name}` fürs Frontend):
+Drei Enums, alle nach dem Muster von ClubIdentityDisplay/Locale (`label()` über `__()`, `options()` als `{id, name}` fürs Frontend):
 
 **`PaymentMethod`** löst `Member::availablePaymentMethods()` ab — die hartkodierten deutschen Labels, die über die Außenstände-Tabelle unübersetzt durchschlugen. `Subscription::debit()` fragt `$member->payment_method->isCollectable()` statt `=== 'k'` und nimmt `->label()` statt eines Array-Lookups; der `paymentMethods`-Scope nimmt **Enum-Fälle, kein rohes `'k'`** (ModelLayerTest pinnt das). **Der Rest dieses Absatzes ist überholt:** die Spalte `members.payment_method` gibt es seit 2026-08-28 nicht mehr, der Wert wird aus den Bankdaten abgeleitet und `Member::factory()->create(['payment_method' => 'k'])` ist wirkungslos. Siehe den eigenen Abschnitt weiter unten.
 

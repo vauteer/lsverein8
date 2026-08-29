@@ -27,7 +27,7 @@ class ClubFactory extends Factory
             'bic' => 'COBADEFFXXX',
             'sepa_creditor_id' => 'DE98ZZZ09999999999',
             'sepa_mandate_date' => now()->subYears(5),
-            'display' => 1,
+            'identity_display' => 1,
             'locale' => 'de',
             'honor_years' => '25,40,50,60',
             'use_items' => false,

@@ -86,8 +86,8 @@ class HandleInertiaRequests extends Middleware
                 // Resolved server-side rather than shipping the raw enum: a
                 // wordmark logo already carries the name, so repeating it
                 // beside the image is what this setting exists to prevent.
-                'show_logo' => $currentClub->display->showsLogo(),
-                'show_name' => $currentClub->display->showsName(),
+                'show_logo' => $currentClub->identity_display->showsLogo(),
+                'show_name' => $currentClub->identity_display->showsName(),
                 // The inventory is opt-in per club, so the sidebar entry only
                 // appears where ItemPolicy would let the screens open.
                 'uses_items' => (bool) $currentClub->use_items,

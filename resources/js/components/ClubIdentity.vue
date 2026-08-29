@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { SharedClub } from '@/types';
 
 /**
- * How a club presents itself, honouring Club.display: logo and name, logo
+ * How a club presents itself, honouring Club.identity_display: logo and name, logo
  * only, or name only. A wordmark logo already contains the club name, so
  * showing both would print it twice.
  *

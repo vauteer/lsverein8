@@ -17,7 +17,7 @@ import type { ClubFormData, SelectOption } from '@/types';
 
 const props = defineProps<{
     club?: ClubFormData | null;
-    displayStyles: SelectOption[];
+    identityDisplays: SelectOption[];
     languages: SelectOption[];
     errors: Record<string, string>;
 }>();
@@ -56,7 +56,9 @@ function removeLogoFile() {
     }
 }
 
-const display = ref(String(props.club?.display ?? props.displayStyles[0].id));
+const identityDisplay = ref(
+    String(props.club?.identity_display ?? props.identityDisplays[0].id),
+);
 const locale = ref(props.club?.locale ?? props.languages[0].id);
 const blsvMember = ref(props.club?.blsv_member ?? false);
 const useItems = ref(props.club?.use_items ?? false);
@@ -262,23 +264,27 @@ const useItems = ref(props.club?.use_items ?? false);
 
         <div class="grid gap-4 sm:grid-cols-2">
             <div class="grid gap-2">
-                <Label for="display">{{ $t('Display') }}</Label>
-                <Select v-model="display">
-                    <SelectTrigger id="display" class="w-full">
+                <Label for="identity_display">{{ $t('Display') }}</Label>
+                <Select v-model="identityDisplay">
+                    <SelectTrigger id="identity_display" class="w-full">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem
-                            v-for="style in displayStyles"
-                            :key="style.id"
-                            :value="String(style.id)"
+                            v-for="option in identityDisplays"
+                            :key="option.id"
+                            :value="String(option.id)"
                         >
-                            {{ style.name }}
+                            {{ option.name }}
                         </SelectItem>
                     </SelectContent>
                 </Select>
-                <input type="hidden" name="display" :value="display" />
-                <InputError :message="errors.display" />
+                <input
+                    type="hidden"
+                    name="identity_display"
+                    :value="identityDisplay"
+                />
+                <InputError :message="errors.identity_display" />
             </div>
             <div class="grid gap-2">
                 <Label for="locale">{{ $t('Language') }}</Label>

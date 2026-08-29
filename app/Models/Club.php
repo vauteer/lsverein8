@@ -5,7 +5,7 @@ namespace App\Models;
 use App\AssignedMemberCount;
 use App\BlsvMemberReport;
 use App\Enums\AgeBracket;
-use App\Enums\ClubDisplay;
+use App\Enums\ClubIdentityDisplay;
 use App\Enums\Locale;
 use App\Models\Scopes\ClubScope;
 use App\Pdf\BlsvPdf;
@@ -38,7 +38,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $sepa_creditor_id
  * @property CarbonInterface|null $sepa_mandate_date
  * @property string|null $logo
- * @property ClubDisplay $display
+ * @property ClubIdentityDisplay $identity_display
  * @property Locale $locale
  * @property string|null $honor_years
  * @property bool $use_items
@@ -59,7 +59,7 @@ use Illuminate\Support\Facades\Storage;
     'sepa_creditor_id',
     'sepa_mandate_date',
     'logo',
-    'display',
+    'identity_display',
     'locale',
     'honor_years',
     'use_items',
@@ -77,7 +77,7 @@ class Club extends Model
         return [
             'blsv_member' => 'boolean',
             'sepa_mandate_date' => 'datetime',
-            'display' => ClubDisplay::class,
+            'identity_display' => ClubIdentityDisplay::class,
             'locale' => Locale::class,
         ];
     }

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\ClubDisplay;
+use App\Enums\ClubIdentityDisplay;
 use App\Enums\ClubRole;
 use App\Enums\Locale;
 use App\Http\Requests\ClubStoreRequest;
@@ -86,7 +86,7 @@ class ClubController extends Controller
                     'account_owner', 'iban', 'bic', 'sepa_creditor_id',
                     'honor_years',
                 ]),
-                'display' => $club->display->value,
+                'identity_display' => $club->identity_display->value,
                 'locale' => $club->locale->value,
                 'sepa_mandate_date' => $club->sepa_mandate_date?->format('Y-m-d'),
                 'blsv_member' => (bool) $club->blsv_member,
@@ -164,12 +164,12 @@ class ClubController extends Controller
     }
 
     /**
-     * @return array{displayStyles: list<array{id: int, name: string}>, languages: list<array{id: string, name: string}>}
+     * @return array{identityDisplays: list<array{id: int, name: string}>, languages: list<array{id: string, name: string}>}
      */
     private function formOptions(): array
     {
         return [
-            'displayStyles' => ClubDisplay::options(),
+            'identityDisplays' => ClubIdentityDisplay::options(),
             'languages' => Locale::options(),
         ];
     }

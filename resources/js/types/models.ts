@@ -453,7 +453,7 @@ export type ClubFormData = {
     bic: string;
     sepa_creditor_id: string | null;
     sepa_mandate_date: string | null;
-    display: number | string;
+    identity_display: number | string;
     locale: string;
     honor_years: string | null;
     blsv_member: boolean;

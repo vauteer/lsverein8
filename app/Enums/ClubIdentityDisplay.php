@@ -9,7 +9,7 @@ namespace App\Enums;
  * already contains the name, and repeating it next to the image looks wrong.
  * This is that choice.
  */
-enum ClubDisplay: int
+enum ClubIdentityDisplay: int
 {
     case LogoAndName = 1;
     case LogoOnly = 2;
@@ -35,7 +35,7 @@ enum ClubDisplay: int
     }
 
     /**
-     * The selectable styles, as {id, name} options for the frontend.
+     * The selectable displays, as {id, name} options for the frontend.
      *
      * @return list<array{id: int, name: string}>
      */

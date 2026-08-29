@@ -40,7 +40,7 @@ const currentClub = computed(() => page.props.currentClub);
             <!-- Next to the logo, not pushed to the far edge: the club is an
             avatar plus a short name, so justify-between (which lscraft5 can
             afford with its wide wordmark) left a gap the width of the screen.
-            ClubIdentity, not a bare logo, because it honours Club.display —
+            ClubIdentity, not a bare logo, because it honours Club.identity_display —
             a club that shows only its name still appears here. -->
             <ClubIdentity v-if="currentClub" :club="currentClub" />
         </div>

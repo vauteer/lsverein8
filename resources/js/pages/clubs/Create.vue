@@ -9,7 +9,7 @@ import { create, index } from '@/routes/clubs';
 import type { BreadcrumbItem, SelectOption } from '@/types';
 
 defineProps<{
-    displayStyles: SelectOption[];
+    identityDisplays: SelectOption[];
     languages: SelectOption[];
 }>();
 
@@ -43,7 +43,7 @@ defineOptions({
             v-slot="{ errors, processing }"
         >
             <ClubFormFields
-                :display-styles="displayStyles"
+                :identity-displays="identityDisplays"
                 :languages="languages"
                 :errors="errors"
             />
