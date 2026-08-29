@@ -17,10 +17,6 @@ class ClubExportController extends Controller
 {
     public function __invoke(Club $club): Response
     {
-        // The 585-member club takes a few seconds to serialise; the default
-        // 30s is not always enough on a cold connection.
-        set_time_limit(120);
-
         $export = new ClubExport($club);
         $sql = $export->toSql();
 
