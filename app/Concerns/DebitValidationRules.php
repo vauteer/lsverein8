@@ -19,8 +19,11 @@ trait DebitValidationRules
             'member_id' => [
                 'required',
                 'integer',
-                // Exactly the set DebitController::memberOptions() offers, so
-                // the picker and the rule can never disagree.
+                // Wider than DebitController::memberOptions(), on purpose:
+                // that picker also drops whoever left more than six months
+                // ago, which is a question of what is worth scrolling through.
+                // What would actually do damage is billing the wrong club or
+                // somebody uncollectable, and that is what this guards.
                 //
                 // Scoped to the club by hand: `exists` runs a plain query and
                 // does not pick up Member's ClubScope, so without the where()
@@ -29,7 +32,9 @@ trait DebitValidationRules
                 // The IBAN is what makes a member collectable at all; a debit
                 // for somebody without one would only add an empty line to the
                 // SEPA file. Membership is deliberately NOT required — a debit
-                // is most useful precisely for somebody who has just left.
+                // is most useful precisely for somebody who has just left, and
+                // an old claim against somebody long gone is the club's
+                // business, not this rule's.
                 Rule::exists(Member::class, 'id')
                     ->where(fn ($query) => $query
                         ->where('club_id', currentClubId())

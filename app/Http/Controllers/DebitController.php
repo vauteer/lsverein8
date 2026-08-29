@@ -25,6 +25,11 @@ class DebitController extends Controller
      */
     private const int SEPA_LEAD_DAYS = 8;
 
+    /**
+     * How long after leaving a member stays in the debit picker.
+     */
+    private const int PICKER_GRACE_MONTHS = 6;
+
     public function index(Request $request): Response
     {
         $search = $request->string('search')->trim()->toString();
@@ -142,20 +147,46 @@ class DebitController extends Controller
 
     /**
      * The members a debit can be booked on: this club's, with a bank account
-     * on file.
+     * on file, and still worth offering.
      *
-     * Unlike lsverein7 this is not narrowed to current members. A debit is
-     * most useful for somebody who has just left, and a picker that drops the
-     * member of a debit already on file cannot save that debit again.
+     * Of the 376 members with an account only 221 are current ones and 27 are
+     * dead, so the plain list was mostly names the treasurer scrolls past.
+     * Three ways in, and any one of them is enough:
+     *
+     * - the membership is open;
+     * - it closed, or the member died, within the last six months — a debit is
+     *   most useful for somebody who has just left, which is why lsverein7's
+     *   "current members only" was too narrow;
+     * - a debit is already on file for them, whenever they left. Without this
+     *   the edit form would drop the member of the debit being edited and the
+     *   treasurer could not save it again.
+     *
+     * DebitValidationRules deliberately stays wider than this: it guards the
+     * club and the IBAN, which is what would do damage, while the window here
+     * only decides what is worth putting in a dropdown.
      *
      * @return list<array{id: int, name: string}>
      */
     private function memberOptions(): array
     {
+        $since = now()->subMonths(self::PICKER_GRACE_MONTHS)->startOfDay();
+
         // array_values, not Collection::all(): an Eloquent collection is keyed
         // by position but typed as a map, and only array_values() is a list.
         return array_values(Member::query()
             ->hasAccount()
+            ->where(fn (Builder $query) => $query
+                ->where(fn (Builder $recent) => $recent
+                    ->whereHas('memberships', fn (Builder $membership) => $membership
+                        ->where(fn (Builder $period) => $period
+                            ->whereNull('club_member.to')
+                            ->orWhere('club_member.to', '>=', $since)))
+                    ->where(fn (Builder $living) => $living
+                        ->whereNull('death_day')
+                        ->orWhere('death_day', '>=', $since)))
+                // Debit carries MemberClubScope, so the subquery is this
+                // club's without saying so again.
+                ->orWhereIn('id', Debit::query()->select('member_id')))
             ->orderBy('surname')
             ->orderBy('first_name')
             ->get(['id', 'surname', 'first_name', 'iban'])

@@ -182,6 +182,57 @@ test('an admin stores a debit and the picker only offers members with an account
         ->and($debit->due_at->format('Y-m-d'))->toBe('2026-09-03');
 });
 
+test('the picker offers current members and whoever has just left, not the rest', function () {
+    $current = debitableMemberOf(attributes: ['surname' => 'Aktiv']);
+
+    $justLeft = debitableMemberOf(attributes: ['surname' => 'Ausgetreten']);
+    $justLeft->memberships()->updateExistingPivot(1, ['to' => now()->subWeeks(3)->format('Y-m-d')]);
+
+    $justDied = debitableMemberOf(attributes: ['surname' => 'Verstorben']);
+    $justDied->update(['death_day' => now()->subWeeks(3)->format('Y-m-d')]);
+
+    // A debit is most useful right after somebody leaves, so six months of
+    // grace; beyond that they are names the treasurer scrolls past.
+    $longGone = debitableMemberOf(attributes: ['surname' => 'Ehemalig']);
+    $longGone->memberships()->updateExistingPivot(1, ['to' => now()->subYear()->format('Y-m-d')]);
+
+    $longDead = debitableMemberOf(attributes: ['surname' => 'Gestorben']);
+    $longDead->update(['death_day' => now()->subYear()->format('Y-m-d')]);
+
+    $this->actingAs(debitUser())
+        ->get(route('debits.create'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('members', 3)
+            ->where('members.0.id', $current->id)
+            ->where('members.1.id', $justLeft->id)
+            ->where('members.2.id', $justDied->id)
+        );
+});
+
+test('a debit already on file keeps its member in the picker however long ago they left', function () {
+    $longGone = debitableMemberOf(attributes: ['surname' => 'Ehemalig']);
+    $longGone->memberships()->updateExistingPivot(1, ['to' => now()->subYears(3)->format('Y-m-d')]);
+    $debit = Debit::factory()->create(['member_id' => $longGone->id]);
+
+    // Otherwise the edit form would drop the very member it is editing, and
+    // the debit could not be saved again without rebooking it on somebody
+    // else. The window is about what is worth offering, not about what is
+    // allowed to exist.
+    $this->actingAs(debitUser())
+        ->get(route('debits.edit', $debit))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('members', 1)
+            ->where('members.0.id', $longGone->id)
+        );
+
+    $this->put(route('debits.update', $debit), debitPayload($longGone, ['amount' => 50]))
+        ->assertRedirect();
+
+    expect($debit->refresh()->amount)->toEqual(50);
+});
+
 test('a debit cannot be booked on another club member or on one without an account', function () {
     $foreign = Member::factory()->payingByAccount()->create();
     $cash = Member::factory()->ofClub(1)->create();
