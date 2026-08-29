@@ -451,8 +451,8 @@ export type ClubFormData = {
     account_owner: string;
     iban: string;
     bic: string;
-    sepa: string | null;
-    sepa_date: string | null;
+    sepa_creditor_id: string | null;
+    sepa_mandate_date: string | null;
     display: number | string;
     locale: string;
     honor_years: string | null;

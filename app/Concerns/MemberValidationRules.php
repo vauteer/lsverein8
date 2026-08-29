@@ -55,7 +55,7 @@ trait MemberValidationRules
                 // Goes into the SEPA XML as the debtor's name, so it is held
                 // to the plain SEPA set — no placeholders here, unlike a
                 // transfer text.
-                'regex:'.SEPA_REGEX,
+                'regex:'.SEPA_CHARSET_REGEX,
             ],
             'iban' => ['nullable', 'string', 'required_with:bank,account_owner,bic', $this->ibanRule()],
             'bic' => ['nullable', 'string', 'required_with:bank,account_owner,iban', 'regex:'.BIC_REGEX],

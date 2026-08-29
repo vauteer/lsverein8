@@ -6,14 +6,14 @@ use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Arr;
 
-const SEPA_REGEX = "/^[a-zA-Z0-9?:()+, \/\.\-]*$/";
+const SEPA_CHARSET_REGEX = "/^[a-zA-Z0-9?:()+, \/\.\-]*$/";
 const BIC_REGEX = '/^[A-Z]{6}[0-9A-Z]{2}([0-9A-Z]{3})?$/';
 
 /**
  * The SEPA character set plus the angle brackets of the <AJ>/<VN>/<NN>
  * placeholders, for the transfer text of a subscription or a debit.
  *
- * SEPA_REGEX cannot be reused there: it rejects `<` and `>`. That is safe,
+ * SEPA_CHARSET_REGEX cannot be reused there: it rejects `<` and `>`. That is safe,
  * because Subscription::generateSepa() substitutes the placeholders away
  * before the text reaches the XML, so what is actually transmitted is
  * SEPA-clean either way.

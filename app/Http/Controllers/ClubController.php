@@ -83,12 +83,12 @@ class ClubController extends Controller
             'club' => [
                 ...$club->only([
                     'id', 'name', 'street', 'zipcode', 'city', 'bank',
-                    'account_owner', 'iban', 'bic', 'sepa',
+                    'account_owner', 'iban', 'bic', 'sepa_creditor_id',
                     'honor_years',
                 ]),
                 'display' => $club->display->value,
                 'locale' => $club->locale->value,
-                'sepa_date' => $club->sepa_date?->format('Y-m-d'),
+                'sepa_mandate_date' => $club->sepa_mandate_date?->format('Y-m-d'),
                 'blsv_member' => (bool) $club->blsv_member,
                 'use_items' => (bool) $club->use_items,
                 'logo_url' => $club->logoURL(),

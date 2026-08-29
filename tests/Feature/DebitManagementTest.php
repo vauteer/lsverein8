@@ -11,7 +11,7 @@ use App\Models\User;
  * the acting user were working in club 1.
  */
 beforeEach(function () {
-    $this->club = Club::factory()->create(['id' => 1, 'sepa_date' => '2015-01-01']);
+    $this->club = Club::factory()->create(['id' => 1, 'sepa_mandate_date' => '2015-01-01']);
     Member::$_keyDate = null;
 });
 

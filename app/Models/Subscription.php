@@ -173,7 +173,7 @@ class Subscription extends Model implements Stringable
         $creationDate = now();
         $year = $executionDate->year;
         $club = currentClub();
-        $defaultDate = $club->sepa_date;
+        $defaultDate = $club->sepa_mandate_date;
         $payments = [];
         $totalAmount = 0.0;
         $data['msgId'] = 'M'.$creationDate->format('YmdHis');
@@ -183,7 +183,7 @@ class Subscription extends Model implements Stringable
         $data['nm'] = $club->name;
         $data['iban'] = str_replace(' ', '', $club->iban);
         $data['bic'] = $club->bic;
-        $data['sepaId'] = str_replace(' ', '', $club->sepa);
+        $data['sepaId'] = str_replace(' ', '', $club->sepa_creditor_id);
 
         foreach ($debits as $debit) {
             $member = Member::find($debit['member_id']);

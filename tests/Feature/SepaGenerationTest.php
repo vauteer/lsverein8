@@ -7,7 +7,7 @@ use App\Models\Section;
 use App\Models\Subscription;
 
 beforeEach(function () {
-    $this->club = Club::factory()->create(['id' => 1, 'sepa_date' => '2015-01-01']);
+    $this->club = Club::factory()->create(['id' => 1, 'sepa_mandate_date' => '2015-01-01']);
     Member::$_keyDate = null;
     File::ensureDirectoryExists(storage_path('downloads'));
 });

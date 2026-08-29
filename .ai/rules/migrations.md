@@ -14,3 +14,8 @@ Consequences:
 - `password_resets` was renamed to `password_reset_tokens` (Laravel/Fortify default) by a 2026_08_22 migration; the 2014 migration still creates the old name, and the rename runs after it on a fresh build.
 - `failed_jobs` comes from the 2019 lsverein7 migration, so the 2026 jobs migration creates only `jobs` + `job_batches`.
 - To validate migration changes, build into a throwaway database and diff the schema dump against `lsverein8` rather than resetting it.
+
+## clubs.sepa/sepa_date wurden 2026-08-29 umbenannt
+Die 2022er Migration `create_clubs_table` legt weiterhin `sepa` und `sepa_date` an; `2026_08_29_061346_rename_sepa_columns_on_clubs_table` benennt sie danach in `sepa_creditor_id` und `sepa_mandate_date` um (gleiches Muster wie `password_resets` → `password_reset_tokens`). Bei einem frischen Build läuft der Rename also nach der Erstellung — die historische Migration nicht anfassen.
+
+Grund für die Namen: `sepa` benannte den Standard statt des Werts. Die Spalte hält die SEPA-Gläubiger-ID (z. B. DE31ZZZ00000102910), die `Subscription::generateSepa()` als `sepaId` in die XML schreibt; `sepa_mandate_date` ist das Vorgabe-Mandatsdatum, gegen das dort `$defaultDate->max($member->entry())` läuft.

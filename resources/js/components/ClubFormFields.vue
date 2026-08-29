@@ -213,25 +213,29 @@ const useItems = ref(props.club?.use_items ?? false);
 
         <div class="grid gap-4 sm:grid-cols-2">
             <div class="grid gap-2">
-                <Label for="sepa">{{ $t('SEPA creditor identifier') }}</Label>
+                <Label for="sepa_creditor_id">{{
+                    $t('SEPA creditor identifier')
+                }}</Label>
                 <Input
-                    id="sepa"
-                    name="sepa"
-                    :default-value="club?.sepa ?? ''"
+                    id="sepa_creditor_id"
+                    name="sepa_creditor_id"
+                    :default-value="club?.sepa_creditor_id ?? ''"
                     autocomplete="off"
                     class="font-mono"
                 />
-                <InputError :message="errors.sepa" />
+                <InputError :message="errors.sepa_creditor_id" />
             </div>
             <div class="grid gap-2">
-                <Label for="sepa_date">{{ $t('SEPA mandate date') }}</Label>
+                <Label for="sepa_mandate_date">{{
+                    $t('SEPA mandate date')
+                }}</Label>
                 <Input
-                    id="sepa_date"
-                    name="sepa_date"
+                    id="sepa_mandate_date"
+                    name="sepa_mandate_date"
                     type="date"
-                    :default-value="club?.sepa_date ?? ''"
+                    :default-value="club?.sepa_mandate_date ?? ''"
                 />
-                <InputError :message="errors.sepa_date" />
+                <InputError :message="errors.sepa_mandate_date" />
             </div>
         </div>
 
