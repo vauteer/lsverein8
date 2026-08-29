@@ -539,31 +539,6 @@ class Member extends Model
 
     /**
      * @param  Builder<Member>  $query
-     * @param  list<int>|int  $sections
-     */
-    #[Scope]
-    protected function inBlsvSections(Builder $query, array|int $sections, ?CarbonInterface $keyDate = null): void
-    {
-        $keyDate ??= self::getKeyDate();
-
-        $query->whereIn('id', DB::table('members')
-            ->join('member_section', 'members.id', '=', 'member_section.member_id')
-            ->join('sections', 'sections.id', '=', 'member_section.section_id')
-            ->where('members.club_id', currentClubId())
-            ->where(function ($query) use ($keyDate) {
-                $query->whereNull('members.death_day')->orWhere('members.death_day', '>', $keyDate);
-            })
-            ->whereIn('sections.blsv_id', Arr::wrap($sections))
-            ->where('member_section.from', '<=', $keyDate)
-            ->where(function ($query) use ($keyDate) {
-                $query->whereNull('member_section.to')->orWhere('member_section.to', '>=', $keyDate);
-            })
-            ->pluck('members.id')
-        );
-    }
-
-    /**
-     * @param  Builder<Member>  $query
      */
     #[Scope]
     protected function ageRange(Builder $query, ?int $from, ?int $to): void

@@ -50,10 +50,6 @@ class BlsvStatisticController extends Controller
 
     public function build(Club $club): Response
     {
-        // The 585-member club walks its members once per section; the default
-        // 30s is tight once every section is populated.
-        set_time_limit(120);
-
         return Inertia::render('clubs/BlsvStatistic', [
             'clubName' => $club->name,
             // Der Stichtag ist der 1. Januar: Austritte zum 31.12. und

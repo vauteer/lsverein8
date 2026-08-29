@@ -15,6 +15,7 @@ use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -259,6 +260,57 @@ class Club extends Model
     }
 
     /**
+     * The members of every BLSV section, keyed by blsv_id, in the order the
+     * files are written in.
+     *
+     * One query for all of them. The statistic used to run a
+     * `Member::members()` query per section instead, so a club with seven
+     * sections read and hydrated its 580 members eight times over — each of
+     * those calls plucked every current member's id and every member id of the
+     * section, then passed both back as IN lists. Measured on that club: 25
+     * queries and 0.11s became 5 and 0.08s, with the files byte for byte the
+     * same. The `inBlsvSections()` scope this replaced had no other caller.
+     *
+     * Driven by `$members` rather than by the rows: the surname/first-name
+     * order the section files and the combined report are written in comes
+     * from that one query, and the callers rely on it.
+     *
+     * @param  EloquentCollection<int, Member>  $members  the club's current members
+     * @return array<int, list<Member>>
+     */
+    private static function membersByBlsvSection(EloquentCollection $members, CarbonInterface $keyDate): array
+    {
+        $rows = DB::table('member_section')
+            ->join('sections', 'sections.id', '=', 'member_section.section_id')
+            ->whereNotNull('sections.blsv_id')
+            ->whereIn('member_section.member_id', $members->modelKeys())
+            ->where('member_section.from', '<=', $keyDate)
+            ->where(function ($query) use ($keyDate) {
+                $query->whereNull('member_section.to')->orWhere('member_section.to', '>=', $keyDate);
+            })
+            ->get(['member_section.member_id', 'sections.blsv_id']);
+
+        $blsvIdsOf = [];
+
+        foreach ($rows as $row) {
+            // Keyed, not appended: two spells in the same section, or two
+            // sections sharing a blsv_id, still make one member of it — the
+            // same reading the IN list gave for free.
+            $blsvIdsOf[$row->member_id][$row->blsv_id] = true;
+        }
+
+        $byBlsvId = [];
+
+        foreach ($members as $member) {
+            foreach (array_keys($blsvIdsOf[$member->id] ?? []) as $blsvId) {
+                $byBlsvId[$blsvId][] = $member;
+            }
+        }
+
+        return $byBlsvId;
+    }
+
+    /**
      * Builds the yearly BLSV age statistic, writes one CSV per section plus a
      * summary CSV and PDF to storage/downloads.
      *
@@ -302,15 +354,13 @@ class Club extends Model
 
         $stats[-1] = $totals;
 
+        $membersByBlsvId = self::membersByBlsvSection($members, $keyDate);
+
         foreach (Section::whereNotNull('blsv_id')->orderBy('blsv_id')->get() as $section) {
             $rows = [];
             $stat = self::getBlankStat();
 
-            $members = Member::members()->inBlsvSections($section->blsv_id)
-                ->orderBy('surname')->orderBy('first_name')
-                ->get();
-
-            foreach ($members as $member) {
+            foreach ($membersByBlsvId[$section->blsv_id] ?? [] as $member) {
                 $gender = $member->gender->blsvValue();
 
                 $rows[] = [

@@ -111,6 +111,34 @@ it('builds the blsv statistic with csv files and a pdf', function () {
         ->and($pdf)->toStartWith('%PDF-');
 });
 
+it('lists a section by surname and counts a member of it once', function () {
+    $section = Section::factory()->create(['club_id' => $this->club->id, 'blsv_id' => 9, 'name' => 'Fussball']);
+    $second = Section::factory()->create(['club_id' => $this->club->id, 'blsv_id' => 9, 'name' => 'Fussball II']);
+
+    foreach (['Zenz', 'Aigner'] as $surname) {
+        $member = Member::factory()->ofClub($this->club)->create([
+            'surname' => $surname, 'birthday' => '1990-01-01', 'gender' => 'm',
+        ]);
+        $member->memberships()->attach($this->club->id, ['from' => '2016-01-01', 'to' => null]);
+        // Two spells in one section and a second section under the same
+        // blsv_id: the Meldung still knows one member of section 9.
+        $member->sections()->attach($section->id, ['from' => '2016-01-01', 'to' => '2018-12-31']);
+        $member->sections()->attach($section->id, ['from' => '2019-01-01']);
+        $member->sections()->attach($second->id, ['from' => '2019-01-01']);
+    }
+
+    $this->club->getBLSVStatistic();
+
+    $year = now()->startOfYear()->year;
+    $lines = array_values(array_filter(explode("\n", str_replace("\r", '',
+        file_get_contents(storage_path("downloads/{$this->club->id}_BE{$year}_Fussball.csv"))
+    ))));
+
+    expect($lines)->toHaveCount(2)
+        ->and($lines[0])->toContain('Aigner')
+        ->and($lines[1])->toContain('Zenz');
+});
+
 it('escapes a section name that would break the export path', function () {
     $section = Section::factory()->create([
         'club_id' => $this->club->id, 'blsv_id' => 9, 'name' => 'Turnen/Leichtathletik',
