@@ -79,6 +79,28 @@ function settleTrackedTables(): void
 }
 
 /**
+ * The visible text of a generated PDF.
+ *
+ * FPDF deflates its content streams, so the drawn strings are not in the raw
+ * output. Inflating every stream gives back the text operators, which is
+ * enough to assert that a label or a column heading was printed.
+ */
+function pdfText(string $contents): string
+{
+    preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $contents, $matches);
+
+    return array_reduce(
+        $matches[1],
+        function (string $text, string $stream): string {
+            $inflated = @gzuncompress($stream);
+
+            return $inflated === false ? $text : $text.$inflated;
+        },
+        ''
+    );
+}
+
+/**
  * The parts of a generated .xlsx that a test needs to look at: the worksheet
  * and the styles. An xlsx is a zip, and the export hands it out as a string.
  *

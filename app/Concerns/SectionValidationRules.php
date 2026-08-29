@@ -24,9 +24,9 @@ trait SectionValidationRules
                 'required',
                 'string',
                 'max:191',
-                // The BLSV export writes one CSV per section named after it
-                // (Club::blsvFiles()), so the name must stay path-safe.
-                'regex:/^[\pL\pN?()+,\- ]+$/u',
+                // Deliberately unrestricted beyond the length: the BLSV export
+                // escapes the name where it builds the path (Club::pathSafe()),
+                // so a slash is the filesystem's problem, not the club's.
                 Rule::unique(Section::class)
                     // Shared sections (club_id null) are listed alongside the
                     // club's own ones, so a duplicate name would show twice.
@@ -59,7 +59,6 @@ trait SectionValidationRules
             'integer' => __(':attribute must be an integer.'),
             'in' => __('The selected :attribute is invalid.'),
             'prohibited' => __(':attribute is not available for this club.'),
-            'regex' => __(':attribute may only contain letters, digits, spaces and the characters ?()+,-'),
             'max' => [
                 'string' => __(':attribute may not be longer than :max characters.'),
             ],

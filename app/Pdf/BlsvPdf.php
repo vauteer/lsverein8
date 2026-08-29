@@ -12,6 +12,15 @@ class BlsvPdf extends BasePdf
 
     private string $clubName;
 
+    /**
+     * Whether any age group holds a diverse member.
+     *
+     * The BLSV sheet carried two gender columns for as long as the club has
+     * been submitting it. A third one is only cut in when it has something to
+     * show, so a club without a diverse member keeps the sheet it knows.
+     */
+    private bool $showsDiverse = false;
+
     public function Header()
     {
         $cellHeight = 7;
@@ -49,21 +58,24 @@ class BlsvPdf extends BasePdf
     {
         $heads = ['bis 5 Jahre', '6 bis 13 Jahre', '14 bis 17 Jahre', '18-26 Jahre',
             '27-40 Jahre', '41 bis 60 Jahre', 'Ab 61 Jahre'];
-        $widths = [40, 25, 25, 25];
+        $labelWidth = 40;
+        $columnWidth = 25;
         $cellHeight = 7;
         $rightMargin = 45;
-        $sumMale = 0;
-        $sumFemale = 0;
+        $sums = ['m' => 0, 'w' => 0, 'd' => 0];
 
         $this->SetDrawColor(150, 150, 150);
         $this->SetFillColor(240, 240, 240);
         $this->SetY(80);
 
         $this->setX($rightMargin);
-        $this->Cell($widths[0], $cellHeight, 'Altersgruppe');
-        $this->Cell($widths[1], $cellHeight, mb_convert_encoding('Männlich', 'ISO-8859-1', 'UTF-8'), 0, 0, 'R');
-        $this->Cell($widths[2], $cellHeight, 'Weiblich', 0, 0, 'R');
-        $this->Cell($widths[3], $cellHeight, 'Zusammen', 0, 1, 'R');
+        $this->Cell($labelWidth, $cellHeight, 'Altersgruppe');
+        $this->Cell($columnWidth, $cellHeight, mb_convert_encoding('Männlich', 'ISO-8859-1', 'UTF-8'), 0, 0, 'R');
+        $this->Cell($columnWidth, $cellHeight, 'Weiblich', 0, 0, 'R');
+        if ($this->showsDiverse) {
+            $this->Cell($columnWidth, $cellHeight, 'Divers', 0, 0, 'R');
+        }
+        $this->Cell($columnWidth, $cellHeight, 'Zusammen', 0, 1, 'R');
         $tmp = $this->GetY();
         $this->Line(10, $tmp, 200, $tmp);
 
@@ -73,25 +85,31 @@ class BlsvPdf extends BasePdf
                 $this->Rect(10, $tmp, 190, $cellHeight - 0.2, 'F');
             }
 
-            $male = $this->stats[-1][$i]['m'];
-            $female = $this->stats[-1][$i]['w'];
-            $sumMale += $male;
-            $sumFemale += $female;
+            $row = $this->stats[-1][$i];
+            foreach ($sums as $gender => $sum) {
+                $sums[$gender] = $sum + $row[$gender];
+            }
+
             $this->setX($rightMargin);
-            $this->Cell($widths[0], $cellHeight, $heads[$i]);
-            $this->Cell($widths[1], $cellHeight, $male, 0, 0, 'R');
-            $this->Cell($widths[2], $cellHeight, $female, 0, 0, 'R');
-            $this->Cell($widths[3], $cellHeight, $male + $female, 0, 1, 'R');
+            $this->Cell($labelWidth, $cellHeight, $heads[$i]);
+            $this->Cell($columnWidth, $cellHeight, $row['m'], 0, 0, 'R');
+            $this->Cell($columnWidth, $cellHeight, $row['w'], 0, 0, 'R');
+            if ($this->showsDiverse) {
+                $this->Cell($columnWidth, $cellHeight, $row['d'], 0, 0, 'R');
+            }
+            $this->Cell($columnWidth, $cellHeight, array_sum($row), 0, 1, 'R');
         }
 
-        $sum = $sumMale + $sumFemale;
         $tmp = $this->GetY();
         $this->Line(10, $tmp, 200, $tmp);
         $this->setX($rightMargin);
-        $this->Cell($widths[0], $cellHeight, 'Gesamt');
-        $this->Cell($widths[1], $cellHeight, $sumMale, 0, 0, 'R');
-        $this->Cell($widths[2], $cellHeight, $sumFemale, 0, 0, 'R');
-        $this->Cell($widths[3], $cellHeight, $sum, 0, 1, 'R');
+        $this->Cell($labelWidth, $cellHeight, 'Gesamt');
+        $this->Cell($columnWidth, $cellHeight, $sums['m'], 0, 0, 'R');
+        $this->Cell($columnWidth, $cellHeight, $sums['w'], 0, 0, 'R');
+        if ($this->showsDiverse) {
+            $this->Cell($columnWidth, $cellHeight, $sums['d'], 0, 0, 'R');
+        }
+        $this->Cell($columnWidth, $cellHeight, array_sum($sums), 0, 1, 'R');
 
     }
 
@@ -104,21 +122,25 @@ class BlsvPdf extends BasePdf
         $even = false;
         $this->SetY(70);
 
+        $genders = $this->showsDiverse ? ['m' => 'M', 'w' => 'W', 'd' => 'D'] : ['m' => 'M', 'w' => 'W'];
+        // Seven age groups have to fit between the section name and the total,
+        // so the third column is paid for by narrowing all of them rather than
+        // by running off the page.
+        $columnWidth = $this->showsDiverse ? 6.7 : 10;
+        $groupWidth = $columnWidth * count($genders);
+
         $this->Cell(5, $reducedHeight, '');
         $this->Cell(23, $reducedHeight, '');
-        $this->Cell(20, $reducedHeight, 'bis 5', 0, 0, 'C');
-        $this->Cell(20, $reducedHeight, '6-13', 0, 0, 'C');
-        $this->Cell(20, $reducedHeight, '14-17', 0, 0, 'C');
-        $this->Cell(20, $reducedHeight, '18-26', 0, 0, 'C');
-        $this->Cell(20, $reducedHeight, '27-40', 0, 0, 'C');
-        $this->Cell(20, $reducedHeight, '41-60', 0, 0, 'C');
-        $this->Cell(20, $reducedHeight, 'ab 61', 0, 1, 'C');
+        foreach (['bis 5', '6-13', '14-17', '18-26', '27-40', '41-60', 'ab 61'] as $index => $head) {
+            $this->Cell($groupWidth, $reducedHeight, $head, 0, $index === 6 ? 1 : 0, 'C');
+        }
 
         $this->Cell(7, $cellHeight, '');
         $this->Cell(23, $cellHeight, 'Abteilung');
         for ($i = 0; $i < 7; $i++) {
-            $this->Cell(10, $cellHeight, 'M', 0, 0, 'R');
-            $this->Cell(10, $cellHeight, 'W', 0, 0, 'R');
+            foreach ($genders as $head) {
+                $this->Cell($columnWidth, $cellHeight, $head, 0, 0, 'R');
+            }
         }
         $this->Cell(18, $cellHeight, 'Gesamt', 0, 1, 'R');
 
@@ -126,8 +148,7 @@ class BlsvPdf extends BasePdf
         $this->Line(10, $tmp, 200, $tmp);
 
         foreach ($this->stats as $key => $stat) {
-            $sumMale = 0;
-            $sumFemale = 0;
+            $total = 0;
             $even = ! $even;
             if ($even) {
                 $tmp = $this->GetY() + 0.2;
@@ -137,16 +158,13 @@ class BlsvPdf extends BasePdf
             $this->Cell(23, $cellHeight, $stat['name']);
 
             for ($i = 0; $i < 7; $i++) {
-                $male = $stat[$i]['m'];
-                $female = $stat[$i]['w'];
-                $sumMale += $male;
-                $sumFemale += $female;
-                $maleString = $male ?: '';
-                $femaleString = $female ?: '';
-                $this->Cell(10, $cellHeight, $maleString, 0, 0, 'R');
-                $this->Cell(10, $cellHeight, $femaleString, 0, 0, 'R');
+                foreach ($genders as $gender => $head) {
+                    $count = $stat[$i][$gender];
+                    $total += $count;
+                    $this->Cell($columnWidth, $cellHeight, $count ?: '', 0, 0, 'R');
+                }
             }
-            $this->Cell(18, $cellHeight, $sumMale + $sumFemale, 0, 1, 'R');
+            $this->Cell(18, $cellHeight, $total, 0, 1, 'R');
 
         }
 
@@ -154,11 +172,28 @@ class BlsvPdf extends BasePdf
         $this->Line(10, $tmp, 200, $tmp);
     }
 
+    /**
+     * Whether any age group of any section holds a diverse member.
+     */
+    private function hasDiverseMember(array $stats): bool
+    {
+        foreach ($stats as $stat) {
+            for ($i = 0; $i < 7; $i++) {
+                if (($stat[$i]['d'] ?? 0) > 0) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     public function getOutput($stats, $year, $clubName)
     {
         $this->stats = $stats;
         $this->keyDate = $year;
         $this->clubName = $clubName;
+        $this->showsDiverse = $this->hasDiverseMember($stats);
 
         $this->AliasNbPages();
         $this->AddPage();

@@ -26,10 +26,7 @@ trait MemberValidationRules
         return [
             'surname' => ['required', 'string', 'max:191'],
             'first_name' => ['required', 'string', 'max:191'],
-            // ->only(): Divers is parked until the BLSV statistic can carry
-            // a third value, so it must be refused here too and not merely
-            // left out of the picker.
-            'gender' => ['required', Rule::enum(Gender::class)->only(Gender::selectable())],
+            'gender' => ['required', Rule::enum(Gender::class)],
             'birthday' => ['required', 'date', 'before_or_equal:today'],
             'street' => ['required', 'string', 'max:191'],
             'zipcode' => ['required', 'string', 'max:10'],

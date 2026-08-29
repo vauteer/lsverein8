@@ -148,12 +148,18 @@ test('a section name must be unique among the club and shared sections', functio
     $this->post(route('sections.store'), ['name' => 'Fremde Abteilung'])->assertSessionHasNoErrors();
 });
 
-test('a section name may not contain characters that break the BLSV export filename', function () {
+test('a section name may carry any character; the export escapes the path', function () {
+    // The filesystem's problem is solved where the path is built, not by
+    // forbidding a slash in a name the club chose. "Fitness&Turnen" exists in
+    // production and was locked out of its own edit form by the old rule.
     $this->actingAs(sectionUser())
         ->post(route('sections.store'), ['name' => 'Turnen/Leichtathletik'])
-        ->assertSessionHasErrors('name');
+        ->assertSessionHasNoErrors();
 
-    expect(Section::count())->toBe(0);
+    $this->post(route('sections.store'), ['name' => 'Fitness&Turnen'])
+        ->assertSessionHasNoErrors();
+
+    expect(Section::pluck('name')->sort()->values()->all())->toBe(['Fitness&Turnen', 'Turnen/Leichtathletik']);
 });
 
 test('the BLSV assignment is rejected for a club that is not a BLSV member', function () {

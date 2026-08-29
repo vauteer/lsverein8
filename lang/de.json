@@ -16,7 +16,6 @@
     ":attribute may not be in the future.": ":attribute darf nicht in der Zukunft liegen.",
     ":attribute may not be longer than :max characters.": ":attribute darf nicht länger als :max Zeichen sein.",
     ":attribute may only contain characters the SEPA format allows.": ":attribute darf nur Zeichen enthalten, die das SEPA-Format zulässt.",
-    ":attribute may only contain letters, digits, spaces and the characters ?()+,-": ":attribute darf nur Buchstaben, Ziffern, Leerzeichen und die Zeichen ?()+,- enthalten.",
     ":attribute must be a comma separated list of years, e.g. 25,40,50.": ":attribute muss eine kommagetrennte Liste von Jahren sein, z. B. 25,40,50.",
     ":attribute must be a number.": ":attribute muss eine Zahl sein.",
     ":attribute must be a string.": ":attribute muss ein Text sein.",

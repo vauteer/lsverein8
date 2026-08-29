@@ -111,6 +111,82 @@ it('builds the blsv statistic with csv files and a pdf', function () {
         ->and($pdf)->toStartWith('%PDF-');
 });
 
+it('escapes a section name that would break the export path', function () {
+    $section = Section::factory()->create([
+        'club_id' => $this->club->id, 'blsv_id' => 9, 'name' => 'Turnen/Leichtathletik',
+    ]);
+    $member = Member::factory()->ofClub($this->club)->create(['birthday' => '1990-01-01']);
+    $member->memberships()->attach($this->club->id, ['from' => '2016-01-01', 'to' => null]);
+    $member->sections()->attach($section->id, ['from' => '2016-01-01']);
+
+    $files = $this->club->getBLSVStatistic();
+
+    $year = now()->startOfYear()->year;
+    $written = "{$this->club->id}_BE{$year}_Turnen-Leichtathletik.csv";
+
+    // The slash became a dash instead of a directory, and the download link
+    // names the same file the writer produced.
+    expect(storage_path("downloads/{$written}"))->toBeFile()
+        ->and(glob(storage_path("downloads/{$this->club->id}_BE{$year}_Turnen")))->toBeEmpty()
+        ->and(collect($files)->pluck('href'))->toContain(
+            route('downloads.show', "BE{$year}_Turnen-Leichtathletik.csv", absolute: false)
+        );
+});
+
+it('keeps two sections apart when their names escape to the same file', function () {
+    foreach ([['Turnen/Leichtathletik', 9], ['Turnen-Leichtathletik', 12]] as [$name, $blsvId]) {
+        $section = Section::factory()->create([
+            'club_id' => $this->club->id, 'blsv_id' => $blsvId, 'name' => $name,
+        ]);
+        $member = Member::factory()->ofClub($this->club)->create(['birthday' => '1990-01-01']);
+        $member->memberships()->attach($this->club->id, ['from' => '2016-01-01', 'to' => null]);
+        $member->sections()->attach($section->id, ['from' => '2016-01-01']);
+    }
+
+    $this->club->getBLSVStatistic();
+
+    $year = now()->startOfYear()->year;
+
+    // Without the blsv_id suffix the second file would overwrite the first and
+    // the club would submit one section short.
+    expect(storage_path("downloads/{$this->club->id}_BE{$year}_Turnen-Leichtathletik.csv"))->toBeFile()
+        ->and(storage_path("downloads/{$this->club->id}_BE{$year}_Turnen-Leichtathletik_12.csv"))->toBeFile();
+});
+
+it('leaves the divers column out of the statistic until a member needs it', function () {
+    $section = Section::factory()->create(['club_id' => $this->club->id, 'blsv_id' => 9, 'name' => 'Fussball']);
+    $member = Member::factory()->ofClub($this->club)->create(['birthday' => '1990-01-01', 'gender' => 'm']);
+    $member->memberships()->attach($this->club->id, ['from' => '2016-01-01', 'to' => null]);
+    $member->sections()->attach($section->id, ['from' => '2016-01-01']);
+
+    $this->club->getBLSVStatistic();
+    $pdf = pdfText(file_get_contents(storage_path("downloads/{$this->club->id}_blsv_stat.pdf")));
+
+    // The club has submitted a two-column sheet for years; a third one that is
+    // always zero would change the form for nothing.
+    expect($pdf)->toContain('Altersgruppe')
+        ->and($pdf)->toContain('Weiblich')
+        ->and($pdf)->not->toContain('Divers');
+});
+
+it('cuts in the divers column and reports d once a member is diverse', function () {
+    $section = Section::factory()->create(['club_id' => $this->club->id, 'blsv_id' => 9, 'name' => 'Fussball']);
+    $member = Member::factory()->ofClub($this->club)->create(['birthday' => '1990-01-01', 'gender' => 'd']);
+    $member->memberships()->attach($this->club->id, ['from' => '2016-01-01', 'to' => null]);
+    $member->sections()->attach($section->id, ['from' => '2016-01-01']);
+
+    $this->club->getBLSVStatistic();
+
+    $year = now()->startOfYear()->year;
+    $sectionCsv = file_get_contents(storage_path("downloads/{$this->club->id}_BE{$year}_Fussball.csv"));
+    $pdf = pdfText(file_get_contents(storage_path("downloads/{$this->club->id}_blsv_stat.pdf")));
+
+    expect($sectionCsv)->toContain(';d;')
+        ->and($pdf)->toContain('Divers')
+        // The member is counted in its own column, not among the women.
+        ->and($pdf)->toContain('Weiblich');
+});
+
 it('calculates the blsv debit from the age bands', function () {
     Member::$_keyDate = Carbon\Carbon::parse('2024-01-01');
 

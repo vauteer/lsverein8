@@ -370,7 +370,7 @@ test('only an admin reaches the create form and stores a member', function () {
         ->assertInertia(fn ($page) => $page
             ->component('members/Create')
             ->has('sections', 1)
-            ->has('genders', 2)
+            ->has('genders', 3)
             // No payment picker: the bank details decide, so there is nothing
             // to choose. Two cases remain in the enum, for the list selection.
             ->missing('paymentMethods')
@@ -399,12 +399,9 @@ test('only an admin reaches the create form and stores a member', function () {
         ->and($member->subscriptions)->toHaveCount(1);
 });
 
-test('the diverse gender is parked: neither offered nor accepted', function () {
+test('the diverse gender is offered, accepted and reported as d', function () {
     $section = Section::factory()->create(['club_id' => 1]);
 
-    // The case exists and the column would hold it, but the BLSV statistic can
-    // only report m or w. Refused outright rather than half-disabled: hiding it
-    // from the picker alone would still let a posted value through.
     $this->actingAs(memberUser())
         ->post(route('members.store'), memberPayload([
             'entry_date' => '2024-03-01',
@@ -412,14 +409,15 @@ test('the diverse gender is parked: neither offered nor accepted', function () {
             'subscription_id' => entrySubscription(),
             'gender' => Gender::Divers->value,
         ]))
-        ->assertSessionHasErrors('gender');
+        ->assertSessionHasNoErrors();
 
-    expect(Member::query()->where('surname', 'Meier')->count())->toBe(0)
-        ->and(Gender::selectable())->toBe([Gender::Frau, Gender::Mann])
-        // The mapping is ready for the day the association answers.
+    expect(Member::query()->where('surname', 'Meier')->first()->gender)->toBe(Gender::Divers)
+        // All three reach the picker; the BLSV column carries its own value
+        // instead of folding a diverse member into the women's count.
+        ->and(array_column(Gender::options(), 'id'))->toBe(['f', 'm', 'd'])
         ->and(Gender::Mann->blsvValue())->toBe('m')
         ->and(Gender::Frau->blsvValue())->toBe('w')
-        ->and(Gender::Divers->blsvValue())->toBe('w');
+        ->and(Gender::Divers->blsvValue())->toBe('d');
 });
 
 test('the member number is handed out by the server, never taken from the form', function () {

@@ -24,41 +24,21 @@ enum Gender: string
     /**
      * The value the BLSV statistic expects in its `Geschlecht` column.
      *
-     * The BLSV format is the association's, not ours, and only ever carried
-     * `m` and `w`. Until it is known whether it accepts a third value, a
-     * diverse member is reported as `w` — which is what the old
-     * `=== 'm' ? 'm' : 'w'` in Club::getBLSVStatistic() did by accident. It is
-     * spelled out here so the assumption is visible and there is one place to
-     * change once the association has answered.
+     * The association confirmed on 2026-08-29 that the format carries a third
+     * value, `d`. Until then a diverse member was reported as `w`, and the
+     * case was kept out of the picker rather than exported as female.
      */
     public function blsvValue(): string
     {
-        return $this === self::Mann ? 'm' : 'w';
+        return match ($this) {
+            self::Mann => 'm',
+            self::Frau => 'w',
+            self::Divers => 'd',
+        };
     }
 
     /**
-     * The genders that may currently be chosen.
-     *
-     * `Divers` is deliberately not among them. The case exists and the column
-     * (char(1)) would hold it, but the BLSV statistic can only report `m` or
-     * `w` and it is unknown whether the association accepts a third value —
-     * see blsvValue(). Nobody needs it yet, so rather than export a diverse
-     * member as female, it is parked: not offered by the picker, and refused
-     * by validation, which uses this same list through
-     * `Rule::enum(Gender::class)->only(...)`.
-     *
-     * To switch it on once the BLSV has answered: return `self::cases()` here
-     * and settle blsvValue(). Nothing else has to change.
-     *
-     * @return list<self>
-     */
-    public static function selectable(): array
-    {
-        return [self::Frau, self::Mann];
-    }
-
-    /**
-     * The selectable genders, as {id, name} options for the frontend.
+     * The genders as {id, name} options for the frontend.
      *
      * @return list<array{id: string, name: string}>
      */
@@ -66,7 +46,7 @@ enum Gender: string
     {
         return array_map(
             fn (self $gender): array => ['id' => $gender->value, 'name' => $gender->label()],
-            self::selectable()
+            self::cases()
         );
     }
 }

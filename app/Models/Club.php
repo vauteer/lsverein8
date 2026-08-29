@@ -238,19 +238,11 @@ class Club extends Model
     }
 
     /**
-     * @return non-empty-list<array{m: int, w: int}>
+     * @return non-empty-list<array{m: int, w: int, d: int}>
      */
     private static function getBlankStat(): array
     {
-        return [
-            ['m' => 0, 'w' => 0],
-            ['m' => 0, 'w' => 0],
-            ['m' => 0, 'w' => 0],
-            ['m' => 0, 'w' => 0],
-            ['m' => 0, 'w' => 0],
-            ['m' => 0, 'w' => 0],
-            ['m' => 0, 'w' => 0],
-        ];
+        return array_fill(0, 7, ['m' => 0, 'w' => 0, 'd' => 0]);
     }
 
     /**
@@ -291,6 +283,7 @@ class Club extends Model
         File::ensureDirectoryExists(storage_path('downloads'));
 
         $sectionFiles = [];
+        $usedFilenames = [];
         $stats = [-1 => self::getBlankStat()];
         $totals = self::getBlankStat();
         $totalRows = [];
@@ -338,10 +331,19 @@ class Club extends Model
                 $stats[$section->blsv_id] = $stat + ['name' => $section->name];
                 $totalRows = [...$totalRows, ...$rows];
 
+                // Two names differing only in a path separator collapse to
+                // the same file; the blsv_id keeps them apart rather than
+                // letting one silently overwrite the other.
+                $filename = self::pathSafe("BE{$year}_{$section->name}");
+                if (isset($usedFilenames[$filename])) {
+                    $filename .= "_{$section->blsv_id}";
+                }
+                $usedFilenames[$filename] = true;
+
                 // No header on a section file, unlike the two that cover the
                 // whole club — that is how lsverein7 wrote them.
                 $sectionFiles[] = $this->writeDownload(
-                    "BE{$year}_{$section->name}.csv",
+                    "{$filename}.csv",
                     BlsvMemberReport::csv($rows, withHeader: false),
                     __('Section: :name (CSV)', ['name' => $section->name]),
                     __('Only the members of this section'),
@@ -379,6 +381,35 @@ class Club extends Model
     }
 
     /**
+     * A generated file's name, made safe to build a path with.
+     *
+     * Only what would actually break a path is replaced: the separators, the
+     * control characters, and leading or trailing dots and spaces. Umlauts,
+     * spaces and `&` stay — they are valid in a filename and route() encodes
+     * them for the URL. A section called "Fitness&Turnen" therefore keeps the
+     * file it has always been given.
+     *
+     * The escaping belongs here rather than in SectionValidationRules: a name
+     * the club chose is a club matter, and a rule that forbids a slash to
+     * protect a path forbids it everywhere else too. Until 2026-08-29 that
+     * rule existed, and it locked the live "Fitness&Turnen" out of its own
+     * edit form, because `&` was not in the allowed set either.
+     *
+     * Idempotent, so a caller that has already sanitised may pass through.
+     */
+    private static function pathSafe(string $name): string
+    {
+        $safe = str_replace(['/', '\\', DIRECTORY_SEPARATOR], '-', $name);
+
+        // Byte class on purpose: no /u, so this cannot fail on a name that is
+        // not valid UTF-8, and a multi-byte character has no low bytes to hit.
+        $safe = preg_replace('/[\x00-\x1f\x7f]/', '', $safe) ?? $safe;
+        $safe = trim($safe, ' .');
+
+        return $safe === '' ? 'Abteilung' : $safe;
+    }
+
+    /**
      * Write one generated file to storage/downloads and describe it for the
      * download list. The name is stored with the club prefix but handed out
      * bare: DownloadController puts the *caller's* prefix back on, so a URL
@@ -388,6 +419,8 @@ class Club extends Model
      */
     private function writeDownload(string $filename, string $contents, string $label, string $description): array
     {
+        $filename = self::pathSafe($filename);
+
         file_put_contents(storage_path("downloads/{$this->id}_".$filename), $contents);
 
         // route(), not "/downloads/{$filename}": a section name may carry

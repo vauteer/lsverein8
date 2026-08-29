@@ -47,16 +47,16 @@ Drei Enums, alle nach dem Muster von ClubDisplay/Locale (`label()` über `__()`,
 
 `Gender` hat jetzt ebenfalls `label()`/`options()`; die Case-Namen bleiben deutsch (`Frau`/`Mann`), weil sie aus den Bestandsdaten stammen, die Labels laufen über `Ms`/`Mr` in de.json.
 
-## Gender: drei Fälle, aber die BLSV-Statistik kennt nur zwei
+## Gender: drei Fälle, und die BLSV-Statistik trägt sie seit 2026-08-29 alle
 `Gender` hat seit 2026-08-26 drei Fälle: `Frau = 'f'`, `Mann = 'm'`, `Divers = 'd'`. Die Spalte ist `char(1)`, es brauchte also keine Migration. Die Case-Namen bleiben deutsch (Bestandsdaten), die Labels laufen über `Female`/`Male`/`Diverse` in de.json → „Weiblich"/„Männlich"/„Divers". Das Feldlabel heißt **„Geschlecht"** (`Gender`), nicht mehr „Anrede" — deshalb auch die Adjektive statt „Frau"/„Mann".
 
-**Der Haken: `Club::getBLSVStatistic()` kann kein drittes Geschlecht.** Das CSV-Format gehört dem BLSV und trug immer nur `m` und `w`. Vorher stand an zwei Stellen `$member->gender->value === 'm' ? 'm' : 'w'` — ein diverses Mitglied wäre also stillschweigend als weiblich exportiert **und** in der Frauen-Spalte der Altersstatistik gezählt worden.
+**Die Abbildung steht an genau einer Stelle: `Gender::blsvValue()`.** Vorher stand an zwei Stellen `$member->gender->value === 'm' ? 'm' : 'w'` — ein diverses Mitglied wäre stillschweigend als weiblich exportiert **und** in der Frauen-Spalte der Altersstatistik gezählt worden. `tests/Feature/MemberManagementTest.php` pinnt alle drei Abbildungen.
 
-Das ist jetzt `Gender::blsvValue()`: gleiches Ergebnis, aber an **einer** Stelle und als bewusste Annahme dokumentiert statt als Nebenwirkung eines Ternärs. `tests/Feature/MemberManagementTest.php` pinnt alle drei Abbildungen.
+**Seit 2026-08-29 ist `Divers` frei.** Der BLSV nimmt einen dritten Wert `d`; `blsvValue()` bildet ihn darauf ab, statt ihn als `w` zu melden. `Gender::selectable()` ist ersatzlos entfallen — `options()` läuft über `self::cases()` und `MemberValidationRules` nutzt wieder das schlichte `Rule::enum(Gender::class)`.
 
-**`Divers` ist deshalb geparkt, nicht aktiv.** `Gender::selectable()` gibt nur `Frau` und `Mann` zurück; `options()` baut darauf auf (Picker) und `MemberValidationRules` nutzt dieselbe Liste über `Rule::enum(Gender::class)->only(Gender::selectable())`. Bewusst **beides**: nur aus dem Picker nehmen würde einen von Hand geschickten Wert weiter durchlassen.
+**Die dritte Spalte in `blsv_stat.pdf` erscheint nur, wenn der Verein wirklich ein diverses Mitglied hat** (`BlsvPdf::$showsDiverse`, gesetzt aus `hasDiverseMember()`). Grund: der Verein reicht diesen Bogen seit Jahren zweispaltig ein, eine immer leere Spalte änderte das Formular für nichts. Auf der Abteilungsseite ist das nicht nur Kosmetik — sieben Altersgruppen à drei Spalten passen bei 10 mm nicht mehr auf A4, die Spalten schrumpfen dafür auf 6,7 mm (`$columnWidth`). Wer dort eine Spalte ergänzt, muss die Breite neu rechnen: 190 mm nutzbar, davon 48 mm für Nummer, Abteilung und Gesamt.
 
-**Offen:** ob der BLSV einen dritten Wert annimmt (`d`? `x`? eigene Zeile?), ist ungeklärt. Vor dem nächsten Statistiklauf beim Verband nachfragen. Zum Einschalten danach: `selectable()` auf `self::cases()` und `blsvValue()` klären — sonst nichts. Der Test „the diverse gender is parked" wird dann rot und zeigt, was anzupassen ist.
+Dasselbe Muster steht schon im Dashboard: `AgeStructureCard.vue` blendet den dritten Balken per `v-if="totals.other > 0"` aus. `tests/Feature/SepaGenerationTest.php` pinnt beide Zweige der PDF-Entscheidung; `pdfText()` in tests/Pest.php bläst die FPDF-Streams dafür auf, weil die Texte sonst komprimiert und ungreppbar sind.
 
 ## AgeBracket: die BLSV-Altersgrenzen stehen an genau einer Stelle
 `App\Enums\AgeBracket` hält die sieben Altersgruppen (0-5, 6-13, 14-17, 18-26, 27-40, 41-60, 61+). **Die Grenzen gehören dem BLSV, nicht uns** — `Club::getStatIndex()` delegiert hierher und `BlsvPdf` druckt genau diese sieben Zeilen, eine verschobene Grenze ändert also, was der Verein an den Verband meldet. Vorher stand die Staffelung als `match (true)` in `Club::getStatIndex()`; sie liegt hier, damit Jahresmeldung, Dashboard-Chart und die Mitglieder-Auswahl dahinter nicht drei verschiedene Linien ziehen können.

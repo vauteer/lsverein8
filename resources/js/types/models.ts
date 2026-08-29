@@ -505,7 +505,7 @@ export type DashboardAgeBracket = {
     label: string;
     male: number;
     female: number;
-    /** Neither male nor female — see the Gender enum; normally zero. */
+    /** Diverse members; the chart hides the bar while it is zero. */
     other: number;
     total: number;
 };

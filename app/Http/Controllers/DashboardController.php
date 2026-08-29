@@ -146,16 +146,12 @@ class DashboardController extends Controller
             /** @var Collection<int, Member> $inBracket */
             $inBracket = $byBracket->get($bracket->value, new Collection);
 
-            $male = $inBracket->where('gender', Gender::Mann)->count();
-            $female = $inBracket->where('gender', Gender::Frau)->count();
-
             return [
                 'filter' => $bracket->filter(),
                 'label' => $bracket->label(),
-                'male' => $male,
-                'female' => $female,
-                // Divers is parked rather than impossible - see Gender.
-                'other' => $inBracket->count() - $male - $female,
+                'male' => $inBracket->where('gender', Gender::Mann)->count(),
+                'female' => $inBracket->where('gender', Gender::Frau)->count(),
+                'other' => $inBracket->where('gender', Gender::Divers)->count(),
                 'total' => $inBracket->count(),
             ];
         }, AgeBracket::cases());
