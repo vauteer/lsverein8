@@ -5,6 +5,7 @@ import { computed } from 'vue';
 import AgeStructureCard from '@/components/dashboard/AgeStructureCard.vue';
 import DevelopmentCard from '@/components/dashboard/DevelopmentCard.vue';
 import DistributionCard from '@/components/dashboard/DistributionCard.vue';
+import LoginsCard from '@/components/dashboard/LoginsCard.vue';
 import StatTile from '@/components/dashboard/StatTile.vue';
 import Heading from '@/components/Heading.vue';
 import { dashboard } from '@/routes';
@@ -13,6 +14,7 @@ import type {
     DashboardAgeBracket,
     DashboardDevelopmentPoint,
     DashboardDistributionRow,
+    DashboardLogins,
     DashboardSummary,
     DashboardYearsBand,
 } from '@/types';
@@ -26,6 +28,8 @@ const props = defineProps<{
     sections: DashboardDistributionRow[];
     /** Null for anybody but a club admin — who pays what is a treasurer's business. */
     subscriptions: DashboardDistributionRow[] | null;
+    /** Null for anybody but root: the tracings cover every club, not just this one. */
+    logins: DashboardLogins | null;
 }>();
 
 const averageAge = computed(() =>
@@ -133,5 +137,7 @@ defineOptions({
                 :empty="$t('No subscriptions yet.')"
             />
         </div>
+
+        <LoginsCard v-if="logins" :logins="logins" />
     </div>
 </template>

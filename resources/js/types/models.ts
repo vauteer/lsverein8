@@ -528,6 +528,24 @@ export type DashboardYearsBand = {
 };
 
 /** One year of the development chart, all three numbers of that year. */
+/**
+ * The login statistic, root only — the tracings span every club.
+ *
+ * `months` holds the twelve column labels, oldest first; every user's own
+ * `months` is aligned to it by index.
+ */
+export type DashboardLogins = {
+    total: number;
+    months: string[];
+    users: {
+        name: string;
+        count: number;
+        months: number[];
+    }[];
+    /** Accounts with no login in the window — counted, not listed. */
+    dormant: number;
+};
+
 export type DashboardDevelopmentPoint = {
     year: number;
     members: number;

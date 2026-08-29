@@ -132,3 +132,14 @@ Festlegungen:
 - `MemberValidationRules::joiningRules()` hält Sparte und Beitrag an **einer** Stelle; `entryRules()` (Anlegen) und `MemberRejoinRequest` teilen sie. Wer eine dritte Bedingung fürs Beitreten einführt, gehört dorthin.
 
 Getestet in `MemberManagementTest`: „a former member is taken back in…", „rejoining is refused where it would overlap or make no sense", „a dead member is never offered a rejoining", „rejoining does not duplicate a subscription the member still holds".
+
+## Login-Karte: root-only, und in PHP gebucketet statt in SQL gruppiert
+`logins` ist die einzige Dashboard-Kachel, die an `users.admin` hängt statt an `hasAdminRights()`. Grund: `tracings` trägt keinen ClubScope, die Zeilen umfassen also die ganze Installation — ein Club-Admin läse mit, wer sich in anderen Vereinen anmeldet. Wie `subscriptions` wird `null` geliefert, nicht eine leere Karte; `Dashboard.vue` rendert per `v-if`.
+
+**Nicht in SQL gruppieren.** Die Monatsbuckets entstehen in PHP, weil `DATE_FORMAT` MySQL-only ist und der ganze Bildschirm laut Klassen-Docblock auf der SQLite-Testverbindung lauffähig bleiben muss. Bei ~330 Logins im Jahr ist das gratis.
+
+Das Fenster sind **Kalendermonate** (`startOfMonth()->subMonths(11)`), nicht `subMonths(12)` — deshalb liegt die Gesamtzahl leicht unter einem rollierenden Jahr, und der erste Bucket ist ein voller Monat statt eines angebrochenen.
+
+Konten ohne Login werden gezählt (`dormant`), nicht gelistet. Monatsbeschriftungen über `translatedFormat('M y')`, nicht `format()` — sonst steht im deutschen UI „Dec" statt „Dez".
+
+Fallstrick phpstan: `->values()->all()` auf einer Collection beweist die `list<>`-Form nicht, `array_values(...->all())` schon.

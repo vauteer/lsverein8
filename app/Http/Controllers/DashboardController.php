@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ActionType;
 use App\Enums\AgeBracket;
 use App\Enums\Gender;
 use App\Enums\MemberFilter;
@@ -9,6 +10,8 @@ use App\Models\ClubMember;
 use App\Models\Member;
 use App\Models\Section;
 use App\Models\Subscription;
+use App\Models\Tracing;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
@@ -38,6 +41,11 @@ class DashboardController extends Controller
      */
     private const int YEARS_BACK = 10;
 
+    /**
+     * How many months the login statistic covers, the current one included.
+     */
+    private const int LOGIN_MONTHS = 12;
+
     public function __invoke(Request $request): Response
     {
         // Every age and membership figure below is read against today.
@@ -61,6 +69,11 @@ class DashboardController extends Controller
             'subscriptions' => $request->user()->hasAdminRights()
                 ? $this->subscriptions()
                 : null,
+            // Root only, and not merely because it is administrative: the
+            // tracings span every club, so a club admin would be reading who
+            // signs in elsewhere. Same shape as `subscriptions` — null rather
+            // than an empty card.
+            'logins' => (bool) $request->user()->admin ? $this->logins() : null,
         ]);
     }
 
@@ -130,6 +143,77 @@ class DashboardController extends Controller
             ->pluck('member_id');
 
         return Member::query()->whereIn('id', $ids)->count();
+    }
+
+    /**
+     * Who signed in over the last twelve months, most active first.
+     *
+     * Bucketed in PHP rather than grouped in SQL, like the age structure above:
+     * `DATE_FORMAT` is MySQL-only and this screen has to stay exercisable on
+     * the SQLite test connection. The volume makes that free — a year of logins
+     * is a few hundred rows.
+     *
+     * Accounts that never signed in are counted rather than listed. They are
+     * worth knowing about, but a name with twelve empty months is a long way to
+     * say zero.
+     *
+     * @return array{total: int, months: list<string>, users: list<array{name: string, count: int, months: list<int>}>, dormant: int}
+     */
+    private function logins(): array
+    {
+        $first = now()->startOfMonth()->subMonths(self::LOGIN_MONTHS - 1);
+
+        $months = [];
+        for ($i = 0; $i < self::LOGIN_MONTHS; $i++) {
+            $months[$first->copy()->addMonths($i)->format('Y-m')] = 0;
+        }
+
+        $logins = Tracing::query()
+            ->actionType(ActionType::Login)
+            ->where('at', '>=', $first)
+            ->get(['user_id', 'at'])
+            ->groupBy('user_id');
+
+        $names = User::query()->pluck('name', 'id');
+
+        $users = $names
+            ->map(function (string $name, int $id) use ($logins, $months): array {
+                $own = $logins->get($id, collect());
+                $buckets = $months;
+
+                foreach ($own as $login) {
+                    $key = $login->at->format('Y-m');
+                    // A login can sit in the first, partial month of the range.
+                    if (isset($buckets[$key])) {
+                        $buckets[$key]++;
+                    }
+                }
+
+                return [
+                    'name' => $name,
+                    'count' => $own->count(),
+                    'months' => array_values($buckets),
+                ];
+            })
+            ->filter(fn (array $user): bool => $user['count'] > 0)
+            ->sortByDesc('count')
+            ->all();
+
+        // array_values(), not ->values(): the keys are user ids until here, and
+        // this is what proves the result is a list rather than a sparse map.
+        $users = array_values($users);
+
+        return [
+            'total' => array_sum(array_column($users, 'count')),
+            // translatedFormat, not format: the labels are month names, and
+            // the club's locale decides whether December reads Dec or Dez.
+            'months' => array_map(
+                fn (string $key): string => Date::parse($key.'-01')->translatedFormat('M y'),
+                array_keys($months)
+            ),
+            'users' => $users,
+            'dormant' => $names->count() - count($users),
+        ];
     }
 
     /**

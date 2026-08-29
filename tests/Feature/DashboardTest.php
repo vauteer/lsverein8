@@ -1,11 +1,13 @@
 <?php
 
+use App\Enums\ActionType;
 use App\Enums\ClubRole;
 use App\Enums\Gender;
 use App\Models\Club;
 use App\Models\Member;
 use App\Models\Section;
 use App\Models\Subscription;
+use App\Models\Tracing;
 use App\Models\User;
 
 /**
@@ -242,6 +244,50 @@ test('the subscription card is admin-only and ends with the members paying nothi
         ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page->where('subscriptions', null));
+});
+
+test('the login card is root-only', function () {
+    // Not merely administrative: the tracings span every club, so a club admin
+    // would be reading who signs in elsewhere.
+    $this->actingAs(dashboardUser(ClubRole::Admin))
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('logins', null));
+
+    $this->actingAs(User::factory()->create(['club_id' => 1, 'admin' => true]))
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->has('logins'));
+});
+
+test('the login card counts twelve months per user, newest month last', function () {
+    $root = User::factory()->create(['club_id' => 1, 'admin' => true, 'name' => 'Root']);
+    $quiet = User::factory()->create(['club_id' => 1, 'name' => 'Leise']);
+    User::factory()->create(['club_id' => 1, 'name' => 'Nie']);
+
+    Tracing::factory()->count(3)->create(['user_id' => $root->id, 'at' => now()]);
+    Tracing::factory()->create(['user_id' => $root->id, 'at' => now()->subMonths(11)->startOfMonth()]);
+    Tracing::factory()->create(['user_id' => $quiet->id, 'at' => now()]);
+
+    // Just outside the window, and an action that is not a login: neither counts.
+    Tracing::factory()->create(['user_id' => $root->id, 'at' => now()->startOfMonth()->subMonths(12)]);
+    Tracing::factory()->create(['user_id' => $root->id, 'at' => now(), 'action_type' => ActionType::Update]);
+
+    $this->actingAs($root)
+        ->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->where('logins.total', 5)
+            ->has('logins.months', 12)
+            ->has('logins.users', 2)
+            // Most active first.
+            ->where('logins.users.0.name', 'Root')
+            ->where('logins.users.0.count', 4)
+            ->where('logins.users.0.months.0', 1)
+            ->where('logins.users.0.months.11', 3)
+            ->where('logins.users.1.name', 'Leise')
+            // "Nie" never signed in: counted, not listed.
+            ->where('logins.dormant', 1)
+        );
 });
 
 test('another club is never counted in', function () {
