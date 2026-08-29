@@ -5,7 +5,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | Applies to | Rule file |
 | --- | --- |
 | app/Backup.php, app/ClubExport.php, app/AssignedMemberCount.php | .ai/rules/app.md |
-| app/Console/Commands/** | .ai/rules/commands.md |
+| app/Console/Commands/**, app/Console/Commands/PruneTracingsCommand.php | .ai/rules/commands.md |
 | config/log-viewer.php, config/telescope.php | .ai/rules/config.md |
 | app/Http/Controllers/MemberExportController.php, app/Http/Controllers/BlsvStatisticController.php, app/Http/Controllers/DashboardController.php, app/Http/Controllers/MemberController.php | .ai/rules/controllers.md |
 | app/Enums/**, app/Enums/AgeBracket.php, app/Enums/LandingPage.php, app/Enums/PaymentMethod.php | .ai/rules/enums.md |

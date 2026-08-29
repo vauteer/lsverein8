@@ -20,3 +20,12 @@ Schedule::command('app:backup')
 // table in the database is at its fullest.
 Schedule::command('telescope:prune --hours=48')
     ->dailyAt('23:00');
+
+// Weekly, and placed before the Sunday backup so a dump taken that night
+// carries the pruned table rather than one last copy of the rows we just
+// decided not to keep. Only "so if" — `Backup::isDirty()` does not watch
+// `tracings` (it has no `updated_at`), so a prune on its own does not earn a
+// backup. The window is twelve whole months, which is what the dashboard's
+// login card draws.
+Schedule::command('app:prune-tracings --months=12')
+    ->weeklyOn(0, '22:45');
