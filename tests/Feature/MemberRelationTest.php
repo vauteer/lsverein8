@@ -301,6 +301,21 @@ test('a current member cannot be left without a subscription', function () {
     expect($this->member->subscriptions()->count())->toBe(0);
 });
 
+test('a member who has died may lose their last subscription', function () {
+    $subscription = Subscription::factory()->create(['club_id' => 1]);
+    $this->member->subscriptions()->attach($subscription->id);
+    // The membership row stays open, but the dead are not current members and
+    // nothing bills them, so the guard has nothing to protect here.
+    $this->member->update(['death_day' => '2024-06-30']);
+    $row = $this->member->subscriptions()->first()->pivot;
+
+    $this->actingAs(relationUser())
+        ->delete(route('members.subscriptions.destroy', [$this->member, $row->id]))
+        ->assertRedirect();
+
+    expect($this->member->subscriptions()->count())->toBe(0);
+});
+
 test('a second membership period is what makes a rejoining member add up', function () {
     $this->actingAs(relationUser());
 
@@ -518,6 +533,23 @@ test('a member who has left may lose their last section', function () {
     // resign() closes membership and sections together; the guard must not
     // then block tidying up what it left behind.
     $this->member->memberships()->updateExistingPivot(1, ['to' => '2020-12-31']);
+    $row = $this->member->sections()->first()->pivot;
+
+    $this->actingAs(relationUser())
+        ->delete(route('members.sections.destroy', [$this->member, $row->id]))
+        ->assertRedirect();
+
+    expect($this->member->sections()->count())->toBe(0);
+});
+
+test('a member who has died may lose their last section', function () {
+    blsvClub();
+    $section = Section::factory()->create(['club_id' => 1]);
+    $this->member->sections()->attach($section->id, ['from' => '2016-01-01']);
+    // The membership row stays open, but the Meldung is built from
+    // Member::memberIds(), which leaves the dead out — so the guard has
+    // nothing to protect here either.
+    $this->member->update(['death_day' => '2024-06-30']);
     $row = $this->member->sections()->first()->pivot;
 
     $this->actingAs(relationUser())

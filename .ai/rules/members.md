@@ -63,3 +63,10 @@ Einfacher als bei Sparten: `member_subscription` trägt keine Daten, es gibt als
 **Bewusst offen, wie bei den Sparten:** die Gegenrichtung. `MembershipController` kann eine Mitgliedschaft wieder öffnen, ohne dass ein Beitrag existiert — 39 der 180 Ehemaligen haben keinen, und beim Wiedereintritt zuerst den Beitrag zu verlangen bräche die natürliche Eingabereihenfolge. `MemberFilter::NoSubscription` (admin-only) bleibt deshalb als Kontrollliste nützlich: sie sollte leer sein, und wenn nicht, zeigt sie genau diese Lücke. An Produktion geprüft (2026-08-28): 400 aktuelle Mitglieder, 0 Verstöße.
 
 Testfalle: **jede** `members.store`-Nutzlast braucht jetzt `subscription_id`, sonst schlägt die Validierung fehl — in `MemberManagementTest` liefert der Helfer `entrySubscription()` einen.
+
+## „Ist noch Mitglied" heißt immer $member->isMember()
+Seit 2026-08-29: Die beiden Sperren (`MemberSectionController::isLastActiveSection()`, `MemberSubscriptionController::isLastSubscription()`) fragen `$member->isMember()`, statt `club_member` selbst auf `to IS NULL OR to >= heute` abzufragen.
+
+Warum: `isMember()` liest dasselbe wie `Member::memberIds()`, woraus die BLSV-Meldung und alle Auswertungen gebaut werden — also zusätzlich `death_day` (Verstorbene sind draußen) und `club_member.from <= Stichtag` (eine erst künftig beginnende Mitgliedschaft zählt noch nicht). Die handgeschriebene Abfrage prüfte beides nicht und hätte Verstorbene gesperrt, obwohl sie in keiner Meldung stehen.
+
+Neue Sperren dieser Art bitte genauso: keine eigene Lesart von „offen" mehr aufschreiben. Getestet in `MemberRelationTest` („a member who has died may lose their last section/subscription").

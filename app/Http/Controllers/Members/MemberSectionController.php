@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Members;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Members\MemberSectionRequest;
-use App\Models\ClubMember;
 use App\Models\Member;
 use App\Models\MemberSection;
 use Carbon\CarbonInterface;
@@ -78,28 +77,21 @@ class MemberSectionController extends Controller
      * A BLSV club reports its members section by section — somebody counted in
      * the yearly Meldung has to sit in one, and a member in none would simply
      * be missing from the file (Club::getBLSVStatistic() builds it per
-     * section). So the club must be a blsv_member, the membership must still
-     * be open, and this must be the last row keeping it true.
+     * section). So the club must be a blsv_member, the member must still be
+     * one — isMember() reads that the way memberIds() does, which is what the
+     * Meldung is built from, so the dead and the not-yet-joined are out — and
+     * this must be the last row keeping it true.
      *
      * "Active" is `to IS NULL OR to >= today`, the same reading inRange() and
      * the statistic use — a row ending today still counts today.
      */
     private function isLastActiveSection(Member $member, MemberSection $row): bool
     {
-        if (! currentClub()->blsv_member || ! $this->isActive($row->to)) {
+        if (! currentClub()->blsv_member || ! $this->isActive($row->to) || ! $member->isMember()) {
             return false;
         }
 
         $today = Date::now()->startOfDay();
-
-        $stillAMember = ClubMember::query()
-            ->where('member_id', $member->id)
-            ->where(fn ($query) => $query->whereNull('to')->orWhere('to', '>=', $today))
-            ->exists();
-
-        if (! $stillAMember) {
-            return false;
-        }
 
         return ! MemberSection::query()
             ->where('member_id', $member->id)

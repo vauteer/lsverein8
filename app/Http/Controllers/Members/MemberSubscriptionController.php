@@ -4,11 +4,9 @@ namespace App\Http\Controllers\Members;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Members\MemberSubscriptionRequest;
-use App\Models\ClubMember;
 use App\Models\Member;
 use App\Models\MemberSubscription;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Date;
 use Inertia\Inertia;
 
 /**
@@ -71,17 +69,14 @@ class MemberSubscriptionController extends Controller
      * "closing" a row: holding one is the whole state, and only `destroy` can
      * take the last one away.
      *
-     * Only while the membership is open. After `resign()` the leftover rows
-     * have to stay removable, exactly as with sections.
+     * Only while the member is still one — isMember() reads that the way
+     * memberIds() does, so the dead and the not-yet-joined are out. After
+     * `resign()` the leftover rows have to stay removable, exactly as with
+     * sections.
      */
     private function isLastSubscription(Member $member, MemberSubscription $row): bool
     {
-        $stillAMember = ClubMember::query()
-            ->where('member_id', $member->id)
-            ->where(fn ($query) => $query->whereNull('to')->orWhere('to', '>=', Date::now()->startOfDay()))
-            ->exists();
-
-        if (! $stillAMember) {
+        if (! $member->isMember()) {
             return false;
         }
 
