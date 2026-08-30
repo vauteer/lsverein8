@@ -124,7 +124,7 @@ Das Mitglieder-CRUD ist bewusst in drei Etappen geschnitten. **Diese Etappe: nur
 
 Fünf Dinge, die man beim Weiterbauen wissen muss:
 
-- **`Member::$_keyDate` in `MemberController::selection()` zu setzen ist der tragende Seiteneffekt.** Jede Alters-, Mitgliedschafts- und Ehrungsrechnung liest ihn, auch die in `MemberResource`. Das Stichjahr aus der URL ist also nicht bloß ein Filter, sondern verschiebt, wie die ganze Liste gelesen wird. `resolveYear()` klemmt statt zu 404en.
+- **`Member::setKeyDate()` in `MemberController::selection()` zu rufen ist der tragende Seiteneffekt.** Jede Alters-, Mitgliedschafts- und Ehrungsrechnung liest ihn, auch die in `MemberResource`. Das Stichjahr aus der URL ist also nicht bloß ein Filter, sondern verschiebt, wie die ganze Liste gelesen wird. `resolveYear()` klemmt statt zu 404en.
 - **Eine unbekannte oder für den Benutzer gesperrte Auswahl fällt auf die Standardauswahl zurück, kein 403/404.** Filter leben in Lesezeichen und im Zurück-Knopf. Gleiches gilt für eine unbekannte Sortierung.
 - **`MemberResource` verschweigt einem Nicht-Admin `subscriptions` und `last_event` (null),** und die Bankdaten stehen gar nicht drin — die gehen nur ans Bearbeitungsformular, das ohnehin admin-only ist. lsverein7 schickte alles und blendete es im Template mit `v-if="clubAdmin"` aus.
 - **Der Index muss `memberships`, `sections`, `roles`, `subscriptions`, `events` eager-laden.** `MemberResource` rechnet alles daraus; ohne das ist die Liste eine Abfrage pro Zeile und Relation.

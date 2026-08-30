@@ -26,10 +26,10 @@ use Illuminate\Support\Facades\Schema;
  */
 beforeEach(function () {
     $this->club = Club::factory()->create(['id' => 1]);
-    Member::$_keyDate = null;
+    Member::setKeyDate(null);
 });
 
-afterEach(fn () => Member::$_keyDate = null);
+afterEach(fn () => Member::setKeyDate(null));
 
 it('casts member attributes', function () {
     $member = Member::factory()->ofClub($this->club)->create([
@@ -45,7 +45,7 @@ it('casts member attributes', function () {
 it('computes age against the key date', function () {
     $member = Member::factory()->ofClub($this->club)->create(['birthday' => '1990-01-01']);
 
-    Member::$_keyDate = Carbon\Carbon::parse('2020-06-01');
+    Member::setKeyDate(Carbon\Carbon::parse('2020-06-01'));
 
     expect($member->age)->toBe(30);
 });
@@ -56,7 +56,7 @@ it('uses the death day as the key date once a member has died', function () {
         'death_day' => '2000-01-01',
     ]);
 
-    Member::$_keyDate = Carbon\Carbon::parse('2020-06-01');
+    Member::setKeyDate(Carbon\Carbon::parse('2020-06-01'));
 
     expect($member->gone())->toBeTrue()
         ->and($member->alive())->toBeFalse()
@@ -97,13 +97,34 @@ it('resolves membership through the club_member pivot', function () {
     $member = Member::factory()->ofClub($this->club)->create(['birthday' => '1980-01-01']);
     $member->memberships()->attach($this->club->id, ['from' => '2000-01-01', 'to' => null]);
 
-    Member::$_keyDate = Carbon\Carbon::parse('2020-06-01');
+    Member::setKeyDate(Carbon\Carbon::parse('2020-06-01'));
     $member->refresh();
 
     expect($member->isMember())->toBeTrue()
         ->and($member->entry()->toDateString())->toBe('2000-01-01')
         ->and($member->membershipYears())->toBe(20)
         ->and(Member::members()->pluck('id')->all())->toBe([$member->id]);
+});
+
+it('copies the key date in and out, so a caller cannot move it by accident', function () {
+    $date = Carbon\Carbon::parse('2020-06-01');
+    Member::setKeyDate($date);
+
+    // Carbon is mutable and Club::getBLSVStatistic() keeps using the very
+    // instance it sets, so the setter has to copy — otherwise the caller's
+    // own arithmetic would move what the whole app reads.
+    $date->addYear();
+
+    expect(Member::getKeyDate()->toDateString())->toBe('2020-06-01');
+
+    Member::getKeyDate()->addYear();
+
+    expect(Member::getKeyDate()->toDateString())->toBe('2020-06-01');
+
+    // Null puts it back to today, which is how every test resets it.
+    Member::setKeyDate(null);
+
+    expect(Member::getKeyDate()->toDateString())->toBe(now()->toDateString());
 });
 
 it('reads the membership period that started last, open or closed', function () {
@@ -134,7 +155,7 @@ it('excludes members who left before the key date', function () {
     $member = Member::factory()->ofClub($this->club)->create(['birthday' => '1980-01-01']);
     $member->memberships()->attach($this->club->id, ['from' => '2000-01-01', 'to' => '2010-01-01']);
 
-    Member::$_keyDate = Carbon\Carbon::parse('2020-06-01');
+    Member::setKeyDate(Carbon\Carbon::parse('2020-06-01'));
 
     expect(Member::members()->count())->toBe(0)
         ->and(Member::noMembers()->count())->toBe(1);
@@ -159,7 +180,7 @@ it('relates members to sections, roles, events and items', function () {
     $member->events()->attach($event->id, ['date' => '2021-05-01']);
     $member->items()->attach($item->id, ['from' => '2020-01-01']);
 
-    Member::$_keyDate = Carbon\Carbon::parse('2022-01-01');
+    Member::setKeyDate(Carbon\Carbon::parse('2022-01-01'));
     $member->refresh();
 
     expect($member->currentSections())->toBe($section->name)
@@ -182,13 +203,13 @@ it('finds members in a section', function () {
 
     $inSection->sections()->attach($section->id, ['from' => '2020-01-01']);
 
-    Member::$_keyDate = Carbon\Carbon::parse('2022-01-01');
+    Member::setKeyDate(Carbon\Carbon::parse('2022-01-01'));
 
     expect(Member::inSections($section->id)->pluck('id')->all())->toBe([$inSection->id]);
 });
 
 it('filters members by age range', function () {
-    Member::$_keyDate = Carbon\Carbon::parse('2020-06-01');
+    Member::setKeyDate(Carbon\Carbon::parse('2020-06-01'));
     $child = Member::factory()->ofClub($this->club)->create(['birthday' => '2012-01-01']);
     $adult = Member::factory()->ofClub($this->club)->create(['birthday' => '1980-01-01']);
 
@@ -276,7 +297,7 @@ function captureDueHonorQuery(): array
 
 it('binds the honour years instead of interpolating them', function () {
     $this->club->update(['honor_years' => '25,40']);
-    Member::$_keyDate = Carbon\Carbon::parse('2024-06-01');
+    Member::setKeyDate(Carbon\Carbon::parse('2024-06-01'));
 
     $captured = captureDueHonorQuery();
 
@@ -287,7 +308,7 @@ it('binds the honour years instead of interpolating them', function () {
 it('neutralises a malformed honor_years value', function () {
     // honor_years is club-editable free text and used to be interpolated into the SQL
     $this->club->update(['honor_years' => '25) OR 1=1 --']);
-    Member::$_keyDate = Carbon\Carbon::parse('2024-06-01');
+    Member::setKeyDate(Carbon\Carbon::parse('2024-06-01'));
 
     $captured = captureDueHonorQuery();
 
@@ -383,7 +404,7 @@ it('separates the dueHonor scope from the honorThisYear accessor', function () {
     $member = Member::factory()->ofClub($this->club)->create();
     $member->memberships()->attach($this->club->id, ['from' => '1999-01-01', 'to' => null]);
 
-    Member::$_keyDate = Carbon\Carbon::parse('2024-06-01');
+    Member::setKeyDate(Carbon\Carbon::parse('2024-06-01'));
 
     // the scope of the same name is exercised in the captureDueHonorQuery tests
     expect($member->honorThisYear())->toBe(25);

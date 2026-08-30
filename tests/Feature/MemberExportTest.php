@@ -15,10 +15,10 @@ use Illuminate\Support\Carbon;
  */
 beforeEach(function () {
     $this->club = Club::factory()->create(['id' => 1, 'name' => 'Sportverein']);
-    Member::$_keyDate = null;
+    Member::setKeyDate(null);
 });
 
-afterEach(fn () => Member::$_keyDate = null);
+afterEach(fn () => Member::setKeyDate(null));
 
 function exportUser(ClubRole $role = ClubRole::Admin): User
 {

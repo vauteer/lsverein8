@@ -17,11 +17,11 @@ beforeEach(function () {
         'name' => 'Sportverein',
         'blsv_member' => true,
     ]);
-    Member::$_keyDate = null;
+    Member::setKeyDate(null);
     File::ensureDirectoryExists(storage_path('downloads'));
 });
 
-afterEach(fn () => Member::$_keyDate = null);
+afterEach(fn () => Member::setKeyDate(null));
 
 function blsvUser(ClubRole $role = ClubRole::Admin, ?Club $club = null): User
 {

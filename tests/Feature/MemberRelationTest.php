@@ -19,12 +19,12 @@ use App\Models\User;
  */
 beforeEach(function () {
     $this->club = Club::factory()->create(['id' => 1]);
-    Member::$_keyDate = null;
+    Member::setKeyDate(null);
     $this->member = Member::factory()->ofClub(1)->create();
     $this->member->memberships()->attach(1, ['from' => '2016-01-01', 'to' => null]);
 });
 
-afterEach(fn () => Member::$_keyDate = null);
+afterEach(fn () => Member::setKeyDate(null));
 
 /**
  * Create a user of club 1 with the given role in it.

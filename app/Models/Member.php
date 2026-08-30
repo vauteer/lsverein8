@@ -76,8 +76,22 @@ class Member extends Model
 
     /**
      * Key date every age and membership calculation is evaluated against.
+     *
+     * Global on purpose: SelectsMembers::selection() sets it from the year in
+     * the URL, Club::getBLSVStatistic() to the 1st of January and the
+     * dashboard back to today, so a list, an export and a report read the same
+     * date without passing it through every call.
+     *
+     * Reached only through setKeyDate() and getKeyDate(), which both copy.
+     * Carbon is mutable, and Club::getBLSVStatistic() hands the very instance
+     * it sets on to BlsvPdf — shared as a reference, one `addDay()` on either
+     * side would move the other.
+     *
+     * The price of being global is that it survives a request: a test that
+     * sets it has to reset it in afterEach, or the next one silently reads the
+     * wrong year.
      */
-    public static ?CarbonInterface $_keyDate = null;
+    private static ?CarbonInterface $keyDate = null;
 
     /**
      * @return array<string, string>
@@ -91,13 +105,24 @@ class Member extends Model
         ];
     }
 
+    /**
+     * Set the key date, or null to fall back to today on the next read.
+     *
+     * `self::`, not `static::`: the property is private, so a subclass would
+     * resolve `static::` to a property it cannot see.
+     */
+    public static function setKeyDate(?CarbonInterface $keyDate): void
+    {
+        self::$keyDate = $keyDate?->copy();
+    }
+
     public static function getKeyDate(): CarbonInterface
     {
-        if (static::$_keyDate === null) {
-            static::$_keyDate = now()->endOfDay();
+        if (self::$keyDate === null) {
+            self::$keyDate = now()->endOfDay();
         }
 
-        return static::$_keyDate->copy();
+        return self::$keyDate->copy();
     }
 
     /**

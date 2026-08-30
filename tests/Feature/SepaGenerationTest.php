@@ -8,11 +8,11 @@ use App\Models\Subscription;
 
 beforeEach(function () {
     $this->club = Club::factory()->create(['id' => 1, 'sepa_mandate_date' => '2015-01-01']);
-    Member::$_keyDate = null;
+    Member::setKeyDate(null);
     File::ensureDirectoryExists(storage_path('downloads'));
 });
 
-afterEach(fn () => Member::$_keyDate = null);
+afterEach(fn () => Member::setKeyDate(null));
 
 function memberWithDebit(Club $club): Member
 {
@@ -63,7 +63,7 @@ it('splits subscription debits from outstanding payments', function () {
     $paying->subscriptions()->attach($subscription->id);
     $invoiced->subscriptions()->attach($subscription->id);
 
-    Member::$_keyDate = Carbon\Carbon::parse('2024-06-01');
+    Member::setKeyDate(Carbon\Carbon::parse('2024-06-01'));
 
     $result = Subscription::debit([$subscription->id], Carbon\Carbon::parse('2024-03-01'));
 
@@ -216,7 +216,7 @@ it('cuts in the divers column and reports d once a member is diverse', function 
 });
 
 it('calculates the blsv debit from the age bands', function () {
-    Member::$_keyDate = Carbon\Carbon::parse('2024-01-01');
+    Member::setKeyDate(Carbon\Carbon::parse('2024-01-01'));
 
     foreach (['2012-01-01', '2008-01-01', '1980-01-01'] as $birthday) {
         $member = Member::factory()->ofClub($this->club)->create(['birthday' => $birthday]);

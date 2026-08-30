@@ -49,7 +49,7 @@ class DashboardController extends Controller
     public function __invoke(Request $request): Response
     {
         // Every age and membership figure below is read against today.
-        Member::$_keyDate = now()->endOfDay();
+        Member::setKeyDate(now()->endOfDay());
 
         // Loaded once and bucketed in PHP, the way Club::getBLSVStatistic()
         // does it: age and membership years are derived attributes, so a

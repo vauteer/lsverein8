@@ -326,7 +326,7 @@ class Club extends Model
     {
         // Statistik ist zum 1. Januar, Austritte zum 31.12. und Eintritte zum 1.1. werden realisiert
         $keyDate = now()->startOfYear();
-        Member::$_keyDate = $keyDate;
+        Member::setKeyDate($keyDate);
         $year = $keyDate->year;
 
         // storage/downloads is not in version control and is wiped by a

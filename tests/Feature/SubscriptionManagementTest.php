@@ -13,10 +13,10 @@ use Illuminate\Support\Facades\File;
  */
 beforeEach(function () {
     $this->club = Club::factory()->create(['id' => 1]);
-    Member::$_keyDate = null;
+    Member::setKeyDate(null);
 });
 
-afterEach(fn () => Member::$_keyDate = null);
+afterEach(fn () => Member::setKeyDate(null));
 
 /**
  * Create a user belonging to the given club (defaulting to club 1) with the

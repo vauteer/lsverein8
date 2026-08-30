@@ -16,7 +16,7 @@ class MemberResource extends JsonResource
      *
      * Everything derived here (`is_member`, `membership_years`, the current
      * sections and roles) is computed from the loaded relations against
-     * `Member::$_keyDate`, which the controller sets from the chosen year.
+     * `Member::getKeyDate()`, which the controller sets from the chosen year.
      * The index must eager-load them or this is one query per row.
      *
      * @return array<string, mixed>

@@ -35,7 +35,7 @@ trait SelectsMembers
      * Everything the index needs to answer "which members, seen from when, in
      * what order".
      *
-     * Setting `Member::$_keyDate` here is the load-bearing side effect: every
+     * Setting `Member::setKeyDate()` here is the load-bearing side effect: every
      * age, membership and honour calculation downstream reads it, including
      * the ones inside MemberResource.
      *
@@ -48,9 +48,9 @@ trait SelectsMembers
         $sort = MemberSort::tryFrom($request->string('sort')->toString()) ?? MemberSort::Name;
         $year = $this->resolveYear($request);
 
-        Member::$_keyDate = $year === now()->year
+        Member::setKeyDate($year === now()->year
             ? now()->endOfDay()
-            : Date::create($year, 12, 31)->endOfDay();
+            : Date::create($year, 12, 31)->endOfDay());
 
         $query = Member::query();
 

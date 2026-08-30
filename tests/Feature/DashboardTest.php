@@ -16,10 +16,10 @@ use App\Models\User;
  */
 beforeEach(function () {
     $this->club = Club::factory()->create(['id' => 1, 'honor_years' => '25,40']);
-    Member::$_keyDate = null;
+    Member::setKeyDate(null);
 });
 
-afterEach(fn () => Member::$_keyDate = null);
+afterEach(fn () => Member::setKeyDate(null));
 
 function dashboardUser(ClubRole $role = ClubRole::Admin): User
 {

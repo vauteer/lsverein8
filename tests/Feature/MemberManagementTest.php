@@ -21,10 +21,10 @@ use Illuminate\Database\QueryException;
  */
 beforeEach(function () {
     $this->club = Club::factory()->create(['id' => 1, 'honor_years' => '25,40']);
-    Member::$_keyDate = null;
+    Member::setKeyDate(null);
 });
 
-afterEach(fn () => Member::$_keyDate = null);
+afterEach(fn () => Member::setKeyDate(null));
 
 /**
  * Create a user belonging to the given club (defaulting to club 1) with the
@@ -269,7 +269,7 @@ test('the order is picked by name and stays stable on a tie', function () {
  */
 test('the MySQL-only selections are wired to the right scope', function () {
     $this->club->update(['honor_years' => '25,40']);
-    Member::$_keyDate = Carbon\Carbon::parse('2024-06-01');
+    Member::setKeyDate(Carbon\Carbon::parse('2024-06-01'));
 
     $cases = [
         [MemberFilter::MilestoneBirthdays, 'YEAR(birthday)'],
