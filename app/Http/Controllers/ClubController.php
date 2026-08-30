@@ -84,7 +84,7 @@ class ClubController extends Controller
                 ...$club->only([
                     'id', 'name', 'street', 'zipcode', 'city', 'bank',
                     'account_owner', 'iban', 'bic', 'sepa_creditor_id',
-                    'honor_years',
+                    'sepa_lead_days', 'honor_years',
                 ]),
                 'identity_display' => $club->identity_display->value,
                 'locale' => $club->locale->value,

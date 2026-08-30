@@ -18,12 +18,6 @@ class SubscriptionController extends Controller
 {
     private const int PER_PAGE = 15;
 
-    /**
-     * Working days a SEPA direct debit has to be submitted ahead of its
-     * execution date; carried over from lsverein7.
-     */
-    private const int SEPA_LEAD_DAYS = 8;
-
     public function index(Request $request): Response
     {
         $search = $request->string('search')->trim()->toString();
@@ -162,8 +156,10 @@ class SubscriptionController extends Controller
             // that is missing on purpose.
             'freeCount' => $subscriptions->count() - $debitable->count(),
             // SEPA direct debits have to be announced ahead of the execution
-            // date, so the picker does not default to today.
-            'sepaDate' => now()->addDays(self::SEPA_LEAD_DAYS)->format('Y-m-d'),
+            // date, so the picker does not default to today. The lead time is
+            // the bank's, hence the club's to set; both collection dialogs
+            // read the same column.
+            'sepaDate' => now()->addDays(currentClub()->sepa_lead_days)->format('Y-m-d'),
         ];
     }
 

@@ -452,6 +452,8 @@ export type ClubFormData = {
     iban: string;
     bic: string;
     sepa_creditor_id: string | null;
+    /** Days the collection dialogs add to today when suggesting a date. */
+    sepa_lead_days: number;
     sepa_mandate_date: string | null;
     identity_display: number | string;
     locale: string;

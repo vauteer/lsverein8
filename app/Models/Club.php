@@ -38,6 +38,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string $bic
  * @property string|null $sepa_creditor_id
  * @property CarbonInterface|null $sepa_mandate_date
+ * @property int $sepa_lead_days
  * @property string|null $logo
  * @property ClubIdentityDisplay $identity_display
  * @property Locale $locale
@@ -59,6 +60,7 @@ use Illuminate\Support\Facades\Storage;
     'bic',
     'sepa_creditor_id',
     'sepa_mandate_date',
+    'sepa_lead_days',
     'logo',
     'identity_display',
     'locale',
@@ -78,6 +80,7 @@ class Club extends Model
         return [
             'blsv_member' => 'boolean',
             'sepa_mandate_date' => 'datetime',
+            'sepa_lead_days' => 'integer',
             'identity_display' => ClubIdentityDisplay::class,
             'locale' => Locale::class,
         ];

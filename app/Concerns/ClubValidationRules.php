@@ -41,6 +41,11 @@ trait ClubValidationRules
             'bic' => ['required', 'string', 'regex:'.BIC_REGEX],
             'sepa_creditor_id' => ['nullable', 'string', 'max:191'],
             'sepa_mandate_date' => ['nullable', 'date'],
+            // How far ahead the two collection dialogs default their execution
+            // date. The bank's lead time, so it is the club's to set; neither
+            // collection enforces it, because a treasurer sometimes has to
+            // book a date the rule would not allow.
+            'sepa_lead_days' => ['required', 'integer', 'between:0,60'],
             'identity_display' => ['required', Rule::enum(ClubIdentityDisplay::class)],
             'locale' => ['required', Rule::enum(Locale::class)],
             // A comma separated list of membership years that trigger an
@@ -94,6 +99,7 @@ trait ClubValidationRules
             'iban' => __('IBAN'),
             'bic' => __('BIC'),
             'sepa_creditor_id' => __('SEPA creditor identifier'),
+            'sepa_lead_days' => __('SEPA lead time in days'),
             'sepa_mandate_date' => __('SEPA mandate date'),
             'identity_display' => __('Display'),
             'locale' => __('Language'),

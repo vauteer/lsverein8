@@ -327,6 +327,25 @@ test('the index offers the collection to an admin only', function () {
         );
 });
 
+test('the collection dialogs suggest a date the club itself decides', function () {
+    Subscription::factory()->create(['club_id' => 1, 'amount' => 30]);
+
+    // The lead time is the bank's, so it sits on the club rather than in the
+    // controllers, where it was the same 8 written twice.
+    Club::query()->whereKey(1)->update(['sepa_lead_days' => 14]);
+
+    $this->actingAs(subscriptionUser(ClubRole::Admin));
+
+    $expected = now()->addDays(14)->format('Y-m-d');
+
+    $this->get(route('subscriptions.index'))
+        ->assertInertia(fn ($page) => $page->where('sepaDate', $expected));
+
+    // Both dialogs read the one column, so they cannot drift apart.
+    $this->get(route('debits.index'))
+        ->assertInertia(fn ($page) => $page->where('sepaDate', $expected));
+});
+
 test('the collection dialog offers every fee of the club, not just the page', function () {
     // 16 rows: one more than the index shows per page.
     Subscription::factory()->count(16)->sequence(fn ($sequence) => [

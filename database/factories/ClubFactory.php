@@ -26,6 +26,7 @@ class ClubFactory extends Factory
             'iban' => 'DE89370400440532013000',
             'bic' => 'COBADEFFXXX',
             'sepa_creditor_id' => 'DE98ZZZ09999999999',
+            'sepa_lead_days' => 8,
             'sepa_mandate_date' => now()->subYears(5),
             'identity_display' => 1,
             'locale' => 'de',

@@ -43,6 +43,7 @@ function clubPayload(array $overrides = []): array
         'bic' => 'BYLADEM1001',
         'identity_display' => 1,
         'locale' => 'de',
+        'sepa_lead_days' => 8,
         ...$overrides,
     ];
 }
@@ -178,6 +179,25 @@ test('only a root account creates a club, and is attached to it as admin', funct
     expect($seeded)->toHaveCount(1)
         ->and($seeded->first()->name)->toBe('Beitragsfrei')
         ->and($seeded->first()->amount)->toBe(0.0);
+});
+
+test('the club sets its own SEPA lead time', function () {
+    $this->actingAs(clubManagementUser());
+
+    $this->put(route('clubs.update', $this->club), clubPayload(['sepa_lead_days' => 14]))
+        ->assertRedirect(route('clubs.edit', $this->club));
+
+    expect($this->club->refresh()->sepa_lead_days)->toBe(14);
+
+    // A tinyint column, and a lead time of half a year is a typo rather than
+    // an instruction.
+    $this->put(route('clubs.update', $this->club), clubPayload(['sepa_lead_days' => 400]))
+        ->assertSessionHasErrors('sepa_lead_days');
+
+    $this->put(route('clubs.update', $this->club), clubPayload(['sepa_lead_days' => 'bald']))
+        ->assertSessionHasErrors('sepa_lead_days');
+
+    expect($this->club->refresh()->sepa_lead_days)->toBe(14);
 });
 
 test('the iban is normalized and checksum validated', function () {

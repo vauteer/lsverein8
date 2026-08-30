@@ -20,12 +20,6 @@ class DebitController extends Controller
     private const int PER_PAGE = 15;
 
     /**
-     * Working days a SEPA direct debit has to be submitted ahead of its
-     * execution date; the same lead time the subscription collection uses.
-     */
-    private const int SEPA_LEAD_DAYS = 8;
-
-    /**
      * How long after leaving a member stays in the debit picker.
      */
     private const int PICKER_GRACE_MONTHS = 6;
@@ -219,8 +213,10 @@ class DebitController extends Controller
             // button must not disappear because a search found nothing.
             'hasDebits' => Debit::query()->exists(),
             // SEPA direct debits have to be announced ahead of the execution
-            // date, so the picker does not default to today.
-            'sepaDate' => now()->addDays(self::SEPA_LEAD_DAYS)->format('Y-m-d'),
+            // date, so the picker does not default to today. The lead time is
+            // the bank's, hence the club's to set; both collection dialogs
+            // read the same column.
+            'sepaDate' => now()->addDays(currentClub()->sepa_lead_days)->format('Y-m-d'),
         ];
     }
 

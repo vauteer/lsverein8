@@ -4,6 +4,7 @@ paths:
   - app/Http/Controllers/BlsvStatisticController.php
   - app/Http/Controllers/DashboardController.php
   - app/Http/Controllers/MemberController.php
+  - 'app/Http/Controllers/**'
 ---
 
 # Controllers
@@ -143,3 +144,10 @@ Das Fenster sind **Kalendermonate** (`startOfMonth()->subMonths(11)`), nicht `su
 Konten ohne Login werden gezählt (`dormant`), nicht gelistet. Monatsbeschriftungen über `translatedFormat('M y')`, nicht `format()` — sonst steht im deutschen UI „Dec" statt „Dez".
 
 Fallstrick phpstan: `->values()->all()` auf einer Collection beweist die `list<>`-Form nicht, `array_values(...->all())` schon.
+
+## SEPA-Vorlaufzeit steht in clubs.sepa_lead_days, nicht im Controller
+Seit 2026-08-30: `clubs.sepa_lead_days` (unsigned tinyint, Default 8) hält, wie viele Tage die beiden Einzugs-Dialoge auf heute addieren, wenn sie ein Ausführungsdatum vorschlagen. Vorher stand dieselbe `private const int SEPA_LEAD_DAYS = 8` doppelt in `DebitController` und `SubscriptionController` — zwei Stellen, die auseinanderlaufen konnten.
+
+Beide lesen jetzt `currentClub()->sepa_lead_days`; editierbar im Vereinsformular (`ClubFormFields.vue`), Regel `required|integer|between:0,60`.
+
+**Bewusst nur ein Vorschlag, keine Sperre:** `DebitCollectRequest` und die Beitrags-Einziehung validieren das Datum weiterhin nur als `date`. Die Vorlaufzeit ist die der Bank; ein Kassier muss gelegentlich ein Datum buchen, das die Regel nicht zuließe. Wer sie erzwingen will, muss das bewusst tun.

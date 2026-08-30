@@ -242,6 +242,29 @@ const useItems = ref(props.club?.use_items ?? false);
         </div>
 
         <div class="grid gap-2">
+            <Label for="sepa_lead_days">
+                {{ $t('SEPA lead time in days') }}
+            </Label>
+            <Input
+                id="sepa_lead_days"
+                name="sepa_lead_days"
+                type="number"
+                min="0"
+                max="60"
+                :default-value="club?.sepa_lead_days ?? 8"
+                required
+            />
+            <p class="text-sm text-muted-foreground">
+                {{
+                    $t(
+                        'How far ahead the collection dialogs suggest the execution date.',
+                    )
+                }}
+            </p>
+            <InputError :message="errors.sepa_lead_days" />
+        </div>
+
+        <div class="grid gap-2">
             <Label for="honor_years">
                 {{ $t('Honour after years of membership') }}
             </Label>
