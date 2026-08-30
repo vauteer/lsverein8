@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue';
+import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -84,13 +85,13 @@ const useItems = ref(props.club?.use_items ?? false);
                         {{ (club?.name ?? '?').charAt(0) }}
                     </AvatarFallback>
                 </Avatar>
-                <div class="flex flex-col items-start gap-2">
+                <div class="flex min-w-0 flex-col items-start gap-2">
                     <input
                         ref="fileInput"
                         type="file"
                         name="logo"
                         accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                        class="text-sm text-muted-foreground file:mr-3 file:inline-flex file:h-7 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:text-sm file:font-medium file:text-secondary-foreground"
+                        class="w-full min-w-0 text-sm text-muted-foreground file:mr-3 file:inline-flex file:h-7 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:text-sm file:font-medium file:text-secondary-foreground"
                         @change="onLogoChange"
                     />
                     <input
@@ -213,55 +214,59 @@ const useItems = ref(props.club?.use_items ?? false);
             </div>
         </div>
 
-        <div class="grid gap-4 sm:grid-cols-2">
-            <div class="grid gap-2">
-                <Label for="sepa_creditor_id">{{
-                    $t('SEPA creditor identifier')
-                }}</Label>
-                <Input
-                    id="sepa_creditor_id"
-                    name="sepa_creditor_id"
-                    :default-value="club?.sepa_creditor_id ?? ''"
-                    autocomplete="off"
-                    class="font-mono"
-                />
-                <InputError :message="errors.sepa_creditor_id" />
-            </div>
-            <div class="grid gap-2">
-                <Label for="sepa_mandate_date">{{
-                    $t('SEPA mandate date')
-                }}</Label>
-                <Input
-                    id="sepa_mandate_date"
-                    name="sepa_mandate_date"
-                    type="date"
-                    :default-value="club?.sepa_mandate_date ?? ''"
-                />
-                <InputError :message="errors.sepa_mandate_date" />
-            </div>
-        </div>
-
+        <!-- Grouped, which is what lets the three labels drop the SEPA they
+        would otherwise all repeat. The lead time needs the least room, the
+        creditor id the most. -->
         <div class="grid gap-2">
-            <Label for="sepa_lead_days">
-                {{ $t('SEPA lead time in days') }}
-            </Label>
-            <Input
-                id="sepa_lead_days"
-                name="sepa_lead_days"
-                type="number"
-                min="0"
-                max="60"
-                :default-value="club?.sepa_lead_days ?? 8"
-                required
-            />
-            <p class="text-sm text-muted-foreground">
-                {{
+            <Heading
+                variant="small"
+                :title="$t('SEPA')"
+                :description="
                     $t(
-                        'How far ahead the collection dialogs suggest the execution date.',
+                        'The lead time is the days the collection dialogs add to today when they suggest an execution date.',
                     )
-                }}
-            </p>
-            <InputError :message="errors.sepa_lead_days" />
+                "
+            />
+            <div class="grid gap-4 md:grid-cols-[2fr_1fr_1fr]">
+                <div class="grid gap-2">
+                    <Label for="sepa_creditor_id">{{
+                        $t('Creditor identifier')
+                    }}</Label>
+                    <Input
+                        id="sepa_creditor_id"
+                        name="sepa_creditor_id"
+                        :default-value="club?.sepa_creditor_id ?? ''"
+                        autocomplete="off"
+                        class="font-mono"
+                    />
+                    <InputError :message="errors.sepa_creditor_id" />
+                </div>
+                <div class="grid gap-2">
+                    <Label for="sepa_mandate_date">{{
+                        $t('Mandate date')
+                    }}</Label>
+                    <Input
+                        id="sepa_mandate_date"
+                        name="sepa_mandate_date"
+                        type="date"
+                        :default-value="club?.sepa_mandate_date ?? ''"
+                    />
+                    <InputError :message="errors.sepa_mandate_date" />
+                </div>
+                <div class="grid gap-2">
+                    <Label for="sepa_lead_days">{{ $t('Lead time') }}</Label>
+                    <Input
+                        id="sepa_lead_days"
+                        name="sepa_lead_days"
+                        type="number"
+                        min="0"
+                        max="60"
+                        :default-value="club?.sepa_lead_days ?? 8"
+                        required
+                    />
+                    <InputError :message="errors.sepa_lead_days" />
+                </div>
+            </div>
         </div>
 
         <div class="grid gap-2">

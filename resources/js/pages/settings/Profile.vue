@@ -123,13 +123,13 @@ function removePhoto() {
                             {{ getInitials(user.name) }}
                         </AvatarFallback>
                     </Avatar>
-                    <div class="flex flex-col items-start gap-2">
+                    <div class="flex min-w-0 flex-col items-start gap-2">
                         <input
                             ref="fileInput"
                             type="file"
                             name="profile_image"
                             accept="image/png,image/jpeg,image/webp"
-                            class="text-sm text-muted-foreground file:mr-3 file:inline-flex file:h-7 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:text-sm file:font-medium file:text-secondary-foreground"
+                            class="w-full min-w-0 text-sm text-muted-foreground file:mr-3 file:inline-flex file:h-7 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:text-sm file:font-medium file:text-secondary-foreground"
                             @change="onFileChange"
                         />
                         <input
