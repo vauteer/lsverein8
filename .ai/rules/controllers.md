@@ -68,7 +68,7 @@ Jeder Eintrag trägt seit 2026-08-27 ein `description` neben dem `name` (`Genera
 **Kein MySQL-only-Scope auf diesem Bildschirm.** `dueHonor`, `joined`, `retired`, `dead`, `milestoneBirthdays` nutzen `YEAR`/`LEAST`/`FIND_IN_SET` und würden die ganze Seite auf der SQLite-Testverbindung unausführbar machen. Deshalb:
 - Ein-/Austritte über `whereBetween('from'|'to', [1.1., 31.12.])` statt `YEAR(...)` — gleiche Menge, portabel.
 - Fällige Ehrungen über `Member::membershipYears()` in PHP statt über den `dueHonor`-Scope. Beide Wege liefern in Produktion dieselbe Zahl (23, geprüft); sie können nur bei jemandem auseinanderlaufen, der im selben Jahr wieder eingetreten ist und ältere Mitgliedschaften hat — `membershipYears()` gibt dann 0 zurück, das SQL summiert. Das ist eine bestehende Abweichung der App, nicht des Dashboards.
-- `honor_years` einmal im Controller auflösen, nicht `Member::honorThisYear()` pro Zeile: das ruft `currentClub()` und damit ein `Club::find()` je Mitglied.
+- `honor_years` einmal im Controller auflösen, nicht `Member::honorYearReached()` pro Zeile: das ruft `currentClub()` und damit ein `Club::find()` je Mitglied.
 
 Die Mitglieder werden **einmal** geladen (`members()->with('memberships')`) und in PHP in Alters- und Zugehörigkeitsbänder sortiert — wie `Club::getBLSVStatistic()`. Eine Abfrage je Gruppe wäre eine Abfrage je Gruppe **und** Geschlecht.
 

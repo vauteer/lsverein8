@@ -62,7 +62,7 @@ Grund, am 2026-08-25 an den Produktionsdaten geprüft: keine der 20 Zeilen ist e
 | Jubiläums-/Dienstzeitehrungen | 25–70 Jahre, 25/40 Jahre aktive Dienstzeit | 403 |
 | Abzeichen / Leistungsnachweise | Leistungsabzeichen Bronze–Gold, Wissenstest 1–4, Jugendleistungsspange | 14 |
 
-Der Code sprach ohnehin schon von Ehrungen: `Club::honor_years` (in lsverein7 als "Ehrungen Mitgliedsjahre" beschriftet), `Member::honorThisYear()`, der `dueHonor`-Scope, lsverein7s Filter "Fällige Ehrungen" und die CSV-Spalte `Ehrung`. "Ereignisse" war nur der Tabellenname, der ins UI durchgeschlagen ist.
+Der Code sprach ohnehin schon von Ehrungen: `Club::honor_years` (in lsverein7 als "Ehrungen Mitgliedsjahre" beschriftet), `Member::honorYearReached()`, der `dueHonor`-Scope, lsverein7s Filter "Fällige Ehrungen" und die CSV-Spalte `Ehrung`. "Ereignisse" war nur der Tabellenname, der ins UI durchgeschlagen ist.
 
 Die Beschreibung auf der Index-Seite nennt beide Arten ausdrücklich ("Ehrungen und Auszeichnungen, die ein Mitglied erhält oder erwirbt"), damit die Feuerwehr ihre Leistungsabzeichen hier vermutet. Das "erhält oder erwirbt" ist bewusst so und nicht "verliehen": Jubiläumsehrungen bekommt man für Zeit, Leistungsabzeichen und Wissenstest muss man sich erarbeiten, und "verliehen" stellt das Mitglied passiv. Gleiches Muster wie bei Funktionen — siehe die Notiz zu "Role".
 

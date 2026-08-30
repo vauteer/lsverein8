@@ -103,7 +103,7 @@ class MemberExportController extends Controller
                 $member->age,
                 $member->gender->value,
                 $member->membershipYears(),
-                $member->honorThisYear() ?: '',
+                $member->honorYearReached() ?: '',
                 $member->currentSections(),
                 $member->currentRoles(),
             ]);

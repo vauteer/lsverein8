@@ -400,7 +400,7 @@ it('keeps the scope methods off the public surface', function () {
         ->and($reflection->getAttributes(Scope::class))->not->toBeEmpty();
 });
 
-it('separates the dueHonor scope from the honorThisYear accessor', function () {
+it('separates the dueHonor scope from the honorYearReached accessor', function () {
     $this->club->update(['honor_years' => '25,40']);
     $member = Member::factory()->ofClub($this->club)->create();
     $member->memberships()->attach($this->club->id, ['from' => '1999-01-01', 'to' => null]);
@@ -408,5 +408,5 @@ it('separates the dueHonor scope from the honorThisYear accessor', function () {
     Member::setKeyDate(Carbon\Carbon::parse('2024-06-01'));
 
     // the scope of the same name is exercised in the captureDueHonorQuery tests
-    expect($member->honorThisYear())->toBe(25);
+    expect($member->honorYearReached())->toBe(25);
 });

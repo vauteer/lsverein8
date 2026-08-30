@@ -109,7 +109,7 @@ class DashboardController extends Controller
      */
     private function dueHonours(Collection $members): int
     {
-        // Once, not per member: Member::honorThisYear() resolves currentClub()
+        // Once, not per member: Member::honorYearReached() resolves currentClub()
         // itself, which would be one Club::find() per row.
         $honorYears = collect(explode(',', (string) currentClub()->honor_years))
             ->map(fn (string $year): int => (int) trim($year))

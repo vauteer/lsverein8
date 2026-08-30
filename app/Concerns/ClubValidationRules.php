@@ -49,7 +49,7 @@ trait ClubValidationRules
             'identity_display' => ['required', Rule::enum(ClubIdentityDisplay::class)],
             'locale' => ['required', Rule::enum(Locale::class)],
             // A comma separated list of membership years that trigger an
-            // honour, e.g. "25,40,50". Member::honorThisYear() splits on it.
+            // honour, e.g. "25,40,50". Member::honorYearReached() splits on it.
             'honor_years' => ['nullable', 'string', 'regex:/^\d{1,2}(,\d{1,2})*$/'],
             'blsv_member' => ['boolean'],
             'use_items' => ['boolean'],

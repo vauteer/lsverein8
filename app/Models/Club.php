@@ -20,7 +20,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -172,21 +171,6 @@ class Club extends Model
         return $this->members()->exists()
             || $this->users()->exists()
             || $this->subscriptions()->withoutGlobalScope(ClubScope::class)->exists();
-    }
-
-    /**
-     * @return Collection<int, \stdClass>
-     */
-    public function usedSections(): Collection
-    {
-        return DB::table('club_member')
-            ->join('member_section', 'club_member.member_id', 'member_section.member_id')
-            ->join('sections', 'sections.id', 'member_section.section_id')
-            ->distinct()
-            ->select('section_id as id', 'name')
-            ->where('club_member.club_id', $this->id)
-            ->orderBy('name')
-            ->get();
     }
 
     /**

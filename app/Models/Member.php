@@ -258,7 +258,20 @@ class Member extends Model
         return $starts->sortBy(fn (CarbonInterface $start): string => $start->toDateString())->last();
     }
 
-    public function honorThisYear(): int
+    /**
+     * The club's honour year this member has reached, or 0 for none.
+     *
+     * An exact match at the key date, not a threshold: 25 years returns 25, 26
+     * returns 0 again. It says nothing about whether the honour was actually
+     * awarded — that is in the events relation, which this never reads. Nor is
+     * it about the calendar year; `membershipYears()` counts against
+     * `getKeyDate()`, so the member list for 2019 answers for 2019.
+     *
+     * The `dueHonor` scope selects exactly the members for whom this is
+     * non-zero. There "due" is the club's worklist reading; here it would be a
+     * claim this method cannot make.
+     */
+    public function honorYearReached(): int
     {
         $years = $this->membershipYears();
 
