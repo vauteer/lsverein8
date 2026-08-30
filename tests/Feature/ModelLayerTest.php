@@ -106,6 +106,30 @@ it('resolves membership through the club_member pivot', function () {
         ->and(Member::members()->pluck('id')->all())->toBe([$member->id]);
 });
 
+it('reads the membership period that started last, open or closed', function () {
+    $rejoined = Member::factory()->ofClub($this->club)->create();
+    $rejoined->memberships()->attach($this->club->id, ['from' => '2000-01-01', 'to' => '2010-12-31']);
+    $rejoined->memberships()->attach($this->club->id, ['from' => '2015-01-01', 'to' => null]);
+
+    $left = Member::factory()->ofClub($this->club)->create();
+    $left->memberships()->attach($this->club->id, ['from' => '2000-01-01', 'to' => '2010-12-31']);
+
+    // Ordered by `from`: an open period has no `to` to sort on, and it is the
+    // one the duplicate warning has to report.
+    $never = Member::factory()->ofClub($this->club)->create();
+
+    expect($rejoined->latestMembership()->from->toDateString())->toBe('2015-01-01')
+        ->and($rejoined->latestMembership()->to)->toBeNull()
+        ->and($left->latestMembership()->to->toDateString())->toBe('2010-12-31')
+        // A record entered but never joined up has none at all.
+        ->and($never->latestMembership())->toBeNull()
+        // latestMembershipEnd() reads that row's `to`, which only holds while
+        // periods do not overlap — the floor MemberRejoinRequest enforces.
+        ->and($rejoined->latestMembershipEnd())->toBeNull()
+        ->and($left->latestMembershipEnd()->toDateString())->toBe('2010-12-31')
+        ->and($never->latestMembershipEnd())->toBeNull();
+});
+
 it('excludes members who left before the key date', function () {
     $member = Member::factory()->ofClub($this->club)->create(['birthday' => '1980-01-01']);
     $member->memberships()->attach($this->club->id, ['from' => '2000-01-01', 'to' => '2010-01-01']);
@@ -140,7 +164,7 @@ it('relates members to sections, roles, events and items', function () {
 
     expect($member->currentSections())->toBe($section->name)
         ->and($member->currentRoles())->toBe($role->name)
-        ->and($member->lastEvent())->toBe($event->name)
+        ->and($member->latestEvent())->toBe($event->name)
         ->and($section->isUsed())->toBeTrue()
         ->and($role->isUsed())->toBeTrue()
         ->and($event->isUsed())->toBeTrue()

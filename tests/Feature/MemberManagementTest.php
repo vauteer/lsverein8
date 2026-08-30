@@ -117,7 +117,7 @@ test('a read-only account is not shown what a member pays', function () {
         ->get(route('members.index'))
         ->assertInertia(fn ($page) => $page
             ->where('members.data.0.subscriptions', null)
-            ->where('members.data.0.last_event', null)
+            ->where('members.data.0.latest_event', null)
         );
 
     $this->actingAs(memberUser())

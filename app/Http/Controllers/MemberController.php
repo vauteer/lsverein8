@@ -13,7 +13,6 @@ use App\Http\Requests\MemberStoreRequest;
 use App\Http\Requests\MemberUpdateRequest;
 use App\Http\Resources\MemberResource;
 use App\Models\Club;
-use App\Models\ClubMember;
 use App\Models\Event;
 use App\Models\Item;
 use App\Models\Member;
@@ -163,7 +162,7 @@ class MemberController extends Controller
      */
     private function duplicateMessage(Member $member): string
     {
-        $membership = $this->latestMembership($member);
+        $membership = $member->latestMembership();
 
         if ($membership?->to !== null) {
             return __('There is already a :name, born :birthday, who left on :date. Reopen the membership there instead of entering them again — a new record loses the years they were in the club.', [
@@ -190,13 +189,6 @@ class MemberController extends Controller
             'member_id' => $member->member_id,
             'href' => route('members.show', $member, absolute: false),
         ];
-    }
-
-    private function latestMembership(Member $member): ?ClubMember
-    {
-        return $member->memberships()
-            ->orderByPivot('from', 'desc')
-            ->first()?->pivot;
     }
 
     public function show(Request $request, Member $member): Response
@@ -253,7 +245,7 @@ class MemberController extends Controller
             'rejoinable' => $modifiable && $member->alive() && ! $member->isMember(),
             // The floor the dialog shows, so the limit MemberRejoinRequest
             // enforces is visible before the form is sent.
-            'earliestRejoining' => $member->lastMembershipEnd()?->addDay()->format('Y-m-d'),
+            'earliestRejoining' => $member->latestMembershipEnd()?->addDay()->format('Y-m-d'),
             'backQuery' => $this->backQuery($request),
         ]);
     }
@@ -287,7 +279,7 @@ class MemberController extends Controller
             'resignable' => $member->isMember(),
             // The picker's own floor, so the limit MemberResignRequest
             // enforces is visible before the form is sent.
-            'earliestResignation' => $member->lastOpenStart()?->addDay()->format('Y-m-d'),
+            'earliestResignation' => $member->latestOpenStart()?->addDay()->format('Y-m-d'),
             'deletable' => $request->user()->can('delete', $member),
             'accountSources' => $this->accountSources($member),
             'today' => now()->format('Y-m-d'),

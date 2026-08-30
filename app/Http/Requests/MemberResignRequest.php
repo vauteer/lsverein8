@@ -22,7 +22,7 @@ class MemberResignRequest extends FormRequest
         /** @var Member $member */
         $member = $this->route('member');
 
-        $lastStart = $member->lastOpenStart();
+        $latestStart = $member->latestOpenStart();
 
         return [
             'date' => [
@@ -36,7 +36,7 @@ class MemberResignRequest extends FormRequest
                 // Against the latest open start rather than entry(): a member
                 // who rejoined, or a section that started later, would
                 // otherwise get a `to` before its own `from`.
-                ...$lastStart === null ? [] : ['after:'.$lastStart->format('Y-m-d')],
+                ...$latestStart === null ? [] : ['after:'.$latestStart->format('Y-m-d')],
             ],
         ];
     }

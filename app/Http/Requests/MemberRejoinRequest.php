@@ -30,7 +30,7 @@ class MemberRejoinRequest extends FormRequest
         /** @var Member $member */
         $member = $this->route('member');
 
-        $lastEnd = $member->lastMembershipEnd();
+        $latestEnd = $member->latestMembershipEnd();
 
         return [
             'date' => [
@@ -41,7 +41,7 @@ class MemberRejoinRequest extends FormRequest
                 // cannot overlap or meet on the same day. `Member::
                 // membershipYears()` sums the periods; an overlap would count
                 // the same year twice.
-                ...$lastEnd === null ? [] : ['after:'.$lastEnd->format('Y-m-d')],
+                ...$latestEnd === null ? [] : ['after:'.$latestEnd->format('Y-m-d')],
             ],
             ...$this->joiningRules(),
         ];
