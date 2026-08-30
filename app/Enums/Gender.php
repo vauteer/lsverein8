@@ -27,6 +27,13 @@ enum Gender: string
      * The association confirmed on 2026-08-29 that the format carries a third
      * value, `d`. Until then a diverse member was reported as `w`, and the
      * case was kept out of the picker rather than exported as female.
+     *
+     * The three letters are also the keys of every row of the age statistic,
+     * which is why they are spelled out here rather than left as `string`:
+     * `Club::buildBlsvStatistic()` counts into `['m' => …, 'w' => …, 'd' => …]`
+     * with this as the key.
+     *
+     * @return 'm'|'w'|'d'
      */
     public function blsvValue(): string
     {

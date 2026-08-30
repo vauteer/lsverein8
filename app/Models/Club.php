@@ -228,6 +228,12 @@ class Club extends Model
     /**
      * @return non-empty-list<array{m: int, w: int, d: int}>
      */
+    /**
+     * One blank age statistic: the seven BLSV age groups, each with a count
+     * per gender.
+     *
+     * @return array<int, array{m: int, w: int, d: int}>
+     */
     private static function getBlankStat(): array
     {
         return array_fill(0, 7, ['m' => 0, 'w' => 0, 'd' => 0]);
@@ -323,7 +329,11 @@ class Club extends Model
 
         $sectionFiles = [];
         $usedFilenames = [];
-        $stats = [-1 => self::getBlankStat()];
+        // Keyed by blsv_id, with -1 for the club as a whole. Name and
+        // rows are separate keys rather than one merged array: the PDF
+        // walks the rows by index, and a stray string among them is what
+        // made the shape unreadable to anything but a human.
+        $stats = [-1 => ['name' => '', 'rows' => self::getBlankStat()]];
         $totals = self::getBlankStat();
         $totalRows = [];
 
@@ -339,7 +349,7 @@ class Club extends Model
             $totals[$index] = $row;
         }
 
-        $stats[-1] = $totals;
+        $stats[-1]['rows'] = $totals;
 
         $membersByBlsvId = self::membersByBlsvSection($members, $keyDate);
 
@@ -365,7 +375,7 @@ class Club extends Model
             }
 
             if ($rows !== []) {
-                $stats[$section->blsv_id] = $stat + ['name' => $section->name];
+                $stats[$section->blsv_id] = ['name' => $section->name, 'rows' => $stat];
                 $totalRows = [...$totalRows, ...$rows];
 
                 // Two names differing only in a path separator collapse to

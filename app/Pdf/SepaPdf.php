@@ -2,21 +2,27 @@
 
 namespace App\Pdf;
 
+use RuntimeException;
+use Throwable;
+
 class SepaPdf extends BasePdf
 {
-    private $payments;
+    /** @var list<array<string, mixed>> */
+    private array $payments;
 
-    private $description;
+    private string $description;
 
-    private $clubName;
+    private string $clubName;
 
-    private $even;
+    private float $total = 0;
 
-    private $total;
+    /**
+     * Not "€": the sheet is written in ISO-8859-1, which has no euro sign —
+     * that one lives in ISO-8859-15.
+     */
+    private string $currency = ' EUR';
 
-    private $currency;
-
-    public function Header()
+    public function Header(): void
     {
         $cellHeight = 7;
 
@@ -31,60 +37,71 @@ class SepaPdf extends BasePdf
         $this->Cell(80, $cellHeight, 'Zweck');
         $this->Cell(28, $cellHeight, 'Betrag', 0, 1, 'R');
 
-        $this->SetDrawColor(150, 150, 150);
-        $tmp = $this->GetY();
-        $this->Line(10, $tmp, 200, $tmp);
+        $this->useTableColors();
+        $this->ruleLine();
         $this->SetY($this->GetY() + 0.2);
     }
 
-    public function Footer()
+    public function printEntities(): void
     {
-        $this->SetY(-15);
-        $tmp = $this->GetY();
-        $this->Line(10, $tmp, 200, $tmp);
-        $this->SetFont('Arial', 'I', 8);
-        $this->Cell(0, 7, $this->total.$this->currency, 0, 1);
-        $this->Cell(0, 7, 'LS-Verein '.date('d.m.Y H:i').' Seite '.$this->PageNo().'/{nb}', 0, 0, 'C');
-    }
-
-    public function printEntities()
-    {
-        $this->SetDrawColor(150, 150, 150);
-        $this->SetFillColor(240, 240, 240);
+        $this->useTableColors();
         $cellHeight = 7;
-        $this->even = false;
+
         foreach ($this->payments as $payment) {
-            $this->even = ! $this->even;
-            if ($this->even) {
-                $tmp = $this->GetY() + 0.2;
-                $this->Rect(10, $tmp, 190, $cellHeight - 0.2, 'F');
-            }
+            $this->stripeRow($cellHeight);
+
             try {
-                $this->ClippedCell(40, $cellHeight, mb_convert_encoding($payment['nm'], 'ISO-8859-1', 'UTF-8'));
+                $this->ClippedCell(40, $cellHeight, $this->latin1($payment['nm']));
                 $this->ClippedCell(20, $cellHeight, $payment['mndtId']);
-                $dateOfSignature = formatDate($payment['dtOfSgntr']);
-                $this->Cell(20, $cellHeight, $dateOfSignature);
-                $this->ClippedCell(80, $cellHeight, mb_convert_encoding($payment['ustrd'], 'ISO-8859-1', 'UTF-8'));
+                $this->Cell(20, $cellHeight, formatDate($payment['dtOfSgntr']));
+                $this->ClippedCell(80, $cellHeight, $this->latin1($payment['ustrd']));
                 $this->ClippedCell(28, $cellHeight, $payment['instdAmt'].$this->currency, 0, 1, 'R');
 
-                $tmp = $this->GetY();
-                $this->Line(10, $tmp, 200, $tmp);
-                // $this->SetY($tmp + 0.5);
+                $this->ruleLine();
 
                 $this->total += $payment['amount'];
-            } catch (\Exception $ex) {
-                dd($payment);
+            } catch (Throwable $throwable) {
+                // Was `dd($payment)`, which is the worst possible answer here:
+                // Debit::debit() deletes the collected rows *before* this runs,
+                // so a dump-and-die loses the collection and leaves no file.
+                // Naming the payment and rethrowing keeps what the dump was
+                // for and lets the failure be logged like any other.
+                throw new RuntimeException(
+                    "Could not render the SEPA cover sheet for {$payment['nm']} ({$payment['mndtId']}).",
+                    previous: $throwable
+                );
             }
         }
+
+        $this->printTotal();
     }
 
-    public function getOutput($payments, $description, $clubName)
+    /**
+     * The sum of the collection, once, under the last row.
+     *
+     * It used to sit in Footer(), which Fpdf renders at every page break while
+     * printEntities() is still adding to it — so on a collection running to
+     * two pages the first page showed a part of the sum, looking like the
+     * whole. Formatted the way the rest of the app formats money, except for
+     * the currency: the sheet is written in ISO-8859-1, which has no € sign.
+     */
+    private function printTotal(): void
+    {
+        $cellHeight = 7;
+
+        $this->SetFont('Arial', 'B', 9);
+        $this->Cell(160, $cellHeight, 'Summe', 0, 0, 'R');
+        $this->Cell(28, $cellHeight, number_format($this->total, 2, ',', '.').$this->currency, 0, 1, 'R');
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $payments
+     */
+    public function getOutput(array $payments, string $description, string $clubName): string
     {
         $this->payments = $payments;
         $this->description = $description;
         $this->clubName = $clubName;
-        $this->total = 0;
-        $this->currency = ' EUR';
 
         $this->AliasNbPages();
         $this->AddPage();
@@ -92,6 +109,6 @@ class SepaPdf extends BasePdf
 
         $this->printEntities();
 
-        return $this->Output('SEPA-Einzug', 'S');
+        return $this->render();
     }
 }

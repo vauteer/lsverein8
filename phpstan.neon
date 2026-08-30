@@ -11,10 +11,3 @@ parameters:
         - routes/
 
     level: 7
-
-    # Ported verbatim from lsverein7. These subclass the untyped fpdf/fpdf library,
-    # so adding native parameter types to the inherited methods would break their
-    # signatures. Remove this once the PDF layer is rewritten.
-    excludePaths:
-        analyseAndScan:
-            - app/Pdf

@@ -6,6 +6,16 @@ use Carbon\CarbonInterface;
 
 class BlsvPdf extends BasePdf
 {
+    /**
+     * No producer in the footer, unlike the club's own lists: this sheet goes
+     * to the association.
+     */
+    protected function footerLabel(): string
+    {
+        return '';
+    }
+
+    /** @var array<array-key, array{name: string, rows: array<int, array{m: int, w: int, d: int}>}> */
     private array $stats;
 
     private CarbonInterface $keyDate;
@@ -21,7 +31,7 @@ class BlsvPdf extends BasePdf
      */
     private bool $showsDiverse = false;
 
-    public function Header()
+    public function Header(): void
     {
         $cellHeight = 7;
 
@@ -39,22 +49,12 @@ class BlsvPdf extends BasePdf
             $this->Cell(0, $cellHeight, 'Komprimierte Altersstatistik', 0, 1, 'C');
         } else {
             $this->Cell(0, $cellHeight, 'Altersstatistik nach Abteilungen', 0, 1, 'C');
-
         }
 
         $this->SetDrawColor(150, 150, 150);
     }
 
-    public function Footer()
-    {
-        $this->SetY(-15);
-        $tmp = $this->GetY();
-        $this->Line(10, $tmp, 200, $tmp);
-        $this->SetFont('Arial', 'I', 8);
-        $this->Cell(0, 7, date('d.m.Y H:i').' Seite '.$this->PageNo().'/{nb}', 0, 0, 'C');
-    }
-
-    public function printCompressedStat()
+    public function printCompressedStat(): void
     {
         $heads = ['bis 5 Jahre', '6 bis 13 Jahre', '14 bis 17 Jahre', '18-26 Jahre',
             '27-40 Jahre', '41 bis 60 Jahre', 'Ab 61 Jahre'];
@@ -64,8 +64,7 @@ class BlsvPdf extends BasePdf
         $rightMargin = 45;
         $sums = ['m' => 0, 'w' => 0, 'd' => 0];
 
-        $this->SetDrawColor(150, 150, 150);
-        $this->SetFillColor(240, 240, 240);
+        $this->useTableColors();
         $this->SetY(80);
 
         $this->setX($rightMargin);
@@ -76,8 +75,7 @@ class BlsvPdf extends BasePdf
             $this->Cell($columnWidth, $cellHeight, 'Divers', 0, 0, 'R');
         }
         $this->Cell($columnWidth, $cellHeight, 'Zusammen', 0, 1, 'R');
-        $tmp = $this->GetY();
-        $this->Line(10, $tmp, 200, $tmp);
+        $this->ruleLine();
 
         for ($i = 0; $i < 7; $i++) {
             if ($i % 2 == 0) {
@@ -85,7 +83,7 @@ class BlsvPdf extends BasePdf
                 $this->Rect(10, $tmp, 190, $cellHeight - 0.2, 'F');
             }
 
-            $row = $this->stats[-1][$i];
+            $row = $this->stats[-1]['rows'][$i];
             foreach ($sums as $gender => $sum) {
                 $sums[$gender] = $sum + $row[$gender];
             }
@@ -100,8 +98,7 @@ class BlsvPdf extends BasePdf
             $this->Cell($columnWidth, $cellHeight, array_sum($row), 0, 1, 'R');
         }
 
-        $tmp = $this->GetY();
-        $this->Line(10, $tmp, 200, $tmp);
+        $this->ruleLine();
         $this->setX($rightMargin);
         $this->Cell($labelWidth, $cellHeight, 'Gesamt');
         $this->Cell($columnWidth, $cellHeight, $sums['m'], 0, 0, 'R');
@@ -110,16 +107,13 @@ class BlsvPdf extends BasePdf
             $this->Cell($columnWidth, $cellHeight, $sums['d'], 0, 0, 'R');
         }
         $this->Cell($columnWidth, $cellHeight, array_sum($sums), 0, 1, 'R');
-
     }
 
-    public function printSectionStats()
+    public function printSectionStats(): void
     {
-        $this->SetDrawColor(150, 150, 150);
-        $this->SetFillColor(240, 240, 240);
+        $this->useTableColors();
         $cellHeight = 7;
         $reducedHeight = 4;
-        $even = false;
         $this->SetY(70);
 
         $genders = $this->showsDiverse ? ['m' => 'M', 'w' => 'W', 'd' => 'D'] : ['m' => 'M', 'w' => 'W'];
@@ -144,42 +138,37 @@ class BlsvPdf extends BasePdf
         }
         $this->Cell(18, $cellHeight, 'Gesamt', 0, 1, 'R');
 
-        $tmp = $this->GetY();
-        $this->Line(10, $tmp, 200, $tmp);
+        $this->ruleLine();
 
         foreach ($this->stats as $key => $stat) {
             $total = 0;
-            $even = ! $even;
-            if ($even) {
-                $tmp = $this->GetY() + 0.2;
-                $this->Rect(10, $tmp, 190, $cellHeight - 0.2, 'F');
-            }
+            $this->stripeRow($cellHeight);
             $this->Cell(7, $cellHeight, $key);
             $this->Cell(23, $cellHeight, $stat['name']);
 
             for ($i = 0; $i < 7; $i++) {
                 foreach ($genders as $gender => $head) {
-                    $count = $stat[$i][$gender];
+                    $count = $stat['rows'][$i][$gender];
                     $total += $count;
                     $this->Cell($columnWidth, $cellHeight, $count ?: '', 0, 0, 'R');
                 }
             }
             $this->Cell(18, $cellHeight, $total, 0, 1, 'R');
-
         }
 
-        $tmp = $this->GetY();
-        $this->Line(10, $tmp, 200, $tmp);
+        $this->ruleLine();
     }
 
     /**
      * Whether any age group of any section holds a diverse member.
+     *
+     * @param  array<array-key, array{name: string, rows: array<int, array{m: int, w: int, d: int}>}>  $stats
      */
     private function hasDiverseMember(array $stats): bool
     {
         foreach ($stats as $stat) {
             for ($i = 0; $i < 7; $i++) {
-                if (($stat[$i]['d'] ?? 0) > 0) {
+                if ($stat['rows'][$i]['d'] > 0) {
                     return true;
                 }
             }
@@ -188,10 +177,13 @@ class BlsvPdf extends BasePdf
         return false;
     }
 
-    public function getOutput($stats, $year, $clubName)
+    /**
+     * @param  array<array-key, array{name: string, rows: array<int, array{m: int, w: int, d: int}>}>  $stats  keyed by blsv_id, with -1 holding the club totals
+     */
+    public function getOutput(array $stats, CarbonInterface $keyDate, string $clubName): string
     {
         $this->stats = $stats;
-        $this->keyDate = $year;
+        $this->keyDate = $keyDate;
         $this->clubName = $clubName;
         $this->showsDiverse = $this->hasDiverseMember($stats);
 
@@ -201,12 +193,15 @@ class BlsvPdf extends BasePdf
 
         $this->printCompressedStat();
 
+        // The club totals are row -1, which page one has just printed. Drop
+        // them before page two, which walks the same array and would otherwise
+        // list them as a section of their own.
         unset($this->stats[-1]);
 
         $this->AddPage();
 
         $this->printSectionStats();
 
-        return $this->Output('', 'S');
+        return $this->render();
     }
 }

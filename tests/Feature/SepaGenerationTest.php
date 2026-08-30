@@ -43,6 +43,13 @@ it('generates the SEPA xml and the pdf cover sheet', function () {
         ->and($xml)->toContain("Beitrag 2024 {$member->first_name} {$member->surname}")
         ->and($xml)->toContain('2024-03-01')
         ->and($pdf)->toStartWith('%PDF-');
+
+    // The sum sat in Footer(), which Fpdf renders at every page break while
+    // the list is still being totted up — page one of a two-page collection
+    // showed part of it, looking like the whole. It is one line under the
+    // last row now, in the app's own number format.
+    expect(pdfText($pdf))->toContain('Summe')
+        ->and(pdfText($pdf))->toContain('42,50 EUR');
 });
 
 it('splits subscription debits from outstanding payments', function () {

@@ -122,6 +122,27 @@ test('both pdfs are produced for the selection', function () {
     }
 });
 
+test('both pdfs print the club number, not the primary key', function () {
+    $role = Role::factory()->create(['club_id' => 1, 'name' => 'Kassier']);
+    // The two run apart for 238 of the 580 live members, so a PDF built on the
+    // primary key shows a number the club has never seen. The CSV always
+    // printed member_id under the same heading.
+    $member = exportedMember(['surname' => 'Meier', 'member_id' => 4242]);
+    $member->roles()->attach($role->id, ['from' => '2016-01-01']);
+
+    expect($member->id)->not->toBe(4242);
+
+    $this->actingAs(exportUser());
+
+    foreach ([MemberExport::Addresses, MemberExport::Roles] as $format) {
+        $pdf = pdfText($this->get(route('members.export', ['format' => $format->value]))->getContent());
+
+        // Only the club number is asserted: the primary key is a small
+        // number that would turn up in a date or a count by chance.
+        expect($pdf)->toContain('4242');
+    }
+});
+
 test('the vcard export carries one card per member of the selection', function () {
     exportedMember(['surname' => 'Meier', 'first_name' => 'Anna', 'email' => 'anna@example.test']);
     exportedMember(['surname' => 'Huber', 'first_name' => 'Bert', 'email' => null, 'phone' => null]);
