@@ -32,34 +32,13 @@ function roleUser(ClubRole $clubRole = ClubRole::Admin, ?Club $club = null, arra
  * Drop the installation-wide roles the 2022_08_20 migration seeds ('1.
  * Vorstand' … 'Kassenprüfer'), so a listing contains only the fixtures.
  */
-function withoutDefaultRoles(): void
-{
-    Role::query()->whereNull('club_id')->delete();
-}
-
 test('guests are redirected to the login page', function () {
     $this->get(route('roles.index'))->assertRedirect(route('login'));
 });
 
-test('the seeded installation-wide roles are listed for the club', function () {
-    $this->actingAs(roleUser(ClubRole::Basic))
-        ->get(route('roles.index', ['search' => 'Kassier']))
-        ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->component('roles/Index')
-            ->has('roles.data', 1)
-            ->where('roles.data.0.name', 'Kassier')
-            ->where('roles.data.0.shared', true)
-            // Only a root account may touch an installation-wide role.
-            ->where('roles.data.0.modifiable', false)
-        );
-});
-
-test('the index lists the club roles and the shared ones, but no other club', function () {
-    withoutDefaultRoles();
-
+test('the index lists the club roles and no other club', function () {
     $own = Role::factory()->create(['club_id' => 1, 'name' => 'Jugendleiter']);
-    $shared = Role::factory()->create(['club_id' => null, 'name' => 'Beisitzer']);
+    $also = Role::factory()->create(['club_id' => 1, 'name' => 'Beisitzer']);
     $foreign = Role::factory()->create(['name' => 'Fremdes Amt']);
 
     $this->actingAs(roleUser(ClubRole::Basic))
@@ -68,10 +47,8 @@ test('the index lists the club roles and the shared ones, but no other club', fu
         ->assertInertia(fn ($page) => $page
             ->component('roles/Index')
             ->has('roles.data', 2)
-            ->where('roles.data.0.id', $shared->id)
-            ->where('roles.data.0.shared', true)
+            ->where('roles.data.0.id', $also->id)
             ->where('roles.data.1.id', $own->id)
-            ->where('roles.data.1.shared', false)
             ->whereNot('roles.data.0.id', $foreign->id)
             ->whereNot('roles.data.1.id', $foreign->id)
         );
@@ -181,15 +158,13 @@ test('an admin creates a role for the current club', function () {
     expect($role->name)->toBe('Jugendleiter');
 });
 
-test('a role name must be unique among the club and shared roles', function () {
+test('a role name must be unique within the club', function () {
     Role::factory()->create(['club_id' => 1, 'name' => 'Jugendleiter']);
     Role::factory()->create(['name' => 'Fremdes Amt']);
 
     $this->actingAs(roleUser());
 
     $this->post(route('roles.store'), ['name' => 'Jugendleiter'])->assertSessionHasErrors('name');
-    // 'Kassier' is one of the seeded installation-wide roles.
-    $this->post(route('roles.store'), ['name' => 'Kassier'])->assertSessionHasErrors('name');
 
     // Another club's name is free: it is never listed alongside these.
     $this->post(route('roles.store'), ['name' => 'Fremdes Amt'])->assertSessionHasNoErrors();
@@ -229,20 +204,6 @@ test('an unused role is deleted and one a member has held is kept', function () 
 
     $this->get(route('roles.edit', $used))
         ->assertInertia(fn ($page) => $page->where('deletable', false));
-});
-
-test('a club admin may not change a shared role, but a root account may', function () {
-    $shared = Role::query()->whereNull('club_id')->where('name', 'Kassier')->firstOrFail();
-
-    $this->actingAs(roleUser())
-        ->get(route('roles.edit', $shared))
-        ->assertForbidden();
-
-    $this->actingAs(roleUser(attributes: ['admin' => true]))
-        ->put(route('roles.update', $shared), ['name' => 'Kassenwart'])
-        ->assertRedirect();
-
-    expect($shared->refresh()->name)->toBe('Kassenwart');
 });
 
 test('a role of another club cannot be reached by guessing its id', function () {

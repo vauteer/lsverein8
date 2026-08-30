@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Globe, Pencil, Plus, Search } from '@lucide/vue';
+import { Pencil, Plus, Search } from '@lucide/vue';
 import { trans } from 'laravel-vue-i18n';
 import { computed, ref, watch } from 'vue';
 import Heading from '@/components/Heading.vue';
@@ -123,21 +123,8 @@ defineOptions({
                         and the last column off it. Wrapping rather than
                         truncating — an honour is told apart by its full name. -->
                         <TableCell class="font-medium whitespace-normal">
-                            <span class="flex items-start gap-1.5">
-                                <span class="min-w-0 break-words">
-                                    {{ event.name }}
-                                </span>
-                                <Tooltip v-if="event.shared">
-                                    <TooltipTrigger as-child>
-                                        <Globe
-                                            class="mt-1 size-3.5 shrink-0 text-muted-foreground"
-                                            :aria-label="$t('Shared event')"
-                                        />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        {{ $t('Shared event') }}
-                                    </TooltipContent>
-                                </Tooltip>
+                            <span class="min-w-0 break-words">
+                                {{ event.name }}
                             </span>
                         </TableCell>
                         <TableCell class="text-right tabular-nums">

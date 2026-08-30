@@ -13,7 +13,7 @@ trait RoleValidationRules
      *
      * `club_id` is deliberately absent: it is set from the current club when
      * the role is created and never submitted, so a club admin cannot move a
-     * role into another club or turn it into a shared one.
+     * role into another club.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -24,13 +24,11 @@ trait RoleValidationRules
                 'required',
                 'string',
                 'max:191',
+                // Scoped by hand: `unique` runs a plain query and inherits
+                // no model scope. Another club's identical name is free — it
+                // is never listed beside this club's.
                 Rule::unique(Role::class)
-                    // Shared roles (club_id null) are listed alongside the
-                    // club's own ones, so a duplicate name would show twice.
-                    ->where(fn ($query) => $query
-                        ->where(fn ($inner) => $inner
-                            ->where('club_id', currentClubId())
-                            ->orWhereNull('club_id')))
+                    ->where(fn ($query) => $query->where('club_id', currentClubId()))
                     ->ignore($roleId),
             ],
         ];

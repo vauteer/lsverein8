@@ -14,7 +14,7 @@ Every test therefore overrides `database.connections.mariadb.database` in `befor
 
 Authorization is the `manageBackups` gate (AppServiceProvider), root-only via `users.admin`, applied as `Route::middleware('can:manageBackups')` in routes/web.php. This is the one place where `hasAdminRights()` is deliberately NOT the check: a dump spans every club, so a club admin must not reach it. `auth.canManageBackups` mirrors the gate for the sidebar.
 
-`isDirty()` consults `updated_at` on all 16 data tables including the pivots — `tracings` is excluded because it has no `updated_at`. A fresh test database is never quiet: `insert_roles_defaults` and `insert_events_defaults` stamp their rows at migration time, so use the shared `settleTrackedTables()` helper in tests/Pest.php before asserting "nothing has changed".
+`isDirty()` consults `updated_at` on all 16 data tables including the pivots — `tracings` is excluded because it has no `updated_at`. A test is never quiet by itself: whatever a factory just created carries a fresh `updated_at`, so use the shared `settleTrackedTables()` helper in tests/Pest.php before asserting "nothing has changed". (Until 2026-08-30 the migrations themselves were the culprit — `insert_roles_defaults` and `insert_events_defaults` stamped fourteen rows at migration time; their contents are commented out now.)
 
 `storage/backups/.gitignore` (`*` plus `!.gitignore`) is what keeps dumps of real member data out of the repository. Do not delete it.
 
@@ -27,7 +27,7 @@ Authorization is the `manageBackups` gate (AppServiceProvider), root-only via `u
 
 **Quoting über `DB::getPdo()->quote()`.** lsverein7 nutzte `str_replace("'", "\\'", …)` — der Backslash selbst blieb unescaped, ein Wert mit `\` am Ende schloss das Literal zu früh und verschob jede folgende Spalte. `PDO::quote` ist treiberabhängig und damit für MySQL *und* SQLite richtig; ein Test auf SQLite beweist deshalb nur, dass das Literal geschlossen ist, nicht das genaue Escaping.
 
-**Geteilte Zeilen kommen mit, soweit benutzt.** `events` und `roles` haben nullable `club_id` (`sections` auch, bis 2026-08-30). lsverein7 exportierte nur `club_id = N` — sobald ein Mitglied einer installationsweiten Zeile zugeordnet ist, zeigt der Pivot im Export ins Leere. `ownOrShared()` nimmt zusätzlich genau die geteilten Zeilen mit, die die Mitglieder dieses Vereins referenzieren. Am 2026-08-26 in Produktion geprüft: aktuell nutzt kein Verein eine — nur deshalb ist der Fehler nie aufgefallen. Die Migration `insert_events_defaults` sät sieben davon in jede Installation.
+**Geteilte Zeilen gibt es nicht mehr, und der Export ist dadurch einfacher geworden.** `sections`, `events` und `roles` hatten `club_id` nullable; lsverein7 exportierte nur `club_id = N`, sodass der Pivot ins Leere zeigte, sobald ein Mitglied einer installationsweiten Zeile zugeordnet war. Dafür gab es `ownOrShared()`, das genau die benutzten geteilten Zeilen mitnahm. Seit dem 2026-08-30 sind alle drei Spalten NOT NULL, der Helfer ist gelöscht, und alle drei Tabellen werden wie jede andere mit `where('club_id', $clubId)` exportiert.
 
 **`tracings` ist bewusst nicht dabei:** das Protokoll hängt an `user_id`/`row_id` ohne eigenen Verein, eine ehrliche Aufteilung gibt es nicht. `debits` ist neu dabei (in lsverein7 vergessen), es hängt über `member_id` am Verein.
 

@@ -28,10 +28,10 @@ class ItemPolicy
     }
 
     /**
-     * No root-only branch, unlike sections, events and roles: `items.club_id`
-     * is NOT NULL (verified against the live database), so an item always
-     * belongs to a club and installation-wide rows cannot exist. That is also
-     * why Item carries ClubScope rather than ClubWithSharedScope.
+     * No root-only branch: `items.club_id` is NOT NULL (verified against the
+     * live database), so an item always belongs to a club and
+     * installation-wide rows cannot exist. Sections, events and roles were the
+     * exception until 2026-08-30; every table carries ClubScope now.
      */
     public function update(User $user, Item $item): bool
     {

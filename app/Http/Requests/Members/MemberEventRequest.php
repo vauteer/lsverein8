@@ -26,7 +26,7 @@ class MemberEventRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'event_id' => $this->belongsToClubRule(Event::class, shared: true),
+            'event_id' => $this->belongsToClubRule(Event::class),
             ...$this->datedRules(),
         ];
     }

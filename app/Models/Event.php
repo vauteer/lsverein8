@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\AssignedMemberCount;
-use App\Models\Scopes\ClubWithSharedScope;
+use App\Models\Scopes\ClubScope;
 use Carbon\CarbonInterface;
 use Database\Factories\EventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -18,18 +18,34 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * @property int $id
- * @property int|null $club_id
+ * @property int $club_id
  * @property string $name
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property-read EventMember|null $pivot the pivot row when loaded through Member::events()
  */
 #[Fillable(['club_id', 'name'])]
-#[ScopedBy([ClubWithSharedScope::class])]
+#[ScopedBy([ClubScope::class])]
 class Event extends Model
 {
     /** @use HasFactory<EventFactory> */
     use HasFactory;
+
+    /**
+     * What a new club starts with, seeded by ClubController::store().
+     *
+     * insert_events_defaults put seven of these in once per installation
+     * with a null `club_id`, so every club saw the same ones. That column is
+     * NOT NULL since 2026-08-30 and a club owns its honours, free to rename or
+     * delete them without touching anybody else's.
+     *
+     * Deliberately shorter than what was seeded. Only the first milestone. The seeded set ran to 70 Jahre plus Ehrenvorstand, which is more than most clubs award; honor_years drives who is *due* one, and the club adds the milestones it actually gives.
+     *
+     * @var list<string>
+     */
+    public const DEFAULTS = [
+        '25 Jahre',
+    ];
 
     /**
      * @return BelongsTo<Club, $this>

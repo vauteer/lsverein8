@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\AssignedMemberCount;
-use App\Models\Scopes\ClubWithSharedScope;
+use App\Models\Scopes\ClubScope;
 use Carbon\CarbonInterface;
 use Database\Factories\RoleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -18,18 +18,39 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * @property int $id
- * @property int|null $club_id
+ * @property int $club_id
  * @property string $name
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property-read MemberRole|null $pivot the pivot row when loaded through Member::roles()
  */
 #[Fillable(['club_id', 'name'])]
-#[ScopedBy([ClubWithSharedScope::class])]
+#[ScopedBy([ClubScope::class])]
 class Role extends Model
 {
     /** @use HasFactory<RoleFactory> */
     use HasFactory;
+
+    /**
+     * What a new club starts with, seeded by ClubController::store().
+     *
+     * insert_roles_defaults put seven of these in once per installation
+     * with a null `club_id`, so every club saw the same ones. That column is
+     * NOT NULL since 2026-08-30 and a club owns its roles, free to rename or
+     * delete them without touching anybody else's.
+     *
+     * Deliberately shorter than what was seeded. The seeded set minus Ehrenamtsbeauftragter: a club that wants it adds it.
+     *
+     * @var list<string>
+     */
+    public const DEFAULTS = [
+        '1. Vorstand',
+        '2. Vorstand',
+        'Kassier',
+        'Schriftführer',
+        'Beisitzer',
+        'Kassenprüfer',
+    ];
 
     /**
      * @return BelongsTo<Club, $this>

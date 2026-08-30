@@ -62,26 +62,20 @@ trait MemberRelationRules
      * model's club scope, so without this a club admin could attach another
      * club's section, role or subscription to their member.
      *
-     * `$shared` covers the tables whose `club_id` is nullable — events and
-     * roles have installation-wide rows that belong to every club, seeded by
-     * insert_events_defaults and insert_roles_defaults. Sections had them too
-     * until 2026-08-30, when the column became NOT NULL.
+     * Took a `$shared` flag until 2026-08-30, for the tables whose `club_id`
+     * was nullable: sections, then events and roles had installation-wide rows
+     * that belonged to every club. All six relations point at one club's rows
+     * now, so there is one rule.
      *
      * @param  class-string<Model>  $model
      * @return array<int, ValidationRule|string>
      */
-    protected function belongsToClubRule(string $model, bool $shared = false): array
+    protected function belongsToClubRule(string $model): array
     {
         return [
             'required',
             'integer',
-            Rule::exists($model, 'id')->where(function ($query) use ($shared) {
-                $query->where('club_id', currentClubId());
-
-                if ($shared) {
-                    $query->orWhereNull('club_id');
-                }
-            }),
+            Rule::exists($model, 'id')->where(fn ($query) => $query->where('club_id', currentClubId())),
         ];
     }
 

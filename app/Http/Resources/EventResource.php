@@ -26,9 +26,6 @@ class EventResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'members_count' => (int) $this->getAttribute('members_count'),
-            // Events shared across all clubs (club_id null) are listed here
-            // but only a root account may change them.
-            'shared' => $this->club_id === null,
             'modifiable' => (bool) $request->user()?->can('update', $this->resource),
             'deletable' => (bool) $request->user()?->can('delete', $this->resource),
         ];

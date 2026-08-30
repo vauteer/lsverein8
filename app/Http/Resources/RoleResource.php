@@ -27,9 +27,6 @@ class RoleResource extends JsonResource
             'name' => $this->name,
             'members_count' => (int) $this->getAttribute('members_count'),
             'ever_members_count' => (int) $this->getAttribute('ever_members_count'),
-            // Roles shared across all clubs (club_id null) are listed here
-            // but only a root account may change them.
-            'shared' => $this->club_id === null,
             'modifiable' => (bool) $request->user()?->can('update', $this->resource),
             'deletable' => (bool) $request->user()?->can('delete', $this->resource),
         ];

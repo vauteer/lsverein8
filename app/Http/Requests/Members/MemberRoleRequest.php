@@ -26,7 +26,7 @@ class MemberRoleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'role_id' => $this->belongsToClubRule(Role::class, shared: true),
+            'role_id' => $this->belongsToClubRule(Role::class),
             ...$this->rangeRules(),
         ];
     }

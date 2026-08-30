@@ -118,9 +118,7 @@ trait MemberValidationRules
                 'required',
                 'integer',
                 Rule::exists(Section::class, 'id')
-                    ->where(fn ($query) => $query
-                        ->where('club_id', currentClubId())
-                        ->orWhereNull('club_id')),
+                    ->where(fn ($query) => $query->where('club_id', currentClubId())),
             ],
             // Required, like section_id: a current member has to hold a
             // subscription so that the club's billing is the sum over them and

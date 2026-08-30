@@ -22,10 +22,9 @@ class SubscriptionPolicy
     }
 
     /**
-     * Unlike sections, events and roles, subscriptions are never shared across
-     * the installation — Subscription carries ClubScope, not
-     * ClubWithSharedScope, so `club_id` is never null and there is no
-     * root-only branch here.
+     * Subscriptions are never shared across the installation — `club_id` is
+     * NOT NULL, so there is no root-only branch here. Sections, events and
+     * roles could be shared until 2026-08-30, and no longer can.
      */
     public function update(User $user, Subscription $subscription): bool
     {

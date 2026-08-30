@@ -20,7 +20,7 @@ Other settled points in UserController:
 ## Section CRUD: every section belongs to one club, unrestricted names, used sections are undeletable
 **Seit 2026-08-30 ist `sections.club_id` NOT NULL.** Abteilungen tragen `ClubScope`, der Index listet also genau die eigenen Zeilen des Vereins. Vorher war die Spalte nullable und eine Zeile damit installationsweit — in Wirklichkeit führt jeder Verein seine eigenen Abteilungen, und in der Produktionsdatenbank hatte keine der 13 Zeilen `club_id IS NULL`. Weggefallen sind damit: der Sonderfall in `SectionPolicy::update()` (nur root durfte geteilte Zeilen ändern), der `orWhereNull` in der Unique-Regel, `shared: true` in `MemberSectionRequest`, das `shared`-Flag in `SectionResource` samt Globus-Symbol im Index und der `ownOrShared()`-Zweig für `sections` im ClubExport.
 
-`events` und `roles` behalten ihr nullable `club_id`: deren Vorgaben werden von `insert_events_defaults` bzw. `insert_roles_defaults` installationsweit gesät. Wer dort etwas ändert, denkt an die geteilten Zeilen — bei Abteilungen nicht mehr.
+**Am selben Tag sind `events` und `roles` nachgezogen** (`2026_08_30_092919`), samt Löschung von `ClubWithSharedScope`. Anders als bei Abteilungen gab es dort echte installationsweite Zeilen: `insert_roles_defaults` und `insert_events_defaults` säten je sieben mit `club_id IS NULL` in jede Installation; in der Produktionsdatenbank waren sie längst Verein 1 zugeordnet. **Der Inhalt beider Migrationen ist am selben Tag auskommentiert worden** — damit entsteht auf einem frischen Build gar keine geteilte Zeile mehr, und die neue Migration besteht nur noch aus den beiden `change()`-Aufrufen. Sollte doch irgendwo eine liegen, scheitert sie laut: die Verbindung läuft im Strict Mode, MariaDB weigert sich dann, NOT NULL über bestehende NULLs zu schreiben, statt sie stillschweigend zu 0 zu machen. **Ersatz für das Erben: `ClubController::store()` legt einem neuen Verein eigene Zeilen aus `Role::DEFAULTS` und `Event::DEFAULTS` an.** Beide Listen sind bewusst kürzer als das, was die Migrationen einst säten — ein Startpunkt, den der Verein umbenennt und ergänzt, keine Kopie des alten Satzes.
 
 Settled points in SectionController/SectionPolicy:
 
@@ -32,7 +32,7 @@ Settled points in SectionController/SectionPolicy:
 - `club_id` is never accepted from the request — it is set from `currentClubId()` on create, so a club admin cannot move a section elsewhere.
 
 ## Event CRUD mirrors the Section CRUD
-EventController/EventPolicy/EventValidationRules are a deliberate copy of the Section equivalents: ClubWithSharedScope rows (`club_id IS NULL`) are listed for every club but only a root account may edit them, `club_id` is never accepted from the request (set from `currentClubId()` on create), name uniqueness is checked against the club's own rows *and* the shared ones, and `delete()` requires `! $event->isUsed()`.
+EventController/EventPolicy/EventValidationRules are a deliberate copy of the Section equivalents: `club_id` is never accepted from the request (set from `currentClubId()` on create), name uniqueness is checked against the club's own rows, and `delete()` requires `! $event->isUsed()`. Until 2026-08-30 both also carried a shared-row branch; see the section note above.
 
 One difference from Sections, intentional:
 - `event_member.event_id` is ON DELETE RESTRICT (member_section is not), so a used event would be refused by the database anyway — the policy check is what turns that into a 403 instead of a 500.
@@ -40,7 +40,7 @@ One difference from Sections, intentional:
 Test trap: migration `2022_08_20_165538_insert_events_defaults` seeds seven installation-wide events ('25 Jahre' … 'Ehrenvorstand', ids 1–7, `club_id` null). They are present in every test database, so `Event::firstOrFail()` returns a seeded row rather than the one just created, and any fixture named '50 Jahre' collides on the unique rule. tests/Feature/EventManagementTest.php scopes with `where('club_id', 1)` and offers `withoutDefaultEvents()` for the assertions that need an exact listing size. Sections have no such defaults migration — that is the only reason SectionManagementTest can assert sizes directly.
 
 ## Club CRUD: root sieht alles, Club-Admin nur den aktuellen Verein
-ClubPolicy trennt zwei Ebenen, anders als bei den ClubWithSharedScope-CRUDs:
+ClubPolicy trennt zwei Ebenen, anders als bei den vereinsgebundenen CRUDs:
 
 - `viewAny`/`create`/`delete`: nur root (`users.admin`). Die Liste ist die ganze Installation, deshalb hat ein Club-Admin gar keinen Index — er kommt über einen eigenen Sidebar-Eintrag direkt auf `clubs.edit` seines aktuellen Vereins.
 - `update`: root für jeden Verein; Club-Admin nur wenn `$club->id === currentClubId()`. Wer einen anderen seiner Vereine ändern will, wechselt erst — dadurch bleibt "welchen Verein ändere ich gerade?" allein aus der Sidebar beantwortbar.
@@ -60,7 +60,7 @@ Wichtig für Tests: der Sweep läuft bei **jedem** store und update, nicht nur b
 ## Subscription CRUD: kein Shared-Zweig, Cascade macht die Policy zur einzigen Bremse
 SubscriptionController/Policy/ValidationRules folgen dem Section-/Event-/Role-Muster, mit drei bewussten Abweichungen:
 
-- Subscription trägt `ClubScope`, nicht `ClubWithSharedScope`. Es gibt also keine installationsweiten Zeilen (`club_id` nie null), keinen root-only-Zweig in der Policy, kein `shared`-Feld in der Resource und keinen `(bool) $user->admin`-Cast. Die Unique-Regel prüft nur `club_id = currentClubId()` und deckt sich damit exakt mit dem DB-Key `unique(club_id, name)`.
+- Subscription trägt `ClubScope`. Es gibt keine installationsweiten Zeilen (`club_id` nie null), keinen root-only-Zweig in der Policy, kein `shared`-Feld in der Resource und keinen `(bool) $user->admin`-Cast. Die Unique-Regel prüft nur `club_id = currentClubId()` und deckt sich damit exakt mit dem DB-Key `unique(club_id, name)`. Seit 2026-08-30 gilt das für alle sieben vereinsgebundenen Tabellen gleichermaßen.
 - `member_subscription.subscription_id` ist ON DELETE CASCADE (member_role ist RESTRICT, member_section gar nichts). Die Datenbank würde die Zuordnungen also klaglos mitlöschen — `SubscriptionPolicy::delete()` mit `! $subscription->isUsed()` ist die einzige Bremse, nicht bloß die Übersetzung eines DB-Fehlers in ein 403.
 - `transfer_text` darf die globale `SEPA_CHARSET_REGEX` NICHT wiederverwenden: die verbietet `<` und `>`, der Verwendungszweck braucht sie aber für die Platzhalter `<AJ>/<VN>/<NN>`. Dafür steht die globale Konstante `TRANSFER_TEXT_REGEX` in app/helpers.php, neben `SEPA_CHARSET_REGEX` (bis 2026-08-26 lag sie als `protected const` in `SubscriptionValidationRules`; sie wurde herausgezogen, als das Lastschrift-CRUD dieselbe Regel brauchte). Unbedenklich, weil `Subscription::generateSepa()` die Platzhalter ersetzt, bevor der Text in die XML geht — übertragen wird also SEPA-sauberer Text.
 
@@ -98,11 +98,11 @@ Erledigt am 2026-08-26 mit dem Mitglieder-CRUD: `Member::availablePaymentMethods
 ## Item-CRUD: Inventar ist pro Verein abschaltbar, und items.club_id ist NOT NULL
 Zwei Dinge, in denen das Inventar von Abteilungen/Ehrungen/Funktionen abweicht — beide an der echten Datenbank geprüft (2026-08-26):
 
-**`items.club_id` ist NOT NULL.** `sections`, `events` und `roles` haben die Spalte nullable und darüber ihre installationsweiten Zeilen; `items` (und `subscriptions`) nicht. Es kann also keine vereinsübergreifenden Gegenstände geben. Folge: ItemPolicy hat **keinen** root-only-Zweig, ItemResource kein `shared`-Feld, und die Unique-Regel prüft nur `club_id = currentClubId()` ohne `orWhereNull`. Das entspricht lsverein7, dessen ItemPolicy ebenfalls keinen Null-Zweig hatte — ein Helm gehört einer Feuerwehr, nicht der Installation.
+**`items.club_id` ist NOT NULL** — inzwischen wie überall sonst: `sections`, `events` und `roles` hatten die Spalte nullable und darüber ihre installationsweiten Zeilen, bis 2026-08-30. Es kann keine vereinsübergreifenden Gegenstände geben. Folge: ItemPolicy hat **keinen** root-only-Zweig, ItemResource kein `shared`-Feld, und die Unique-Regel prüft nur `club_id = currentClubId()` ohne `orWhereNull`. Das entspricht lsverein7, dessen ItemPolicy ebenfalls keinen Null-Zweig hatte — ein Helm gehört einer Feuerwehr, nicht der Installation.
 
 `Item` trug beim Portieren des Model-Layers `ClubWithSharedScope`, obwohl der `club_id IS NULL`-Zweig bei einer NOT-NULL-Spalte nie greifen kann. Am 2026-08-26 auf `ClubScope` umgestellt — dieselbe erzeugte SQL (`where club_id = 1`), aber die Deklaration behauptet nichts mehr, was das Schema nicht hergibt. **Ein Scope bleibt zwingend**: ohne ihn liefert `Item::all()` das Inventar aller Vereine.
 
-Wer geteilte Gegenstände einführen will, braucht beides: eine Migration, die `items.club_id` nullable macht, **und** die Rückkehr zu `ClubWithSharedScope` samt Shared-Zweig in Policy, Resource und Unique-Regel. `tests/Feature/ItemManagementTest.php` pinnt die NOT-NULL-Zusage mit einem Test, der beim Ändern der Spalte rot wird.
+Wer geteilte Zeilen wieder einführen will — für Gegenstände oder sonst etwas — braucht beides: eine Migration, die die Spalte nullable macht, **und** einen neuen additiven Scope samt Shared-Zweig in Policy, Resource und Unique-Regel. `ClubWithSharedScope` ist gelöscht; der Stand vom 2026-08-29 im Git zeigt, wie er aussah. `tests/Feature/ItemManagementTest.php` pinnt die NOT-NULL-Zusage mit einem Test, der beim Ändern der Spalte rot wird.
 
 **Das Inventar ist pro Verein abschaltbar (`clubs.use_items`).** `ItemPolicy::viewAny()` gibt `currentClub()->use_items` zurück, und `create`/`update`/`delete` hängen daran — alle sechs Routen antworten also mit 403, wenn der Verein kein Inventar führt, nicht nur der Sidebar-Eintrag fehlt. Das weicht bewusst von lsverein7 ab, das nur den Navigationseintrag versteckte (`visible: club.value.useItems`) und /items per Adresszeile offen ließ. Vorbild ist `blsv_id`, das ebenfalls versteckt **und** `prohibitedIf` ist.
 

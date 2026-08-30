@@ -9,6 +9,8 @@ use App\Http\Requests\ClubStoreRequest;
 use App\Http\Requests\ClubUpdateRequest;
 use App\Http\Resources\ClubResource;
 use App\Models\Club;
+use App\Models\Event;
+use App\Models\Role;
 use App\Models\Subscription;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -70,6 +72,22 @@ class ClubController extends Controller
             'name' => __('Exempt'),
             'amount' => 0,
         ]);
+
+        // Until 2026-08-30 a new club inherited these: insert_roles_defaults
+        // and insert_events_defaults seeded one unowned copy per installation
+        // and every club saw it. `club_id` is NOT NULL on both tables now, so
+        // the club gets its own, free to be renamed or deleted without
+        // touching anybody else's.
+        $now = now();
+
+        foreach ([Role::class => Role::DEFAULTS, Event::class => Event::DEFAULTS] as $model => $names) {
+            $model::insert(array_map(fn (string $name): array => [
+                'club_id' => $club->id,
+                'name' => $name,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ], $names));
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Club created.')]);
 

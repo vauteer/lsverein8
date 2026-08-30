@@ -72,16 +72,18 @@ it('scopes members to the current club', function () {
         ->and(Member::withoutGlobalScopes()->count())->toBe(2);
 });
 
-it('lets shared rows through the club scope but not other clubs rows', function () {
+it('keeps every club scoped model to the club being worked in', function () {
     $other = Club::factory()->create();
 
-    Role::factory()->create(['club_id' => null, 'name' => 'Shared']);
     Role::factory()->create(['club_id' => $this->club->id, 'name' => 'Mine']);
     Role::factory()->create(['club_id' => $other->id, 'name' => 'Theirs']);
 
-    $names = Role::whereIn('name', ['Shared', 'Mine', 'Theirs'])->pluck('name')->sort()->values()->all();
+    // Roles, events and sections let `club_id IS NULL` rows through as well
+    // until 2026-08-30; all three columns are NOT NULL now and one plain
+    // ClubScope answers for every table.
+    $names = Role::whereIn('name', ['Mine', 'Theirs'])->pluck('name')->all();
 
-    expect($names)->toBe(['Mine', 'Shared']);
+    expect($names)->toBe(['Mine']);
 });
 
 it('keeps the club scope from leaking past other conditions', function () {
@@ -89,7 +91,6 @@ it('keeps the club scope from leaking past other conditions', function () {
     Role::factory()->create(['club_id' => $other->id, 'name' => 'Duplicate']);
     Role::factory()->create(['club_id' => $this->club->id, 'name' => 'Duplicate']);
 
-    // Without the nested grouping the orWhere would pull in the other club's row.
     expect(Role::where('name', 'Duplicate')->count())->toBe(1);
 });
 

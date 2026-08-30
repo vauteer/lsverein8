@@ -4,7 +4,6 @@ namespace App;
 
 use App\Models\Club;
 use Illuminate\Database\Query\Builder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -66,9 +65,9 @@ class ClubExport
             'club_member' => DB::table('club_member')->where('club_id', $clubId),
             'sections' => DB::table('sections')->where('club_id', $clubId),
             'member_section' => DB::table('member_section')->whereIn('member_id', $memberIds),
-            'events' => $this->ownOrShared('events', 'event_member', 'event_id', $memberIds),
+            'events' => DB::table('events')->where('club_id', $clubId),
             'event_member' => DB::table('event_member')->whereIn('member_id', $memberIds),
-            'roles' => $this->ownOrShared('roles', 'member_role', 'role_id', $memberIds),
+            'roles' => DB::table('roles')->where('club_id', $clubId),
             'member_role' => DB::table('member_role')->whereIn('member_id', $memberIds),
             'items' => DB::table('items')->where('club_id', $clubId),
             'item_member' => DB::table('item_member')->whereIn('member_id', $memberIds),
@@ -76,30 +75,6 @@ class ClubExport
             'member_subscription' => DB::table('member_subscription')->whereIn('member_id', $memberIds),
             'debits' => DB::table('debits')->whereIn('member_id', $memberIds),
         ];
-    }
-
-    /**
-     * The club's own rows of a table plus any installation-wide row
-     * (`club_id IS NULL`) its members are actually assigned to.
-     *
-     * `events` and `roles` have both kinds; `sections` did too until
-     * 2026-08-30, when `sections.club_id` became NOT NULL. lsverein7 exported
-     * only `club_id = N`, which leaves a dangling foreign key the moment a
-     * member is given one of the shared rows — the insert_events_defaults
-     * migration seeds seven of them into every installation. No club uses one
-     * today, which is the only reason that never surfaced.
-     *
-     * @param  Collection<int, int>  $memberIds
-     */
-    private function ownOrShared(string $table, string $pivot, string $foreignKey, Collection $memberIds): Builder
-    {
-        $used = DB::table($pivot)->whereIn('member_id', $memberIds)->pluck($foreignKey);
-
-        return DB::table($table)
-            ->where('club_id', $this->club->id)
-            ->orWhere(fn (Builder $query) => $query
-                ->whereNull('club_id')
-                ->whereIn('id', $used));
     }
 
     /**

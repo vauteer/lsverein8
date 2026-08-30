@@ -10,9 +10,9 @@ use Inertia\Inertia;
 /**
  * Switching the club a user is working in.
  *
- * `currentClubId()` reads `users.club_id`, and every ClubScope/
- * ClubWithSharedScope model keys off it, so this one column decides which
- * club's members, sections, honours and roles the whole app shows. The switch
+ * `currentClubId()` reads `users.club_id`, and every ClubScope model keys off
+ * it, so this one column decides which club's members, sections, honours and
+ * roles the whole app shows. The switch
  * is therefore a write to the user's own row, not session state: it survives
  * logout and matches what lsverein7 did.
  */

@@ -68,7 +68,6 @@ export type EventResource = {
     id: number;
     name: string;
     members_count: number;
-    shared: boolean;
     modifiable: boolean;
     deletable: boolean;
 };
@@ -104,7 +103,6 @@ export type RoleResource = {
     members_count: number;
     /** Members ever assigned, former members included; its own selection. */
     ever_members_count: number;
-    shared: boolean;
     modifiable: boolean;
     deletable: boolean;
 };

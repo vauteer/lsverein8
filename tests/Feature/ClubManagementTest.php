@@ -3,7 +3,9 @@
 use App\Enums\ClubIdentityDisplay;
 use App\Enums\ClubRole;
 use App\Models\Club;
+use App\Models\Event;
 use App\Models\Member;
+use App\Models\Role;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -179,6 +181,17 @@ test('only a root account creates a club, and is attached to it as admin', funct
     expect($seeded)->toHaveCount(1)
         ->and($seeded->first()->name)->toBe('Beitragsfrei')
         ->and($seeded->first()->amount)->toBe(0.0);
+
+    // Roles and honours used to be inherited: one unowned copy per
+    // installation, listed in every club. Both columns are NOT NULL since
+    // 2026-08-30, so the club gets its own to rename or delete.
+    // sorted: the models order by name, the constants read in the order the
+    // club would want them offered.
+    $roles = Role::withoutGlobalScopes()->where('club_id', $created->id)->pluck('name')->sort()->values();
+    $events = Event::withoutGlobalScopes()->where('club_id', $created->id)->pluck('name')->sort()->values();
+
+    expect($roles->all())->toBe(collect(Role::DEFAULTS)->sort()->values()->all())
+        ->and($events->all())->toBe(collect(Event::DEFAULTS)->sort()->values()->all());
 });
 
 test('the club sets its own SEPA lead time', function () {
