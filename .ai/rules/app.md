@@ -29,6 +29,14 @@ Authorization is the `manageBackups` gate (AppServiceProvider), root-only via `u
 
 **Geteilte Zeilen gibt es nicht mehr, und der Export ist dadurch einfacher geworden.** `sections`, `events` und `roles` hatten `club_id` nullable; lsverein7 exportierte nur `club_id = N`, sodass der Pivot ins Leere zeigte, sobald ein Mitglied einer installationsweiten Zeile zugeordnet war. Dafür gab es `ownOrShared()`, das genau die benutzten geteilten Zeilen mitnahm. Seit dem 2026-08-30 sind alle drei Spalten NOT NULL, der Helfer ist gelöscht, und alle drei Tabellen werden wie jede andere mit `where('club_id', $clubId)` exportiert.
 
+**Aus `users` gehen drei Spalten nicht so hinaus, wie sie dastehen** (`ClubExport::rewrite()`, seit 2026-08-30). Ein Club-Admin darf seinen eigenen Verein exportieren, und wer in zwei Vereinen ist, steht in beiden Exporten:
+
+- `password` und `remember_token` werden geleert. Sonst läse der Admin des einen Vereins den Hash eines Kontos, das auch im anderen arbeitet — das Root-Konto eingeschlossen. Der Kopf der Datei sagt, dass nach dem Import jedes Konto ein neues Passwort braucht.
+- `club_id` wird auf den exportierten Verein gesetzt. Es ist der Verein, in dem jemand *gerade arbeitet*, und der kann einer sein, den die Datei nicht enthält: `currentClub()` gäbe dann null zurück und das erste `->name` wäre ein Fatal.
+- `created_by` wird genullt, wenn der Ersteller nicht mitkommt.
+
+**Das Skript stellt die Session wieder her.** `SET foreign_key_checks = 0;` steht im Kopf, `= 1;` steht seit 2026-08-30 am Ende — vorher blieb die Prüfung aus, wer die Datei in eine offene Sitzung einspielte. Und `sql_mode` wird **angehängt** (`CONCAT(@@sql_mode, ',NO_AUTO_VALUE_ON_ZERO')`), nicht zugewiesen: eine Zuweisung warf `STRICT_TRANS_TABLES` mit weg, der Import hätte einen falschen Wert also abgeschnitten statt ihn abzulehnen.
+
 **`tracings` ist bewusst nicht dabei:** das Protokoll hängt an `user_id`/`row_id` ohne eigenen Verein, eine ehrliche Aufteilung gibt es nicht. `debits` ist neu dabei (in lsverein7 vergessen), es hängt über `member_id` am Verein.
 
 Der Verein kommt aus der **Route**, nicht aus `currentClub()`: root arbeitet womöglich in Verein 1 und sieht die Seite von Verein 2 an. `ClubPolicy::export()` delegiert an `update()` — root für jeden Verein, Club-Admin nur für den aktuellen.

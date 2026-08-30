@@ -4,6 +4,7 @@ namespace App;
 
 use App\Models\Club;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -24,6 +25,13 @@ class ClubExport
      * row id with no club of its own, so there is no honest way to slice it.
      * lsverein7 left it out too.
      */
+    /**
+     * The users the export carries: everybody in this club's `club_user`.
+     *
+     * @var Collection<int, int>|null
+     */
+    private ?Collection $userIds = null;
+
     public function __construct(private readonly Club $club) {}
 
     public function toSql(): string
@@ -34,7 +42,7 @@ class ClubExport
             $sql .= $this->tableSql($table, $query);
         }
 
-        return $sql;
+        return $sql.$this->footer();
     }
 
     /**
@@ -46,8 +54,11 @@ class ClubExport
     }
 
     /**
-     * Every table in the export, in foreign-key order, each already narrowed
-     * to this club.
+     * Every table in the export, each already narrowed to this club.
+     *
+     * Listed parents before children for reading, not for the database: the
+     * script disables foreign key checks, and `users` sits at the top even
+     * though it points at `clubs` below it.
      *
      * @return array<string, Builder>
      */
@@ -55,10 +66,9 @@ class ClubExport
     {
         $clubId = $this->club->id;
         $memberIds = DB::table('members')->where('club_id', $clubId)->pluck('id');
-        $userIds = DB::table('club_user')->where('club_id', $clubId)->pluck('user_id');
 
         return [
-            'users' => DB::table('users')->whereIn('id', $userIds),
+            'users' => DB::table('users')->whereIn('id', $this->userIds()),
             'clubs' => DB::table('clubs')->where('id', $clubId),
             'club_user' => DB::table('club_user')->where('club_id', $clubId),
             'members' => DB::table('members')->where('club_id', $clubId),
@@ -78,29 +88,77 @@ class ClubExport
     }
 
     /**
+     * @return Collection<int, int>
+     */
+    private function userIds(): Collection
+    {
+        return $this->userIds ??= DB::table('club_user')
+            ->where('club_id', $this->club->id)
+            ->pluck('user_id');
+    }
+
+    /**
      * One table: a TRUNCATE, then a single multi-row INSERT.
      */
     private function tableSql(string $table, Builder $query): string
     {
         $sql = "TRUNCATE `{$table}`;".PHP_EOL;
 
-        $rows = $query->orderBy('id')->get();
+        $rows = $query->orderBy('id')->get()
+            ->map(fn (object $row): array => $this->rewrite($table, (array) $row));
 
         if ($rows->isEmpty()) {
             return $sql.PHP_EOL;
         }
 
-        $columns = array_keys((array) $rows->first());
+        $columns = array_keys($rows->first());
         $columnList = implode(', ', array_map(fn (string $column): string => "`{$column}`", $columns));
 
         $values = $rows
-            ->map(fn (object $row): string => '('.implode(', ', array_map(
-                fn (string $column): string => $this->quote(((array) $row)[$column]),
+            ->map(fn (array $row): string => '('.implode(', ', array_map(
+                fn (string $column): string => $this->quote($row[$column]),
                 $columns
             )).')')
             ->implode(','.PHP_EOL);
 
         return $sql."INSERT INTO `{$table}` ({$columnList}) VALUES".PHP_EOL.$values.';'.PHP_EOL.PHP_EOL;
+    }
+
+    /**
+     * The columns a `users` row cannot be handed over as it stands.
+     *
+     * Three of them, and all three matter because a club admin may export
+     * their own club (ClubPolicy::export delegates to update):
+     *
+     * - `password` and `remember_token` are somebody's credentials. A user of
+     *   two clubs appears in both exports, so without this the admin of one
+     *   club could read the hash of an account that also works in another —
+     *   the root account among them. Whoever restores the file gives every
+     *   account a new password, which the header says.
+     * - `club_id` is the club a user is *working in*, and that may be a club
+     *   this file does not contain. Restored as it stood, `currentClubId()`
+     *   would point at a missing row and `currentClub()` return null, which
+     *   the first `currentClub()->name` turns into a fatal.
+     * - `created_by` may name a user the file does not contain either.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function rewrite(string $table, array $row): array
+    {
+        if ($table !== 'users') {
+            return $row;
+        }
+
+        $row['password'] = '';
+        $row['remember_token'] = null;
+        $row['club_id'] = $this->club->id;
+
+        if (! $this->userIds()->contains($row['created_by'])) {
+            $row['created_by'] = null;
+        }
+
+        return $row;
     }
 
     /**
@@ -130,15 +188,32 @@ class ClubExport
             '-- WARNING: every table below is TRUNCATEd before it is filled.',
             '-- Import this into an empty database only. Running it against an',
             '-- installation that holds other clubs deletes their data.',
+            '--',
+            '-- Passwords are not exported. Every account comes over without',
+            '-- one and has to be given a new one after the import.',
             '',
             'SET NAMES utf8mb4;',
             "SET time_zone = '+00:00';",
             'SET foreign_key_checks = 0;',
-            "SET sql_mode = 'NO_AUTO_VALUE_ON_ZERO';",
+            // Appended, not assigned: a bare assignment drops
+            // STRICT_TRANS_TABLES for the session, and the import would then
+            // truncate a bad value instead of refusing it.
+            "SET sql_mode = CONCAT(@@sql_mode, ',NO_AUTO_VALUE_ON_ZERO');",
             '',
             '',
         ];
 
         return implode(PHP_EOL, $lines);
+    }
+
+    /**
+     * Hand the session back as it was found.
+     *
+     * Without this, whoever sources the file keeps working with foreign key
+     * checks disabled — the script turns them off and used to leave them off.
+     */
+    private function footer(): string
+    {
+        return 'SET foreign_key_checks = 1;'.PHP_EOL;
     }
 }

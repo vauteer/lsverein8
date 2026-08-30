@@ -8,6 +8,7 @@ use App\Models\Member;
 use App\Models\Section;
 use App\Models\Subscription;
 use App\Models\User;
+use Illuminate\Support\Collection;
 
 /**
  * currentClubId() resolves to 1 on the CLI, so every request is read as though
@@ -28,6 +29,31 @@ function clubExportUser(ClubRole $role = ClubRole::Admin, ?Club $club = null, ar
     $user->clubs()->attach($club->id, ['role' => $role->value]);
 
     return $user;
+}
+
+/**
+ * The `users` rows of an export, each as column => literal.
+ *
+ * Parsed rather than matched positionally: the live schema and the SQLite one
+ * the tests build order the columns differently, so an assertion on "the tenth
+ * value" passes in one and not the other.
+ *
+ * @return Collection<int, array<string, string>>
+ */
+function exportedUsers(string $sql): Collection
+{
+    preg_match('/INSERT INTO `users` \((.*?)\) VALUES\n(.*?);\n/s', $sql, $matches);
+
+    $columns = array_map(fn (string $column): string => trim($column, '` '), explode(',', $matches[1]));
+
+    return collect(explode(PHP_EOL, $matches[2]))
+        ->filter()
+        // ' is the string delimiter, so a name holding a comma stays one value.
+        ->map(fn (string $row): array => array_combine(
+            $columns,
+            array_map(trim(...), str_getcsv(trim(trim($row, ','), '()'), ',', "'", '\\'))
+        ))
+        ->values();
 }
 
 /** A member of the given club with something recorded against them. */
@@ -125,6 +151,54 @@ test('every club table is present, even when empty', function () {
 
     // The audit log has no club of its own, so it is left out entirely.
     expect($sql)->not->toContain('tracings');
+});
+
+test('no credentials leave in the export', function () {
+    // A club admin may export their own club, and a user of two clubs appears
+    // in both exports — so without this the admin of one club could read the
+    // hash of an account that also works in another, the root account among
+    // them.
+    $exporter = clubExportUser(attributes: ['password' => bcrypt('geheim'), 'remember_token' => 'abcdefghij']);
+
+    $sql = (new ClubExport($this->club))->toSql();
+
+    expect($sql)->toContain($exporter->email)
+        ->and($sql)->not->toContain($exporter->getAuthPassword())
+        ->and($sql)->not->toContain('abcdefghij')
+        ->and($sql)->toContain('-- Passwords are not exported.');
+});
+
+test('an exported user works in the exported club, whatever they were working in', function () {
+    $other = Club::factory()->create(['name' => 'Feuerwehr']);
+
+    // In both clubs, currently working in the other one. Exported as it stood,
+    // the restored database would have them pointing at a club it does not
+    // contain: currentClub() returns null and the first ->name is fatal.
+    $both = clubExportUser();
+    $both->clubs()->attach($other->id, ['role' => ClubRole::Admin->value]);
+    $both->update(['club_id' => $other->id]);
+
+    // And a creator the file does not contain has to be forgotten.
+    $created = clubExportUser(attributes: ['created_by' => User::factory()->create()->id]);
+
+    $sql = (new ClubExport($this->club))->toSql();
+
+    $users = exportedUsers($sql);
+
+    expect($users)->toHaveCount(2)
+        ->and($users->pluck('club_id')->unique()->all())->toBe([(string) $this->club->id])
+        ->and($users->firstWhere('id', (string) $created->id)['created_by'])->toBe('NULL')
+        ->and($users->pluck('id')->all())->not->toContain((string) $created->created_by);
+});
+
+test('the script hands the session back with its foreign key checks on', function () {
+    $sql = (new ClubExport($this->club))->toSql();
+
+    expect($sql)->toContain('SET foreign_key_checks = 0;')
+        ->and(trim($sql))->toEndWith('SET foreign_key_checks = 1;')
+        // Appended, not assigned: a bare assignment drops STRICT_TRANS_TABLES
+        // and the import would truncate a bad value instead of refusing it.
+        ->and($sql)->toContain("SET sql_mode = CONCAT(@@sql_mode, ',NO_AUTO_VALUE_ON_ZERO');");
 });
 
 test('the script warns that it empties the tables it fills', function () {
