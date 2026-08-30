@@ -92,7 +92,7 @@ test('the csv is latin-1, as the spreadsheets on the other end expect', function
         ->getContent();
 
     // Not valid UTF-8 on the wire, but decodes cleanly as Latin-1 — the same
-    // encoding Club::getBLSVStatistic() writes.
+    // encoding Club::buildBlsvStatistic() writes.
     expect(mb_check_encoding($csv, 'UTF-8'))->toBeFalse()
         ->and(mb_convert_encoding($csv, 'UTF-8', 'ISO-8859-1'))->toContain('Grün');
 });

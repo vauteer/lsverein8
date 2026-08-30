@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 /**
  * The seven age groups a club is read in, on the BLSV's boundaries.
  *
- * The lines are the association's, not ours: `Club::getBLSVStatistic()` reports
+ * The lines are the association's, not ours: `Club::buildBlsvStatistic()` reports
  * exactly these seven rows and `BlsvPdf` prints their German names, so moving
  * one changes what the club submits. They are here rather than in Club so that
  * the dashboard's age chart, the member selection behind it and the yearly

@@ -111,7 +111,7 @@ it('copies the key date in and out, so a caller cannot move it by accident', fun
     $date = Carbon\Carbon::parse('2020-06-01');
     Member::setKeyDate($date);
 
-    // Carbon is mutable and Club::getBLSVStatistic() keeps using the very
+    // Carbon is mutable and Club::buildBlsvStatistic() keeps using the very
     // instance it sets, so the setter has to copy — otherwise the caller's
     // own arithmetic would move what the whole app reads.
     $date->addYear();
@@ -186,7 +186,7 @@ it('relates members to sections, roles, events and items', function () {
 
     expect($member->currentSections())->toBe($section->name)
         ->and($member->currentRoles())->toBe($role->name)
-        ->and($member->latestEvent())->toBe($event->name)
+        ->and($member->latestHonorName())->toBe($event->name)
         ->and($section->isUsed())->toBeTrue()
         ->and($role->isUsed())->toBeTrue()
         ->and($event->isUsed())->toBeTrue()

@@ -14,4 +14,4 @@ Das ist nicht theoretisch: am 2026-08-25 hat ein Testlauf beide echten Vereinslo
 
 `tests/Unit/StorageIsolationTest.php` prüft, dass der Fake in Pest.php bleibt. Verifiziert wurde die Wirkung mit Köderdateien (auch einer bewusst unreferenzierten) über die volle Suite.
 
-`storage/downloads` ist davon ausgenommen und bewusst ungeschützt: `Subscription::generateSepa()` und `Club::getBLSVStatistic()` schreiben dort mit `file_put_contents(storage_path(...))` am Storage-Facade vorbei, wo `Storage::fake` nicht greift. Der Inhalt ist temporär und wird vom Programm neu erzeugt — am 2026-08-25 als unkritisch eingestuft, nicht absichern.
+`storage/downloads` ist davon ausgenommen und bewusst ungeschützt: `Subscription::generateSepa()` und `Club::buildBlsvStatistic()` schreiben dort mit `file_put_contents(storage_path(...))` am Storage-Facade vorbei, wo `Storage::fake` nicht greift. Der Inhalt ist temporär und wird vom Programm neu erzeugt — am 2026-08-25 als unkritisch eingestuft, nicht absichern.

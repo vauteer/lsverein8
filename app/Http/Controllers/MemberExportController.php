@@ -125,7 +125,7 @@ class MemberExportController extends Controller
      * section they are in on the key date. BlsvMemberReport renders them.
      *
      * The Nachmeldung and the yearly statistic answer different questions,
-     * which is why both exist. Club::getBLSVStatistic() is the yearly report
+     * which is why both exist. Club::buildBlsvStatistic() is the yearly report
      * and is always read at 1 January; this one describes the club today, so
      * it uses the list's key date. A Nachmeldung is not a delta — the club
      * uploads its whole membership — which is why the formats are offered for

@@ -76,7 +76,7 @@ class MemberSectionController extends Controller
      *
      * A BLSV club reports its members section by section — somebody counted in
      * the yearly Meldung has to sit in one, and a member in none would simply
-     * be missing from the file (Club::getBLSVStatistic() builds it per
+     * be missing from the file (Club::buildBlsvStatistic() builds it per
      * section). So the club must be a blsv_member, the member must still be
      * one — isMember() reads that the way memberIds() does, which is what the
      * Meldung is built from, so the dead and the not-yet-joined are out — and

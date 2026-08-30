@@ -32,7 +32,7 @@ Weitere Festlegungen:
 ## BLSV-Verein: die letzte laufende Sparte lässt sich nicht entfernen
 Seit 2026-08-27: In einem Verein mit `blsv_member` muss ein Mitglied, dessen Mitgliedschaft noch offen ist, in mindestens einer laufenden Sparte sein. `MemberSectionController::isLastActiveSection()` sperrt `update` (Schließen über `to`) und `destroy` der letzten solchen Zeile.
 
-**Warum überhaupt:** `Club::getBLSVStatistic()` baut die Meldung sparteweise. Wer in keiner Sparte ist, taucht in der Datei gar nicht auf — er fehlt dem Verband, ohne dass irgendwo etwas rot wird. Deshalb bei der Eingabe verhindert, nicht hinterher gesucht.
+**Warum überhaupt:** `Club::buildBlsvStatistic()` baut die Meldung sparteweise. Wer in keiner Sparte ist, taucht in der Datei gar nicht auf — er fehlt dem Verband, ohne dass irgendwo etwas rot wird. Deshalb bei der Eingabe verhindert, nicht hinterher gesucht.
 
 Drei Bedingungen müssen alle zutreffen, sonst greift die Sperre nicht:
 1. `currentClub()->blsv_member` — die Feuerwehr führt Sparten, meldet aber niemandem.

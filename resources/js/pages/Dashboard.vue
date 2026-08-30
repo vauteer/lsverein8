@@ -88,7 +88,7 @@ defineOptions({
                 :label="$t('Departures')"
                 :value="String(summary.left)"
                 :hint="year"
-                filter="retired"
+                filter="left"
                 :year="props.year"
             />
             <StatTile

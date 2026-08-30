@@ -99,7 +99,7 @@ function height(count: number): string {
                             :href="
                                 members({
                                     query: {
-                                        filter: 'retired',
+                                        filter: 'left',
                                         year: point.year,
                                     },
                                 })

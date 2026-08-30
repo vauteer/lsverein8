@@ -309,7 +309,7 @@ class Club extends Model
      *
      * @return array<int, array{name: string, href: string, description: string}>
      */
-    public function getBLSVStatistic(): array
+    public function buildBlsvStatistic(): array
     {
         // Statistik ist zum 1. Januar, Austritte zum 31.12. und Eintritte zum 1.1. werden realisiert
         $keyDate = now()->startOfYear();
@@ -468,14 +468,5 @@ class Club extends Model
             'description' => $description,
             'href' => route('downloads.show', $filename, absolute: false),
         ];
-    }
-
-    public function calcBlsvDebit(float $childrenDue, float $teenDue, float $adultDue): float
-    {
-        $children = Member::members()->ageRange(null, 13)->count();
-        $teens = Member::members()->ageRange(14, 17)->count();
-        $adults = Member::members()->ageRange(18, null)->count();
-
-        return ($children * $childrenDue) + ($teens * $teenDue) + ($adults * $adultDue);
     }
 }

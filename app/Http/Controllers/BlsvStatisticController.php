@@ -55,7 +55,7 @@ class BlsvStatisticController extends Controller
             // Der Stichtag ist der 1. Januar: Austritte zum 31.12. und
             // Eintritte zum 1.1. sind darin schon berücksichtigt.
             'keyDate' => formatDate(now()->startOfYear()),
-            'downloads' => $club->getBLSVStatistic(),
+            'downloads' => $club->buildBlsvStatistic(),
         ]);
     }
 }

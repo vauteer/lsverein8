@@ -346,8 +346,8 @@ defineOptions({
                                 class="max-w-56 truncate text-xs text-muted-foreground"
                             >
                                 {{ member.subscriptions }}
-                                <template v-if="member.latest_event">
-                                    · {{ member.latest_event }}
+                                <template v-if="member.latest_honor">
+                                    · {{ member.latest_honor }}
                                 </template>
                             </div>
                         </TableCell>

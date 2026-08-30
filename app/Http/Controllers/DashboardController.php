@@ -51,7 +51,7 @@ class DashboardController extends Controller
         // Every age and membership figure below is read against today.
         Member::setKeyDate(now()->endOfDay());
 
-        // Loaded once and bucketed in PHP, the way Club::getBLSVStatistic()
+        // Loaded once and bucketed in PHP, the way Club::buildBlsvStatistic()
         // does it: age and membership years are derived attributes, so a
         // query per bracket would be a query per bracket per gender.
         $members = Member::query()->members()->with('memberships')->get();

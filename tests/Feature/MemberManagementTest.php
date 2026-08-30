@@ -117,7 +117,7 @@ test('a read-only account is not shown what a member pays', function () {
         ->get(route('members.index'))
         ->assertInertia(fn ($page) => $page
             ->where('members.data.0.subscriptions', null)
-            ->where('members.data.0.latest_event', null)
+            ->where('members.data.0.latest_honor', null)
         );
 
     $this->actingAs(memberUser())
@@ -275,7 +275,7 @@ test('the MySQL-only selections are wired to the right scope', function () {
         [MemberFilter::MilestoneBirthdays, 'YEAR(birthday)'],
         [MemberFilter::Deaths, 'YEAR(`death_day`)'],
         [MemberFilter::Joined, 'YEAR(`from`)'],
-        [MemberFilter::Retired, 'YEAR(`to`)'],
+        [MemberFilter::Left, 'YEAR(`to`)'],
         [MemberFilter::DueHonours, 'FIND_IN_SET'],
     ];
 

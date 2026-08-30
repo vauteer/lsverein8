@@ -200,7 +200,7 @@ export type OutstandingPayment = {
 };
 
 /**
- * A member as sent to the index listing. `subscriptions` and `latest_event` are
+ * A member as sent to the index listing. `subscriptions` and `latest_honor` are
  * null for a non-admin — what somebody pays is a treasurer's business, and the
  * bank details are not in this shape at all.
  *
@@ -225,7 +225,7 @@ export type MemberResource = {
     sections: string;
     roles: string;
     subscriptions: string | null;
-    latest_event: string | null;
+    latest_honor: string | null;
     modifiable: boolean;
 };
 

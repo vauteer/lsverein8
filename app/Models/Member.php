@@ -78,12 +78,12 @@ class Member extends Model
      * Key date every age and membership calculation is evaluated against.
      *
      * Global on purpose: SelectsMembers::selection() sets it from the year in
-     * the URL, Club::getBLSVStatistic() to the 1st of January and the
+     * the URL, Club::buildBlsvStatistic() to the 1st of January and the
      * dashboard back to today, so a list, an export and a report read the same
      * date without passing it through every call.
      *
      * Reached only through setKeyDate() and getKeyDate(), which both copy.
-     * Carbon is mutable, and Club::getBLSVStatistic() hands the very instance
+     * Carbon is mutable, and Club::buildBlsvStatistic() hands the very instance
      * it sets on to BlsvPdf — shared as a reference, one `addDay()` on either
      * side would move the other.
      *
@@ -416,7 +416,14 @@ class Member extends Model
         return $years;
     }
 
-    public function latestEvent(): ?string
+    /**
+     * The name of the most recent honour, or null for none.
+     *
+     * A name, not an Event: it is the member list's rightmost column, next to
+     * the sections and roles, which are strings for the same reason. `events`
+     * is ordered by pivot date descending, so `first()` is the latest.
+     */
+    public function latestHonorName(): ?string
     {
         return $this->events->first()?->name;
     }
@@ -623,10 +630,17 @@ class Member extends Model
     }
 
     /**
+     * Whoever left in the given year, defaulting to the key date's.
+     *
+     * `left`, not `resigned`, though MemberController::resign() is what
+     * usually writes the `to`: the member list labels this selection "Left"
+     * (Austritte), and a scope and its own label should say the same word. It
+     * was `retired` until 2026-08-30, which said neither.
+     *
      * @param  Builder<Member>  $query
      */
     #[Scope]
-    protected function retired(Builder $query, ?int $year = null): void
+    protected function left(Builder $query, ?int $year = null): void
     {
         $query->whereIn('id', ClubMember::whereRaw('YEAR(`to`) = ?', [$year ?? self::getKeyDate()->year])
             ->pluck('member_id'));

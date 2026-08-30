@@ -44,7 +44,7 @@ Die Seite bietet beide Meldungen nebeneinander an: Jahresmeldung (Stichtag 1.1.,
 ## BLSV-Statistik: immer der aktuelle Verein, GET baut sie neu
 `build()` erzeugt die Jahresmeldung und listet die Dateien auf `clubs/BlsvStatistic.vue`.
 
-**Der Vereinsparameter ist reine Kosmetik — gerechnet wird immer der aktuelle Verein.** `Member` und `Section` tragen ClubScope, `Club::getBLSVStatistic()` liest also die Mitglieder des Vereins, in dem der Benutzer *arbeitet*, benennt die Dateien aber nach `$this`. Deshalb verlangt `ClubPolicy::blsvStatistic()` ausdrücklich `$club->id === currentClubId()` und delegiert **nicht** an `update()` — sonst könnte root von der Seite eines anderen Vereins aus die Mitglieder des eigenen unter fremdem Namen ablegen. Root wechselt vorher, so wie es die Vereinsliste beim Mitgliederzähler ohnehin verlangt. Dazu `blsv_member` und `hasAdminRights()` (gleiche Schranke wie der Gate `downloadGeneratedFiles` — wer die Dateien nicht laden darf, soll sie nicht erzeugen).
+**Der Vereinsparameter ist reine Kosmetik — gerechnet wird immer der aktuelle Verein.** `Member` und `Section` tragen ClubScope, `Club::buildBlsvStatistic()` liest also die Mitglieder des Vereins, in dem der Benutzer *arbeitet*, benennt die Dateien aber nach `$this`. Deshalb verlangt `ClubPolicy::blsvStatistic()` ausdrücklich `$club->id === currentClubId()` und delegiert **nicht** an `update()` — sonst könnte root von der Seite eines anderen Vereins aus die Mitglieder des eigenen unter fremdem Namen ablegen. Root wechselt vorher, so wie es die Vereinsliste beim Mitgliederzähler ohnehin verlangt. Dazu `blsv_member` und `hasAdminRights()` (gleiche Schranke wie der Gate `downloadGeneratedFiles` — wer die Dateien nicht laden darf, soll sie nicht erzeugen).
 
 Ein GET, der schreibt, ist Absicht (wie lsverein7): gespeichert wird nur nach storage/downloads, und die Zahlen sollen den Stand im Moment des Aufrufs zeigen. Ein Reload baut also neu, statt Altes zu zeigen.
 
@@ -63,14 +63,14 @@ Jeder Eintrag trägt seit 2026-08-27 ein `description` neben dem `name` (`Genera
 
 **Die Kachel heißt „Ehrungen", nicht „Fällige Ehrungen".** Die Zahl ist weiter der `due_honours`-Wert und verlinkt auch dorthin, aber eine Ehrung, die dieses Jahr ansteht, kann längst verliehen sein — „fällig" behauptet mehr, als die Zahl weiß.
 
-**Tragende Eigenschaft, gleiche wie bei `members_count`:** jede angezeigte Zahl wird von genau der Auswahl erzeugt, auf die sie verlinkt — Abteilungen/Beiträge über `AssignedMemberCount`, die Altersgruppen über `AgeBracket::apply()` (= `members()->ageRange()`), die Jahreszahlen über dieselben `club_member`-Bedingungen wie `joined`/`retired`. Eine Zahl, die das nicht halten kann, wird **nicht** als Link gerendert (Vereinszugehörigkeit hat keine Auswahl und ist deshalb reiner Text). Am 2026-08-27 an Produktionsdaten geprüft: alle sieben Altersgruppen stimmen exakt mit ihrer Auswahl überein.
+**Tragende Eigenschaft, gleiche wie bei `members_count`:** jede angezeigte Zahl wird von genau der Auswahl erzeugt, auf die sie verlinkt — Abteilungen/Beiträge über `AssignedMemberCount`, die Altersgruppen über `AgeBracket::apply()` (= `members()->ageRange()`), die Jahreszahlen über dieselben `club_member`-Bedingungen wie `joined`/`left`. Eine Zahl, die das nicht halten kann, wird **nicht** als Link gerendert (Vereinszugehörigkeit hat keine Auswahl und ist deshalb reiner Text). Am 2026-08-27 an Produktionsdaten geprüft: alle sieben Altersgruppen stimmen exakt mit ihrer Auswahl überein.
 
-**Kein MySQL-only-Scope auf diesem Bildschirm.** `dueHonor`, `joined`, `retired`, `dead`, `milestoneBirthdays` nutzen `YEAR`/`LEAST`/`FIND_IN_SET` und würden die ganze Seite auf der SQLite-Testverbindung unausführbar machen. Deshalb:
+**Kein MySQL-only-Scope auf diesem Bildschirm.** `dueHonor`, `joined`, `left`, `dead`, `milestoneBirthdays` nutzen `YEAR`/`LEAST`/`FIND_IN_SET` und würden die ganze Seite auf der SQLite-Testverbindung unausführbar machen. Deshalb:
 - Ein-/Austritte über `whereBetween('from'|'to', [1.1., 31.12.])` statt `YEAR(...)` — gleiche Menge, portabel.
 - Fällige Ehrungen über `Member::membershipYears()` in PHP statt über den `dueHonor`-Scope. Beide Wege liefern in Produktion dieselbe Zahl (23, geprüft); sie können nur bei jemandem auseinanderlaufen, der im selben Jahr wieder eingetreten ist und ältere Mitgliedschaften hat — `membershipYears()` gibt dann 0 zurück, das SQL summiert. Das ist eine bestehende Abweichung der App, nicht des Dashboards.
 - `honor_years` einmal im Controller auflösen, nicht `Member::honorYearReached()` pro Zeile: das ruft `currentClub()` und damit ein `Club::find()` je Mitglied.
 
-Die Mitglieder werden **einmal** geladen (`members()->with('memberships')`) und in PHP in Alters- und Zugehörigkeitsbänder sortiert — wie `Club::getBLSVStatistic()`. Eine Abfrage je Gruppe wäre eine Abfrage je Gruppe **und** Geschlecht.
+Die Mitglieder werden **einmal** geladen (`members()->with('memberships')`) und in PHP in Alters- und Zugehörigkeitsbänder sortiert — wie `Club::buildBlsvStatistic()`. Eine Abfrage je Gruppe wäre eine Abfrage je Gruppe **und** Geschlecht.
 
 Die Beiträge-Karte ist admin-only (`hasAdminRights()`), gleiche Begründung wie bei `MemberResource` und `MemberFilter::NoSubscription`.
 
@@ -83,7 +83,7 @@ Zwei Formate, beide „Für die Mitgliedernachmeldung": `MemberExport::BlsvExcel
 
 Geschrieben mit **openspout/openspout** (2026-08-27 aufgenommen, einziges neues Paket, hängt nur an PHP-Extensions). Der Schreiber kann nur in einen echten Pfad schreiben (er baut ein Zip), deshalb `tempnam()` und zurücklesen.
 
-Das CSV bleibt bewusst daneben stehen, als Ausweichpfad falls der Verband die .xlsx beanstandet. Struktur unverändert wie `BE{Jahr}_Gesamt.csv` aus `Club::getBLSVStatistic()`: Semikolon, CRLF, gequotetes `d.m.y`, ISO-8859-1 (einmal am Schluss konvertiert, nicht pro Feld).
+Das CSV bleibt bewusst daneben stehen, als Ausweichpfad falls der Verband die .xlsx beanstandet. Struktur unverändert wie `BE{Jahr}_Gesamt.csv` aus `Club::buildBlsvStatistic()`: Semikolon, CRLF, gequotetes `d.m.y`, ISO-8859-1 (einmal am Schluss konvertiert, nicht pro Feld).
 
 Am 2026-08-27 gegen die echte BLSV-Vorlage `BE2026_08_Mitgliederimport.xlsx` geprüft: Kopfzeile identisch, A/D durchgängig leer, gleiche Spartenmenge, 269 von 275 Zeilen deckungsgleich. Die Abweichungen sind alle echte Datenänderungen seit der Vorlage (Austritte, ein gelöschtes Mitglied, Neueintritte), keine Formatfehler.
 
@@ -99,7 +99,7 @@ An den Produktionsdaten geprüft (2026-08-27): Verein 1 (der einzige mit `blsv_m
 
 Dateiname `BE{Jahr}_Nachmeldung_{TTMM}.{ext}` für beide (z. B. `BE2026_Nachmeldung_2708.xlsx`), statt des generischen `filename()`. Generisch hieße die Datei „mitglieder-2026.csv", also genau wie der einfache CSV-Export; und ein Verein meldet mehrmals im Jahr nach, das Datum hält die Dateien im Download-Ordner auseinander. Jahr **und** Tag kommen aus `Member::getKeyDate()`, nicht das Jahr aus `$selection['year']` — so können sie nicht auseinanderlaufen (ein vergangenes Jahr wird zum 31.12. gelesen).
 
-Die Spaltenüberschrift heißt seit 2026-08-27 `Spartenkennzeichen`, vorher `Spartennummer` — in **allen** Dateien (beide Exporte und `Club::getBLSVStatistic()`), damit sie nicht auseinanderlaufen.
+Die Spaltenüberschrift heißt seit 2026-08-27 `Spartenkennzeichen`, vorher `Spartennummer` — in **allen** Dateien (beide Exporte und `Club::buildBlsvStatistic()`), damit sie nicht auseinanderlaufen.
 
 Testhilfen `xlsxParts()` / `xlsxRows()` in tests/Pest.php lesen eine erzeugte .xlsx als Gitter zurück (Inline-Strings, kein sharedStrings). `numFmts count="0"` in styles.xml ist die Zusage „kein eigenes Format registriert" — OpenSpout schreibt das leere Element immer, `not->toContain('<numFmts')` schlägt also fehl.
 

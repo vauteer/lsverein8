@@ -47,7 +47,7 @@ class MemberResource extends JsonResource
             // bank details are not in this resource at all — the edit form is
             // the only place they are sent, and only an admin reaches it.
             'subscriptions' => $isAdmin ? $this->currentSubscriptions() : null,
-            'latest_event' => $isAdmin ? $this->latestEvent() : null,
+            'latest_honor' => $isAdmin ? $this->latestHonorName() : null,
             'modifiable' => (bool) $request->user()?->can('update', $this->resource),
         ];
     }

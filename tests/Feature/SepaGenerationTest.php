@@ -96,7 +96,7 @@ it('builds the blsv statistic with csv files and a pdf', function () {
     $member->memberships()->attach($this->club->id, ['from' => '2016-01-01', 'to' => null]);
     $member->sections()->attach($section->id, ['from' => '2016-01-01']);
 
-    $files = $this->club->getBLSVStatistic();
+    $files = $this->club->buildBlsvStatistic();
 
     expect($files)->not->toBeEmpty();
 
@@ -127,7 +127,7 @@ it('lists a section by surname and counts a member of it once', function () {
         $member->sections()->attach($second->id, ['from' => '2019-01-01']);
     }
 
-    $this->club->getBLSVStatistic();
+    $this->club->buildBlsvStatistic();
 
     $year = now()->startOfYear()->year;
     $lines = array_values(array_filter(explode("\n", str_replace("\r", '',
@@ -147,7 +147,7 @@ it('escapes a section name that would break the export path', function () {
     $member->memberships()->attach($this->club->id, ['from' => '2016-01-01', 'to' => null]);
     $member->sections()->attach($section->id, ['from' => '2016-01-01']);
 
-    $files = $this->club->getBLSVStatistic();
+    $files = $this->club->buildBlsvStatistic();
 
     $year = now()->startOfYear()->year;
     $written = "{$this->club->id}_BE{$year}_Turnen-Leichtathletik.csv";
@@ -171,7 +171,7 @@ it('keeps two sections apart when their names escape to the same file', function
         $member->sections()->attach($section->id, ['from' => '2016-01-01']);
     }
 
-    $this->club->getBLSVStatistic();
+    $this->club->buildBlsvStatistic();
 
     $year = now()->startOfYear()->year;
 
@@ -187,7 +187,7 @@ it('leaves the divers column out of the statistic until a member needs it', func
     $member->memberships()->attach($this->club->id, ['from' => '2016-01-01', 'to' => null]);
     $member->sections()->attach($section->id, ['from' => '2016-01-01']);
 
-    $this->club->getBLSVStatistic();
+    $this->club->buildBlsvStatistic();
     $pdf = pdfText(file_get_contents(storage_path("downloads/{$this->club->id}_blsv_stat.pdf")));
 
     // The club has submitted a two-column sheet for years; a third one that is
@@ -203,7 +203,7 @@ it('cuts in the divers column and reports d once a member is diverse', function 
     $member->memberships()->attach($this->club->id, ['from' => '2016-01-01', 'to' => null]);
     $member->sections()->attach($section->id, ['from' => '2016-01-01']);
 
-    $this->club->getBLSVStatistic();
+    $this->club->buildBlsvStatistic();
 
     $year = now()->startOfYear()->year;
     $sectionCsv = file_get_contents(storage_path("downloads/{$this->club->id}_BE{$year}_Fussball.csv"));
@@ -213,16 +213,4 @@ it('cuts in the divers column and reports d once a member is diverse', function 
         ->and($pdf)->toContain('Divers')
         // The member is counted in its own column, not among the women.
         ->and($pdf)->toContain('Weiblich');
-});
-
-it('calculates the blsv debit from the age bands', function () {
-    Member::setKeyDate(Carbon\Carbon::parse('2024-01-01'));
-
-    foreach (['2012-01-01', '2008-01-01', '1980-01-01'] as $birthday) {
-        $member = Member::factory()->ofClub($this->club)->create(['birthday' => $birthday]);
-        $member->memberships()->attach($this->club->id, ['from' => '2016-01-01', 'to' => null]);
-    }
-
-    // one child (12), one teen (16), one adult (44)
-    expect($this->club->calcBlsvDebit(1.0, 2.0, 3.0))->toBe(6.0);
 });

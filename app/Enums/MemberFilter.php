@@ -23,7 +23,7 @@ enum MemberFilter: string
     case MilestoneBirthdays = 'milestone_birthdays';
     case Deaths = 'deaths';
     case Joined = 'joined';
-    case Retired = 'retired';
+    case Left = 'left';
     case Children = 'children';
     case Youths = 'youths';
     case Adults = 'adults';
@@ -43,7 +43,7 @@ enum MemberFilter: string
             self::MilestoneBirthdays => __('Milestone birthdays'),
             self::Deaths => __('Deaths'),
             self::Joined => __('Joined'),
-            self::Retired => __('Left'),
+            self::Left => __('Left'),
             self::Children => __('Children (up to 13)'),
             self::Youths => __('Youths (14 to 17)'),
             self::Adults => __('Adults (18 and over)'),
@@ -84,7 +84,7 @@ enum MemberFilter: string
             self::MilestoneBirthdays => $query->members()->milestoneBirthdays(),
             self::Deaths => $query->dead(),
             self::Joined => $query->joined(),
-            self::Retired => $query->retired(),
+            self::Left => $query->left(),
             self::Children => $query->members()->ageRange(null, 13),
             self::Youths => $query->members()->ageRange(14, 17),
             self::Adults => $query->members()->ageRange(18, null),

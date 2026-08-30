@@ -14,7 +14,7 @@ use RuntimeException;
  * One member list in the layout the BLSV accepts, as Excel or as CSV.
  *
  * Two screens produce such a list, and they are not the same list: the yearly
- * Meldung (Club::getBLSVStatistic(), read at 1 January and ordered by section)
+ * Meldung (Club::buildBlsvStatistic(), read at 1 January and ordered by section)
  * and a Nachmeldung during the year (MemberExportController, read at the
  * member list's key date and ordered by member). Which rows go in is therefore
  * the caller's business; what they must never differ in is the layout, so only
