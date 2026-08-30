@@ -31,9 +31,6 @@ class SectionResource extends JsonResource
                 ? null
                 : (Section::BLSV_SECTIONS[$this->blsv_id] ?? null),
             'members_count' => (int) $this->getAttribute('members_count'),
-            // Sections shared across all clubs (club_id null) are listed here
-            // but only a root account may change them.
-            'shared' => $this->club_id === null,
             'modifiable' => (bool) $request->user()?->can('update', $this->resource),
             'deletable' => (bool) $request->user()?->can('delete', $this->resource),
         ];

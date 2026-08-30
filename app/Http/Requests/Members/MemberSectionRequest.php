@@ -26,7 +26,7 @@ class MemberSectionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'section_id' => $this->belongsToClubRule(Section::class, shared: true),
+            'section_id' => $this->belongsToClubRule(Section::class),
             ...$this->rangeRules(),
         ];
     }

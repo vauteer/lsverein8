@@ -64,7 +64,7 @@ class ClubExport
             'club_user' => DB::table('club_user')->where('club_id', $clubId),
             'members' => DB::table('members')->where('club_id', $clubId),
             'club_member' => DB::table('club_member')->where('club_id', $clubId),
-            'sections' => $this->ownOrShared('sections', 'member_section', 'section_id', $memberIds),
+            'sections' => DB::table('sections')->where('club_id', $clubId),
             'member_section' => DB::table('member_section')->whereIn('member_id', $memberIds),
             'events' => $this->ownOrShared('events', 'event_member', 'event_id', $memberIds),
             'event_member' => DB::table('event_member')->whereIn('member_id', $memberIds),
@@ -82,7 +82,8 @@ class ClubExport
      * The club's own rows of a table plus any installation-wide row
      * (`club_id IS NULL`) its members are actually assigned to.
      *
-     * `sections`, `events` and `roles` have both kinds. lsverein7 exported
+     * `events` and `roles` have both kinds; `sections` did too until
+     * 2026-08-30, when `sections.club_id` became NOT NULL. lsverein7 exported
      * only `club_id = N`, which leaves a dangling foreign key the moment a
      * member is given one of the shared rows — the insert_events_defaults
      * migration seeds seven of them into every installation. No club uses one

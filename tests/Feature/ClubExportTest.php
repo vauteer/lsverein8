@@ -4,6 +4,7 @@ use App\ClubExport;
 use App\Enums\ClubRole;
 use App\Models\Club;
 use App\Models\Debit;
+use App\Models\Event;
 use App\Models\Member;
 use App\Models\Section;
 use App\Models\Subscription;
@@ -138,24 +139,25 @@ test('the script warns that it empties the tables it fills', function () {
 });
 
 test('an installation-wide row a member is assigned to comes along', function () {
-    // sections, events and roles have nullable club_id. lsverein7 exported
-    // only club_id = N, which leaves member_section pointing at a row the
-    // import does not contain.
-    $shared = Section::factory()->create(['club_id' => null, 'name' => 'Geteilte Sparte']);
-    $unused = Section::factory()->create(['club_id' => null, 'name' => 'Ungenutzte Sparte']);
+    // events and roles have nullable club_id, and insert_events_defaults seeds
+    // seven of them into every installation. lsverein7 exported only
+    // club_id = N, which leaves event_member pointing at a row the import does
+    // not contain. (sections had the same shape until 2026-08-30.)
+    $shared = Event::factory()->create(['club_id' => null, 'name' => 'Geteilte Ehrung']);
+    $unused = Event::factory()->create(['club_id' => null, 'name' => 'Ungenutzte Ehrung']);
 
     $member = Member::factory()->ofClub(1)->create();
     $member->memberships()->attach(1, ['from' => '2016-01-01']);
-    $member->sections()->attach($shared->id, ['from' => '2016-01-01']);
+    $member->events()->attach($shared->id, ['date' => '2016-01-01']);
 
     $sql = $this->actingAs(clubExportUser())
         ->get(route('clubs.export', $this->club))
         ->getContent();
 
-    expect($sql)->toContain('Geteilte Sparte')
+    expect($sql)->toContain('Geteilte Ehrung')
         // Only what is actually referenced; the rest of the installation's
         // shared rows are none of this club's business.
-        ->not->toContain('Ungenutzte Sparte');
+        ->not->toContain('Ungenutzte Ehrung');
 });
 
 test('a value containing a quote or a backslash survives the round trip', function () {

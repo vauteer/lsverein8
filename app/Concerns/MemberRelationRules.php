@@ -62,8 +62,10 @@ trait MemberRelationRules
      * model's club scope, so without this a club admin could attach another
      * club's section, role or subscription to their member.
      *
-     * `$shared` covers the tables whose `club_id` is nullable — sections,
-     * events and roles have installation-wide rows that belong to every club.
+     * `$shared` covers the tables whose `club_id` is nullable — events and
+     * roles have installation-wide rows that belong to every club, seeded by
+     * insert_events_defaults and insert_roles_defaults. Sections had them too
+     * until 2026-08-30, when the column became NOT NULL.
      *
      * @param  class-string<Model>  $model
      * @return array<int, ValidationRule|string>

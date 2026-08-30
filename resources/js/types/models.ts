@@ -47,7 +47,6 @@ export type SectionResource = {
     blsv_id: number | null;
     blsv_label: string | null;
     members_count: number;
-    shared: boolean;
     modifiable: boolean;
     deletable: boolean;
 };

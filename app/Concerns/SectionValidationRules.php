@@ -13,7 +13,7 @@ trait SectionValidationRules
      *
      * `club_id` is deliberately absent: it is set from the current club when
      * the section is created and never submitted, so a club admin cannot move
-     * a section into another club or turn it into a shared one.
+     * a section into another club.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -27,13 +27,11 @@ trait SectionValidationRules
                 // Deliberately unrestricted beyond the length: the BLSV export
                 // escapes the name where it builds the path (Club::pathSafe()),
                 // so a slash is the filesystem's problem, not the club's.
+                // Scoped by hand: `exists` and `unique` run plain queries and
+                // inherit no model scope. Another club's identical name is
+                // free — it is never listed beside this club's.
                 Rule::unique(Section::class)
-                    // Shared sections (club_id null) are listed alongside the
-                    // club's own ones, so a duplicate name would show twice.
-                    ->where(fn ($query) => $query
-                        ->where(fn ($inner) => $inner
-                            ->where('club_id', currentClubId())
-                            ->orWhereNull('club_id')))
+                    ->where(fn ($query) => $query->where('club_id', currentClubId()))
                     ->ignore($sectionId),
             ],
             'blsv_id' => [

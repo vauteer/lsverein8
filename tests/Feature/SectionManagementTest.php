@@ -32,9 +32,9 @@ test('guests are redirected to the login page', function () {
     $this->get(route('sections.index'))->assertRedirect(route('login'));
 });
 
-test('the index lists the club sections and the shared ones, but no other club', function () {
+test('the index lists the club sections and no other club', function () {
     $own = Section::factory()->create(['club_id' => 1, 'name' => 'Turnen']);
-    $shared = Section::factory()->create(['club_id' => null, 'name' => 'Schach']);
+    $also = Section::factory()->create(['club_id' => 1, 'name' => 'Schach']);
     $foreign = Section::factory()->create(['name' => 'Fremde Abteilung']);
 
     $this->actingAs(sectionUser(ClubRole::Basic))
@@ -43,10 +43,8 @@ test('the index lists the club sections and the shared ones, but no other club',
         ->assertInertia(fn ($page) => $page
             ->component('sections/Index')
             ->has('sections.data', 2)
-            ->where('sections.data.0.id', $shared->id)
-            ->where('sections.data.0.shared', true)
+            ->where('sections.data.0.id', $also->id)
             ->where('sections.data.1.id', $own->id)
-            ->where('sections.data.1.shared', false)
             ->whereNot('sections.data.0.id', $foreign->id)
             ->whereNot('sections.data.1.id', $foreign->id)
             ->where('blsv', false)
@@ -134,15 +132,13 @@ test('an admin creates a section for the current club', function () {
         ->and($section->blsv_id)->toBeNull();
 });
 
-test('a section name must be unique among the club and shared sections', function () {
+test('a section name must be unique within the club', function () {
     Section::factory()->create(['club_id' => 1, 'name' => 'Turnen']);
-    Section::factory()->create(['club_id' => null, 'name' => 'Schach']);
     Section::factory()->create(['name' => 'Fremde Abteilung']);
 
     $this->actingAs(sectionUser());
 
     $this->post(route('sections.store'), ['name' => 'Turnen'])->assertSessionHasErrors('name');
-    $this->post(route('sections.store'), ['name' => 'Schach'])->assertSessionHasErrors('name');
 
     // Another club's name is free: it is never listed alongside these.
     $this->post(route('sections.store'), ['name' => 'Fremde Abteilung'])->assertSessionHasNoErrors();
@@ -222,20 +218,6 @@ test('an unused section is deleted and a used one is kept', function () {
 
     $this->get(route('sections.edit', $used))
         ->assertInertia(fn ($page) => $page->where('deletable', false));
-});
-
-test('a club admin may not change a shared section, but a root account may', function () {
-    $shared = Section::factory()->create(['club_id' => null, 'name' => 'Schach']);
-
-    $this->actingAs(sectionUser())
-        ->get(route('sections.edit', $shared))
-        ->assertForbidden();
-
-    $this->actingAs(sectionUser(attributes: ['admin' => true]))
-        ->put(route('sections.update', $shared), ['name' => 'Schach und Go'])
-        ->assertRedirect();
-
-    expect($shared->refresh()->name)->toBe('Schach und Go');
 });
 
 test('a section of another club cannot be reached by guessing its id', function () {

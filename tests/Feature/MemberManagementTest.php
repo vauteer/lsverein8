@@ -462,19 +462,6 @@ test('a new member cannot be filed under another club section or subscription', 
     expect(Member::withoutGlobalScopes()->where('surname', 'Meier')->count())->toBe(0);
 });
 
-test('an installation-wide section is accepted for a new member', function () {
-    // sections.club_id is nullable; those rows belong to every club.
-    $shared = Section::factory()->create(['club_id' => null]);
-
-    $this->actingAs(memberUser())
-        ->post(route('members.store'), memberPayload([
-            'entry_date' => '2024-03-01',
-            'section_id' => $shared->id,
-            'subscription_id' => entrySubscription(),
-        ]))
-        ->assertSessionHasNoErrors();
-});
-
 test('the bank details are all or nothing', function () {
     $section = Section::factory()->create(['club_id' => 1]);
     $entry = [

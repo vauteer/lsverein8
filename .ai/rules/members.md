@@ -24,7 +24,7 @@ Drei Formen, ein Controller je Relation unter `app/Http/Controllers/Members/`, j
 Weitere Festlegungen:
 
 - **Mitgliedschaften haben keine Vereinsauswahl.** Alle 593 `club_member`-Zeilen zeigen auf den eigenen Verein des Mitglieds, und eine fremde wäre hinter dem ClubScope ohnehin unsichtbar. Der Controller setzt `currentClubId()`. Mehrere Zeiträume sind aber nötig: 8 Mitglieder sind ausgetreten und wieder eingetreten, `Member::membershipYears()` summiert.
-- **`belongsToClubRule()` (in `MemberRelationRules`) klubt `exists` von Hand.** `exists` erbt keinen Model-Scope. `shared: true` für Abteilungen/Funktionen/Ehrungen, deren `club_id` nullable ist; Beiträge und Inventar sind NOT NULL und bekommen es nicht.
+- **`belongsToClubRule()` (in `MemberRelationRules`) klubt `exists` von Hand.** `exists` erbt keinen Model-Scope. `shared: true` für Funktionen/Ehrungen, deren `club_id` nullable ist; Beiträge, Inventar und — seit 2026-08-30 — Abteilungen sind NOT NULL und bekommen es nicht.
 - **Die Inventar-Routen tragen zusätzlich `can('viewAny', Item::class)`,** damit ein Verein ohne Inventar auch nichts ausgeben kann — nicht nur der Abschnitt fehlt.
 - Alle Aktionen antworten mit `back()`, nicht mit einer benannten Route: Aufrufer ist die Mitgliederseite, die so ihren Listenzustand behält.
 - Store und Update teilen sich ein Request je Relation — es gibt hier keine Unique-Regel, die sich unterscheiden würde.

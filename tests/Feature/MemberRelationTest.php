@@ -202,18 +202,14 @@ test('another club section, role or subscription is refused', function () {
     ])->assertSessionHasErrors('subscription_id');
 });
 
-test('an installation-wide section, role or honour is accepted', function () {
-    // sections, roles and events all have a nullable club_id; those rows
-    // belong to every club.
-    $section = Section::factory()->create(['club_id' => null]);
+test('an installation-wide role or honour is accepted', function () {
+    // roles and events have a nullable club_id, seeded installation-wide by
+    // insert_roles_defaults and insert_events_defaults; sections had it too
+    // until 2026-08-30, when every section became a club's own.
     $role = Role::factory()->create(['club_id' => null]);
     $event = Event::factory()->create(['club_id' => null]);
 
     $this->actingAs(relationUser());
-
-    $this->post(route('members.sections.store', $this->member), [
-        'section_id' => $section->id, 'from' => '2020-01-01',
-    ])->assertSessionHasNoErrors();
 
     $this->post(route('members.roles.store', $this->member), [
         'role_id' => $role->id, 'from' => '2020-01-01',
@@ -223,8 +219,7 @@ test('an installation-wide section, role or honour is accepted', function () {
         'event_id' => $event->id, 'date' => '2020-01-01',
     ])->assertSessionHasNoErrors();
 
-    expect($this->member->sections()->count())->toBe(1)
-        ->and($this->member->roles()->count())->toBe(1)
+    expect($this->member->roles()->count())->toBe(1)
         ->and($this->member->events()->count())->toBe(1);
 });
 

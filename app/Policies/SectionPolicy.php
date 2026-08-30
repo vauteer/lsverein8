@@ -22,19 +22,15 @@ class SectionPolicy
     }
 
     /**
-     * Sections shared across all clubs (club_id null) belong to the
-     * installation, not to a club, so only a root account may change them.
+     * A section belongs to one club, so its club's admins may change it.
+     *
+     * There is no installation-wide section left for a root account to own:
+     * until 2026-08-30 a null `club_id` made a row everyone's, and only
+     * `users.admin` could edit it. Root now reaches a section the same way it
+     * reaches everything else in a club, by switching into it.
      */
     public function update(User $user, Section $section): bool
     {
-        if ($section->club_id === null) {
-            // (bool): `users.admin` is `NOT NULL DEFAULT 0`, but a model that
-            // was created without an explicit `admin` never loads that default
-            // back, so the attribute is absent and `$user->admin` is null
-            // until the row is re-read. Casting keeps the bool return honest.
-            return (bool) $user->admin;
-        }
-
         return $user->hasAdminRights($section->club_id);
     }
 

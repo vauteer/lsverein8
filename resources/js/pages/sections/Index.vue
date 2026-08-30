@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Globe, Pencil, Plus, Search } from '@lucide/vue';
+import { Pencil, Plus, Search } from '@lucide/vue';
 import { trans } from 'laravel-vue-i18n';
 import { computed, ref, watch } from 'vue';
 import Heading from '@/components/Heading.vue';
@@ -130,21 +130,8 @@ defineOptions({
                         than truncating — these are told apart by their full
                         name. -->
                         <TableCell class="font-medium whitespace-normal">
-                            <span class="flex items-start gap-1.5">
-                                <span class="min-w-0 break-words">
-                                    {{ section.name }}
-                                </span>
-                                <Tooltip v-if="section.shared">
-                                    <TooltipTrigger as-child>
-                                        <Globe
-                                            class="mt-1 size-3.5 shrink-0 text-muted-foreground"
-                                            :aria-label="$t('Shared section')"
-                                        />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        {{ $t('Shared section') }}
-                                    </TooltipContent>
-                                </Tooltip>
+                            <span class="min-w-0 break-words">
+                                {{ section.name }}
                             </span>
                             <div
                                 v-if="blsv && section.blsv_label"
