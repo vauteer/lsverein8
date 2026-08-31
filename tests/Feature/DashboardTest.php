@@ -266,7 +266,10 @@ test('the login card counts twelve months per user, newest month last', function
     User::factory()->create(['club_id' => 1, 'name' => 'Nie']);
 
     Tracing::factory()->count(3)->create(['user_id' => $root->id, 'at' => now()]);
-    Tracing::factory()->create(['user_id' => $root->id, 'at' => now()->subMonths(11)->startOfMonth()]);
+    // startOfMonth() first, as the card itself does: subMonths() off the 31st
+    // overflows (31 August less 11 months is 1 October, not September), which
+    // would drop this login into the second bar instead of the first.
+    Tracing::factory()->create(['user_id' => $root->id, 'at' => now()->startOfMonth()->subMonths(11)]);
     Tracing::factory()->create(['user_id' => $quiet->id, 'at' => now()]);
 
     // Just outside the window, and an action that is not a login: neither counts.

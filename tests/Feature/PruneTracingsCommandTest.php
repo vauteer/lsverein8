@@ -48,7 +48,10 @@ it('deletes what is older than the window and keeps the rest', function () {
 
 it('honours a shorter window', function () {
     $user = activeUser();
-    Tracing::factory()->create(['user_id' => $user->id, 'at' => now()->subMonths(4)]);
+    // Month-aligned like the cutoff itself: a bare subMonths(4) off the 31st
+    // overflows onto the first of the month and lands exactly on the boundary,
+    // which the window keeps rather than deletes.
+    Tracing::factory()->create(['user_id' => $user->id, 'at' => now()->startOfMonth()->subMonths(4)]);
 
     $this->artisan('app:prune-tracings', ['--months' => 3])
         ->expectsOutputToContain('Deleted 1 tracings')
