@@ -21,6 +21,11 @@ Schedule::command('app:backup')
 Schedule::command('telescope:prune --hours=48')
     ->dailyAt('23:00');
 
+// 05:00 UTC is early morning in Germany, so the digest is waiting rather
+// than arriving during the day.
+Schedule::command('app:mail-errors')
+    ->dailyAt('05:00');
+
 // Weekly, and placed before the Sunday backup so a dump taken that night
 // carries the pruned table rather than one last copy of the rows we just
 // decided not to keep. Only "so if" — `Backup::isDirty()` does not watch
