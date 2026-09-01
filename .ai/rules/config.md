@@ -2,6 +2,7 @@
 paths:
   - config/log-viewer.php
   - config/telescope.php
+  - config/filesystems.php
 ---
 
 # Config
@@ -35,3 +36,10 @@ Telescope v5 (2026-08-27 installiert, produktive Abhängigkeit, nicht require-de
 Testfalle: `TELESCOPE_ENABLED` in phpunit.xml kommt als **leerer String** an, nicht als `false` — falsy, also registriert das Paket seine Routen in der Suite gar nicht und `GET /telescope` ist dort ein 404. TelescopeTest kann deshalb nicht wie LogViewerTest über HTTP prüfen und ruft stattdessen `Telescope::check()` mit einem Request samt `setUserResolver()` direkt auf. Nicht versuchen, das über HTTP grün zu bekommen, ohne Telescope in Tests einzuschalten — dann schreibt jeder Test eine Zeile pro Query.
 
 `storage.database.connection` steht auf `env('DB_CONNECTION', 'mariadb')` (Paket-Default war 'mysql', das es hier nicht gibt). `ignore_paths` hat zusätzlich `log-viewer*`, dessen UI im geöffneten Zustand die eigene API pollt.
+
+## Der s3-Datenträger braucht 'root' => env('AWS_ROOT') — sonst landet das Backup im Bucket-Wurzelverzeichnis
+`AWS_ROOT` stand seit Beginn in `.env` und `.env.example`, wurde aber nirgends gelesen: dem `s3`-Datenträger in `config/filesystems.php` fehlte der `root`-Schlüssel. `Backup::copyToS3()` schreibt `basename($filePath)`, also einen nackten Dateinamen ohne eigenes Verzeichnis — das Präfix kann nur vom Datenträger kommen. Wirkung auf dem Server: jeder Dump lag im Wurzelverzeichnis des Buckets neben dem, was sich den Bucket sonst noch teilt, statt im vorgesehenen Ordner. Am 2026-09-01 mit `'root' => env('AWS_ROOT', '')` behoben; lscraft5 und lsgallery4 tragen dieselbe Zeile.
+
+Nicht wieder entfernen, auch nicht beim Neu-Publizieren der Laravel-Standardconfig (die kennt den Schlüssel nicht). `tests/Feature/BackupTest.php` pinnt beides — den gesetzten Wert und den Rückfall auf `''`; die Tests laden `config/filesystems.php` per `require` neu und setzen `$_SERVER`/`$_ENV` statt `putenv()`, weil ein leeres `AWS_ROOT=` aus der `.env` sonst gewinnt.
+
+`Storage::fake('s3')` ersetzt die Datenträger-Config komplett — ein Test über das Storage-Facade kann diesen Fehler also grundsätzlich nicht finden, deshalb wird die Config-Datei direkt geprüft.

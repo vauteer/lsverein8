@@ -53,6 +53,15 @@ return [
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'region' => env('AWS_DEFAULT_REGION'),
             'bucket' => env('AWS_BUCKET'),
+
+            /*
+             * The prefix every path on this disk is written under. Without it
+             * the backup upload lands in the bucket root next to whatever else
+             * shares the bucket, so `AWS_ROOT` has to be read here — nothing
+             * else in the application looks at it.
+             */
+            'root' => env('AWS_ROOT', ''),
+
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),

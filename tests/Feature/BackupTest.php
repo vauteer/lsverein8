@@ -249,3 +249,44 @@ test('the credentials file keeps the password off the process list', function ()
         File::delete($path);
     }
 });
+
+/**
+ * `Backup::copyToS3()` writes `basename($filePath)` — a bare filename with no
+ * directory of its own. The prefix that puts the dump inside the folder rather
+ * than beside it therefore has to come from the disk, and `AWS_ROOT` is the
+ * only place it is configured. Until 2026-09-01 the s3 disk had no `root` key
+ * at all, so every dump landed in the bucket root; lscraft5 and lsgallery4
+ * carry the same line.
+ */
+test('the s3 disk puts the backup under the configured AWS_ROOT', function () {
+    $original = $_SERVER['AWS_ROOT'] ?? null;
+    $_SERVER['AWS_ROOT'] = $_ENV['AWS_ROOT'] = 'lsverein8';
+
+    try {
+        $filesystems = require base_path('config/filesystems.php');
+
+        expect($filesystems['disks']['s3'])->toHaveKey('root')
+            ->and($filesystems['disks']['s3']['root'])->toBe('lsverein8');
+    } finally {
+        if ($original === null) {
+            unset($_SERVER['AWS_ROOT'], $_ENV['AWS_ROOT']);
+        } else {
+            $_SERVER['AWS_ROOT'] = $_ENV['AWS_ROOT'] = $original;
+        }
+    }
+});
+
+test('the s3 disk falls back to the bucket root when AWS_ROOT is unset', function () {
+    $original = $_SERVER['AWS_ROOT'] ?? null;
+    unset($_SERVER['AWS_ROOT'], $_ENV['AWS_ROOT']);
+
+    try {
+        $filesystems = require base_path('config/filesystems.php');
+
+        expect($filesystems['disks']['s3']['root'])->toBe('');
+    } finally {
+        if ($original !== null) {
+            $_SERVER['AWS_ROOT'] = $_ENV['AWS_ROOT'] = $original;
+        }
+    }
+});
