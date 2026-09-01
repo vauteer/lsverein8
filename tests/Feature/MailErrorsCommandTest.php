@@ -18,11 +18,21 @@ function mailedTo(): array
         ->all();
 }
 
+/**
+ * The first mail as one searchable string, HTML and text part alike.
+ *
+ * The parts travel quoted-printable, which wraps long lines, so the encoding
+ * is undone before anything is looked for.
+ */
 function mailedBody(): string
 {
     $messages = collect(app('mailer')->getSymfonyTransport()->messages());
 
-    return $messages->isEmpty() ? '' : $messages->first()->toString();
+    if ($messages->isEmpty()) {
+        return '';
+    }
+
+    return quoted_printable_decode(str_replace("=\r\n", '', $messages->first()->toString()));
 }
 
 test('nothing is sent when there are no errors', function () {
@@ -91,7 +101,7 @@ test('a long list is capped and says how many were left out', function () {
     $body = mailedBody();
     expect($body)->toContain('error number 50');
     expect($body)->not->toContain('error number 51');
-    expect($body)->toContain('... and 10 more.');
+    expect($body)->toContain('and 10 more');
 });
 
 test('the exception blob is left off the mailed lines', function () {
@@ -102,7 +112,7 @@ test('the exception blob is left off the mailed lines', function () {
 
     $this->artisan('app:mail-errors')->assertExitCode(0);
 
-    expect(mailedBody())->toContain('ERROR Boom');
+    expect(mailedBody())->toContain('Boom');
     expect(mailedBody())->not->toContain('[object]');
 });
 
@@ -116,4 +126,37 @@ test('it reports when there is no admin to mail to', function () {
         ->assertExitCode(1);
 
     expect(mailedTo())->toBe([]);
+});
+
+test('the mail is a formatted digest, not a plain log dump', function () {
+    User::factory()->create(['admin' => true]);
+
+    writeLog(logEntry(now()->subHours(2), 'ERROR', 'a *starred* | piped message'));
+
+    $this->artisan('app:mail-errors')->assertExitCode(0);
+
+    $body = mailedBody();
+    expect($body)->toContain('Content-Type: text/html');
+    expect($body)->toContain('Content-Type: text/plain');
+    expect($body)->toContain('1 error(s) in the last 24 hours');
+    expect($body)->toContain('Message');
+    expect($body)->toContain('Open the dashboard');
+    // The message travels through the markdown parser untouched.
+    expect($body)->toContain('a *starred* | piped message');
+});
+
+test('the levels are summarized when more than one was logged', function () {
+    User::factory()->create(['admin' => true]);
+
+    writeLog(logEntry(now()->subHours(2), 'ERROR', 'the ordinary one')
+        .logEntry(now()->subHour(), 'CRITICAL', 'the grave one'));
+
+    $this->artisan('app:mail-errors')
+        ->expectsOutputToContain('2 error(s) mailed to 1 admin(s).')
+        ->assertExitCode(0);
+
+    $body = mailedBody();
+    expect($body)->toContain('2 error(s) in the last 24 hours');
+    expect($body)->toContain('CRITICAL');
+    expect($body)->toContain('ERROR');
 });

@@ -3,14 +3,17 @@
 namespace App\Console\Commands;
 
 use App\ErrorLog;
+use App\Mail\ErrorDigest;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Illuminate\Mail\Message;
 use Illuminate\Support\Facades\Mail;
 
+/**
+ * @phpstan-import-type Entry from ErrorLog
+ */
 #[Signature('app:mail-errors')]
 #[Description('Mail the errors of the last 24 hours to the admins')]
 class MailErrorsCommand extends Command
@@ -28,14 +31,20 @@ class MailErrorsCommand extends Command
      */
     public function handle(): int
     {
-        $lines = [];
+        $since = Carbon::now()->subDay();
+
+        /** @var list<Entry> $entries */
+        $entries = [];
+        /** @var array<string, int> $levels */
+        $levels = [];
         $count = 0;
 
-        foreach (ErrorLog::entries(Carbon::now()->subDay()) as $entry) {
+        foreach (ErrorLog::entries($since) as $entry) {
             $count++;
+            $levels[$entry['level']] = ($levels[$entry['level']] ?? 0) + 1;
 
             if ($count <= self::MAX_LINES) {
-                $lines[] = ErrorLog::line($entry);
+                $entries[] = $entry;
             }
         }
 
@@ -43,10 +52,6 @@ class MailErrorsCommand extends Command
             $this->info('No errors in the last 24 hours.');
 
             return self::SUCCESS;
-        }
-
-        if ($count > self::MAX_LINES) {
-            $lines[] = '... and '.($count - self::MAX_LINES).' more.';
         }
 
         $admins = User::where('admin', true)->get();
@@ -57,13 +62,8 @@ class MailErrorsCommand extends Command
             return self::FAILURE;
         }
 
-        $subject = config('app.name').": {$count} error(s) in the last 24 hours";
-        $body = implode(PHP_EOL, $lines);
-
-        // Plain text on purpose: log lines are not prose, and a markdown mail
-        // would mangle the paths and quoting in them.
         foreach ($admins as $admin) {
-            Mail::raw($body, fn (Message $message) => $message->to($admin->email)->subject($subject));
+            Mail::to($admin)->send(new ErrorDigest($entries, $count, $levels, $since));
         }
 
         $this->info("{$count} error(s) mailed to {$admins->count()} admin(s).");

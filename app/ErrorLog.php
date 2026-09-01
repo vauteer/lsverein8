@@ -104,12 +104,22 @@ class ErrorLog
     }
 
     /**
+     * The message of an entry. Unless the whole message is asked for, the
+     * trailing {"exception":"[object] (...)"} blob is cut, because it repeats
+     * the message and buries it.
+     *
+     * @param  Entry  $entry
+     */
+    public static function message(array $entry, bool $whole = false): string
+    {
+        return $whole ? $entry['message'] : Str::before($entry['message'], ' {"exception":');
+    }
+
+    /**
      * The one-line form of an entry.
      *
      * No column padding: the console collapses runs of spaces, so the
-     * fixed-width timestamp is the only alignment on offer. Unless the whole
-     * message is asked for, the trailing {"exception":"[object] (...)"} blob is
-     * cut, because it repeats the message and buries it.
+     * fixed-width timestamp is the only alignment on offer.
      *
      * @param  Entry  $entry
      */
@@ -118,7 +128,7 @@ class ErrorLog
         return sprintf('%s %s %s',
             $entry['date']->format('Y-m-d H:i:s'),
             $entry['level'],
-            $whole ? $entry['message'] : Str::before($entry['message'], ' {"exception":')
+            self::message($entry, $whole)
         );
     }
 }
