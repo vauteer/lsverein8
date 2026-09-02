@@ -78,6 +78,7 @@ class Club extends Model
     {
         return [
             'blsv_member' => 'boolean',
+            'use_items' => 'boolean',
             'sepa_mandate_date' => 'datetime',
             'sepa_lead_days' => 'integer',
             'identity_display' => ClubIdentityDisplay::class,

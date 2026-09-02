@@ -13,6 +13,20 @@ trait ClubValidationRules
     use ValidatesIban;
 
     /**
+     * Normalize the checkbox fields before validation: unchecked checkboxes
+     * are simply absent from the request, and reka-ui's Checkbox submits
+     * "on" (not "1"/"true") when checked, which Laravel's boolean rule
+     * rejects.
+     */
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'blsv_member' => $this->boolean('blsv_member'),
+            'use_items' => $this->boolean('use_items'),
+        ]);
+    }
+
+    /**
      * Get the validation rules used to validate a club.
      *
      * `logo` is the uploaded file, not the stored filename — the controller

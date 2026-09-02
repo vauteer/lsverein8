@@ -198,7 +198,7 @@ class MemberController extends Controller
         $modifiable = $request->user()->can('update', $member);
         // Subscriptions are a treasurer's business, same rule the index uses.
         $showsFinances = (bool) $request->user()->hasAdminRights();
-        $usesItems = (bool) currentClub()->use_items;
+        $usesItems = currentClub()->use_items;
 
         return Inertia::render('members/Show', [
             'member' => [

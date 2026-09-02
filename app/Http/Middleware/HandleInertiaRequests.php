@@ -90,7 +90,7 @@ class HandleInertiaRequests extends Middleware
                 'show_name' => $currentClub->identity_display->showsName(),
                 // The inventory is opt-in per club, so the sidebar entry only
                 // appears where ItemPolicy would let the screens open.
-                'uses_items' => (bool) $currentClub->use_items,
+                'uses_items' => $currentClub->use_items,
             ],
             // The clubs this user may switch between, for the sidebar picker.
             // Only their own memberships: a root account switches to a club it

@@ -213,6 +213,28 @@ test('the club sets its own SEPA lead time', function () {
     expect($this->club->refresh()->sepa_lead_days)->toBe(14);
 });
 
+test('the checkbox fields accept "on" and clear when absent', function () {
+    $this->actingAs(clubManagementUser());
+    $this->club->update(['blsv_member' => true, 'use_items' => true]);
+
+    // reka-ui's Checkbox submits "on", which the boolean rule would reject.
+    $this->put(route('clubs.update', $this->club), clubPayload([
+        'blsv_member' => 'on',
+        'use_items' => 'on',
+    ]))->assertSessionHasNoErrors();
+
+    expect($this->club->refresh()->blsv_member)->toBeTrue()
+        ->and($this->club->use_items)->toBeTrue();
+
+    // An unchecked box is simply absent from the request, and has to clear
+    // the flag rather than leave the old value standing.
+    $this->put(route('clubs.update', $this->club), clubPayload())
+        ->assertSessionHasNoErrors();
+
+    expect($this->club->refresh()->blsv_member)->toBeFalse()
+        ->and($this->club->use_items)->toBeFalse();
+});
+
 test('the iban is normalized and checksum validated', function () {
     $this->actingAs(clubManagementUser(attributes: ['admin' => true]));
 

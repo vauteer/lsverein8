@@ -61,8 +61,6 @@ const identityDisplay = ref(
     String(props.club?.identity_display ?? props.identityDisplays[0].id),
 );
 const locale = ref(props.club?.locale ?? props.languages[0].id);
-const blsvMember = ref(props.club?.blsv_member ?? false);
-const useItems = ref(props.club?.use_items ?? false);
 </script>
 
 <template>
@@ -337,29 +335,27 @@ const useItems = ref(props.club?.use_items ?? false);
 
         <div class="grid gap-3">
             <div class="flex items-center gap-2">
-                <Checkbox id="blsv_member" v-model="blsvMember" />
+                <Checkbox
+                    id="blsv_member"
+                    name="blsv_member"
+                    :default-value="club?.blsv_member ?? false"
+                />
                 <Label for="blsv_member" class="font-normal">
                     {{ $t('BLSV member') }}
                 </Label>
             </div>
-            <input
-                type="hidden"
-                name="blsv_member"
-                :value="blsvMember ? '1' : '0'"
-            />
             <InputError :message="errors.blsv_member" />
 
             <div class="flex items-center gap-2">
-                <Checkbox id="use_items" v-model="useItems" />
+                <Checkbox
+                    id="use_items"
+                    name="use_items"
+                    :default-value="club?.use_items ?? false"
+                />
                 <Label for="use_items" class="font-normal">
                     {{ $t('Use inventory') }}
                 </Label>
             </div>
-            <input
-                type="hidden"
-                name="use_items"
-                :value="useItems ? '1' : '0'"
-            />
             <InputError :message="errors.use_items" />
         </div>
     </div>

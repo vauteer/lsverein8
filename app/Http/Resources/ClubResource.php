@@ -26,7 +26,7 @@ class ClubResource extends JsonResource
             'name' => $this->name,
             'city' => $this->city,
             'logo_url' => $this->logoURL(),
-            'blsv_member' => (bool) $this->blsv_member,
+            'blsv_member' => $this->blsv_member,
             // Current members only, matching the member list's default
             // selection — which the number links to, but only on the row of
             // the club the viewer is actually working in.
