@@ -37,6 +37,12 @@ it('generates the SEPA xml and the pdf cover sheet', function () {
     $pdf = file_get_contents(storage_path("downloads/{$this->club->id}_Abbuchungen.pdf"));
 
     expect($xml)->toContain('<?xml version="1.0" encoding="utf-8"?>')
+        // pain.008.001.02 wird am 14.11.2026 abgeschaltet; die Banken nehmen dann
+        // nur noch .08 an, wo der BIC BICFI heisst.
+        ->and($xml)->toContain('urn:iso:std:iso:20022:tech:xsd:pain.008.001.08')
+        ->and($xml)->not->toContain('pain.008.001.02')
+        ->and($xml)->toContain('<BICFI>COBADEFFXXX</BICFI>')
+        ->and($xml)->not->toContain('<BIC>')
         ->and($xml)->toContain('DE89370400440532013000')
         ->and($xml)->toContain('42.50')
         // <AJ>/<VN>/<NN> are replaced with year, first name and surname

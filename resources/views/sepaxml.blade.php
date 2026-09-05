@@ -1,5 +1,8 @@
 {!! $header !!}
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.008.001.02" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:iso:std:iso:20022:tech:xsd:pain.008.001.02 pain.008.001.02.xsd">
+{{-- pain.008.001.08 (DK Anlage 3, GBIC_4) loest pain.008.001.02 ab; ab 14.11.2026 nehmen
+     die Banken nur noch diese Fassung an. Gegenueber .02 aendert sich am Aufbau nur
+     der Namensraum und BIC heisst jetzt BICFI. --}}
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.008.001.08" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:iso:std:iso:20022:tech:xsd:pain.008.001.08 pain.008.001.08.xsd">
     <CstmrDrctDbtInitn>
         <GrpHdr>
             <MsgId>{{ $msgId }}</MsgId>
@@ -36,7 +39,7 @@
             </CdtrAcct>
             <CdtrAgt>
                 <FinInstnId>
-                    <BIC>{{ $bic }}</BIC>
+                    <BICFI>{{ $bic }}</BICFI>
                 </FinInstnId>
             </CdtrAgt>
             <ChrgBr>SLEV</ChrgBr>
@@ -67,7 +70,7 @@
                     </DrctDbtTx>
                     <DbtrAgt>
                         <FinInstnId>
-                            <BIC>{{ $payment['bic'] }}</BIC>
+                            <BICFI>{{ $payment['bic'] }}</BICFI>
                         </FinInstnId>
                     </DbtrAgt>
                     <Dbtr>

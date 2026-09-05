@@ -19,3 +19,4 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Pdf/** | .ai/rules/pdf.md |
 | app/Http/Controllers/Settings/** | .ai/rules/settings.md |
 | tests/** | .ai/rules/tests.md |
+| resources/views/sepaxml.blade.php | .ai/rules/views.md |
