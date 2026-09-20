@@ -27,10 +27,12 @@ const switchableClubs = computed(() => page.props.switchableClubs ?? []);
     <div v-if="currentClub">
         <!-- px-3, not the button's px-2: the wordmark SVG carries ~4px of
         leading whitespace before the glyph's stroke begins, so the avatar
-        needs the same 12px inset to line up with it. -->
+        needs the same 12px inset to line up with it. Collapsed there is no
+        wordmark and only a 32px rail, which a 24px avatar at 12px would
+        overrun, so it centres there like every other icon in the rail. -->
         <div
             v-if="switchableClubs.length === 0"
-            class="flex items-center gap-2 px-3 py-1"
+            class="flex items-center gap-2 px-3 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
             <ClubIdentity :club="currentClub" />
         </div>
@@ -39,7 +41,7 @@ const switchableClubs = computed(() => page.props.switchableClubs ?? []);
             <DropdownMenuTrigger as-child>
                 <button
                     type="button"
-                    class="flex w-full items-center gap-2 rounded-md px-3 py-1 text-left hover:bg-sidebar-accent"
+                    class="flex w-full items-center gap-2 rounded-md px-3 py-1 text-left group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 hover:bg-sidebar-accent"
                     :aria-label="$t('Switch club')"
                 >
                     <ClubIdentity :club="currentClub" />
