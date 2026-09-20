@@ -49,7 +49,11 @@ import type { NavItem } from '@/types';
 
 const page = usePage();
 
-const { isMobile, setOpenMobile } = useSidebar();
+const { isMobile, setOpenMobile, state } = useSidebar();
+
+const showIconOnlyLogo = computed(
+    () => state.value === 'collapsed' && !isMobile.value,
+);
 
 // Closes the mobile sidebar sheet after any navigation, so picking a menu
 // item doesn't leave it covering the page it just opened. Same fix as
@@ -216,7 +220,7 @@ const mainNavItems = computed<NavItem[]>(() => [
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
                         <Link :href="dashboard()">
-                            <AppLogo />
+                            <AppLogo :icon-only="showIconOnlyLogo" />
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
